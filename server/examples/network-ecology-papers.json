@@ -1,0 +1,166 @@
+[
+  {
+    "id": "W2122184339",
+    "title": "Stability of Ecological Communities and the Architecture of Mutualistic and Trophic Networks",
+    "year": 2010,
+    "doi": "https://doi.org/10.1126/science.1188321",
+    "url": "https://openalex.org/W2122184339",
+    "authors": ["Élisa Thébault", "Colin Fontaine"],
+    "abstract": "Research on the relationship between the architecture of ecological networks and community stability has mainly focused on one type of interaction at a time, making difficult any comparison between different network types. We used a theoretical approach to show that the network architecture favoring stability fundamentally differs between trophic and mutualistic networks. A highly connected and nested architecture promotes community stability in mutualistic networks, whereas the stability of trophic networks is enhanced in compartmented and weakly connected architectures. These theoretical predictions are supported by a meta-analysis on the architecture of a large series of real pollination (mutualistic) and herbivory (trophic) networks. We conclude that strong variations in the stability of architectural patterns constrain ecological networks toward different architectures, depending on the type of interaction.",
+    "passages": [
+      {
+        "id": "W2122184339:abstract:1ee477214d87:1",
+        "text": "Research on the relationship between the architecture of ecological networks and community stability has mainly focused on one type of interaction at a time, making difficult any comparison between different network types."
+      },
+      {
+        "id": "W2122184339:abstract:1ee477214d87:2",
+        "text": "We used a theoretical approach to show that the network architecture favoring stability fundamentally differs between trophic and mutualistic networks."
+      },
+      {
+        "id": "W2122184339:abstract:1ee477214d87:3",
+        "text": "A highly connected and nested architecture promotes community stability in mutualistic networks, whereas the stability of trophic networks is enhanced in compartmented and weakly connected architectures."
+      },
+      {
+        "id": "W2122184339:abstract:1ee477214d87:4",
+        "text": "These theoretical predictions are supported by a meta-analysis on the architecture of a large series of real pollination (mutualistic) and herbivory (trophic) networks."
+      },
+      {
+        "id": "W2122184339:abstract:1ee477214d87:5",
+        "text": "We conclude that strong variations in the stability of architectural patterns constrain ecological networks toward different architectures, depending on the type of interaction."
+      }
+    ],
+    "retrievedAt": "2026-10-24T17:37:53.879Z",
+    "coverage": "Abstract only"
+  },
+  {
+    "id": "W4391019495",
+    "title": "The structure and robustness of ecological networks with two interaction types",
+    "year": 2024,
+    "doi": "https://doi.org/10.1371/journal.pcbi.1011770",
+    "url": "https://openalex.org/W4391019495",
+    "authors": ["Virginia Domínguez‐García", "Sonia Kéfi"],
+    "abstract": "Until recently, most ecological network analyses investigating the effects of species' declines and extinctions have focused on a single type of interaction (e.g. feeding). In nature, however, diverse interactions co-occur, each of them forming a layer of a 'multilayer' network. Data including information on multiple interaction types has recently started to emerge, giving us the opportunity to have a first glance at possible commonalities in the structure of these networks. We studied the structural features of 44 tripartite ecological networks from the literature, each composed of two layers of interactions (e.g. herbivory and pollination), and investigated their robustness to species losses. Considering two interactions simultaneously, we found that the robustness of the whole community is a combination of the robustness of the two ecological networks composing it. The way in which the layers of interactions are connected to each other affects the interdependence of their robustness. In many networks, this interdependence is low, suggesting that restoration efforts would not automatically propagate through the whole community. Our results highlight the importance of considering multiple interactions simultaneously to better gauge the robustness of ecological communities to species loss and to more reliably identify key species that are important for the persistence of ecological communities.",
+    "passages": [
+      {
+        "id": "W4391019495:abstract:0c55544d3318:1",
+        "text": "Until recently, most ecological network analyses investigating the effects of species' declines and extinctions have focused on a single type of interaction (e.g. feeding)."
+      },
+      {
+        "id": "W4391019495:abstract:0c55544d3318:2",
+        "text": "In nature, however, diverse interactions co-occur, each of them forming a layer of a 'multilayer' network."
+      },
+      {
+        "id": "W4391019495:abstract:0c55544d3318:3",
+        "text": "Data including information on multiple interaction types has recently started to emerge, giving us the opportunity to have a first glance at possible commonalities in the structure of these networks."
+      },
+      {
+        "id": "W4391019495:abstract:0c55544d3318:4",
+        "text": "We studied the structural features of 44 tripartite ecological networks from the literature, each composed of two layers of interactions (e.g. herbivory and pollination), and investigated their robustness to species losses."
+      },
+      {
+        "id": "W4391019495:abstract:0c55544d3318:5",
+        "text": "Considering two interactions simultaneously, we found that the robustness of the whole community is a combination of the robustness of the two ecological networks composing it."
+      },
+      {
+        "id": "W4391019495:abstract:0c55544d3318:6",
+        "text": "The way in which the layers of interactions are connected to each other affects the interdependence of their robustness."
+      },
+      {
+        "id": "W4391019495:abstract:0c55544d3318:7",
+        "text": "In many networks, this interdependence is low, suggesting that restoration efforts would not automatically propagate through the whole community."
+      },
+      {
+        "id": "W4391019495:abstract:0c55544d3318:8",
+        "text": "Our results highlight the importance of considering multiple interactions simultaneously to better gauge the robustness of ecological communities to species loss and to more reliably identify key species that are important for the persistence of ecological communities."
+      }
+    ],
+    "retrievedAt": "2026-10-24T17:37:54.627Z",
+    "coverage": "Abstract only"
+  },
+  {
+    "id": "W2070207525",
+    "title": "Network Robustness and Fragility: Percolation on Random Graphs",
+    "year": 2000,
+    "doi": "https://doi.org/10.1103/physrevlett.85.5468",
+    "url": "https://openalex.org/W2070207525",
+    "authors": [
+      "Duncan S. Callaway",
+      "Mark E. J. Newman",
+      "Steven H. Strogatz"
+    ],
+    "abstract": "Recent work on the Internet, social networks, and the power grid has addressed the resilience of these networks to either random or targeted deletion of network nodes or links. Such deletions include, for example, the failure of Internet routers or power transmission lines. Percolation models on random graphs provide a simple representation of this process but have typically been limited to graphs with Poisson degree distribution at their vertices. Such graphs are quite unlike real-world networks, which often possess power-law or other highly skewed degree distributions. In this paper we study percolation on graphs with completely general degree distribution, giving exact solutions for a variety of cases, including site percolation, bond percolation, and models in which occupation probabilities depend on vertex degree. We discuss the application of our theory to the understanding of network resilience.",
+    "passages": [
+      {
+        "id": "W2070207525:abstract:779823b795b2:1",
+        "text": "Recent work on the Internet, social networks, and the power grid has addressed the resilience of these networks to either random or targeted deletion of network nodes or links."
+      },
+      {
+        "id": "W2070207525:abstract:779823b795b2:2",
+        "text": "Such deletions include, for example, the failure of Internet routers or power transmission lines."
+      },
+      {
+        "id": "W2070207525:abstract:779823b795b2:3",
+        "text": "Percolation models on random graphs provide a simple representation of this process but have typically been limited to graphs with Poisson degree distribution at their vertices."
+      },
+      {
+        "id": "W2070207525:abstract:779823b795b2:4",
+        "text": "Such graphs are quite unlike real-world networks, which often possess power-law or other highly skewed degree distributions."
+      },
+      {
+        "id": "W2070207525:abstract:779823b795b2:5",
+        "text": "In this paper we study percolation on graphs with completely general degree distribution, giving exact solutions for a variety of cases, including site percolation, bond percolation, and models in which occupation probabilities depend on vertex degree."
+      },
+      {
+        "id": "W2070207525:abstract:779823b795b2:6",
+        "text": "We discuss the application of our theory to the understanding of network resilience."
+      }
+    ],
+    "retrievedAt": "2026-10-24T17:37:55.153Z",
+    "coverage": "Abstract only"
+  },
+  {
+    "id": "W3103071483",
+    "title": "Error and attack tolerance of complex networks",
+    "year": 2000,
+    "doi": null,
+    "url": "https://openalex.org/W3103071483",
+    "authors": ["Réka Albert", "Hawoong Jeong", "Albert-Ĺaszló Barabási"],
+    "abstract": "Abstract Many complex systems display a surprising degree of tolerance against errors. For example, relatively simple organisms grow, persist and reproduce despite drastic pharmaceutical or environmental interventions, an error tolerance attributed to the robustness of the underlying metabolic network1. Complex communication networks2 display a surprising degree of robustness: although key components regularly malfunction, local failures rarely lead to the loss of the global information-carrying ability of the network. The stability of these and other complex systems is often attributed to the redundant wiring of the functional web defined by the systems' components. Here we demonstrate that error tolerance is not shared by all redundant systems: it is displayed only by a class of inhomogeneously wired networks, called scale-free networks, which include the World-Wide Web3, 4, 5, the Internet6, social networks7 and cells8. We find that such networks display an unexpected degree of robustness, the ability of their nodes to communicate being unaffected even by unrealistically high failure rates. However, error tolerance comes at a high price in that these networks are extremely vulnerable to attacks (that is, to the selection and removal of a few nodes that play a vital role in maintaining the network's connectivity). Such error tolerance and attack vulnerability are generic properties of communication networks.",
+    "passages": [
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:1",
+        "text": "Abstract Many complex systems display a surprising degree of tolerance against errors."
+      },
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:2",
+        "text": "For example, relatively simple organisms grow, persist and reproduce despite drastic pharmaceutical or environmental interventions, an error tolerance attributed to the robustness of the underlying metabolic network1."
+      },
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:3",
+        "text": "Complex communication networks2 display a surprising degree of robustness: although key components regularly malfunction, local failures rarely lead to the loss of the global information-carrying ability of the network."
+      },
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:4",
+        "text": "The stability of these and other complex systems is often attributed to the redundant wiring of the functional web defined by the systems' components."
+      },
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:5",
+        "text": "Here we demonstrate that error tolerance is not shared by all redundant systems: it is displayed only by a class of inhomogeneously wired networks, called scale-free networks, which include the World-Wide Web3, 4, 5, the Internet6, social networks7 and cells8."
+      },
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:6",
+        "text": "We find that such networks display an unexpected degree of robustness, the ability of their nodes to communicate being unaffected even by unrealistically high failure rates."
+      },
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:7",
+        "text": "However, error tolerance comes at a high price in that these networks are extremely vulnerable to attacks (that is, to the selection and removal of a few nodes that play a vital role in maintaining the network's connectivity)."
+      },
+      {
+        "id": "W3103071483:abstract:aef548eb0d66:8",
+        "text": "Such error tolerance and attack vulnerability are generic properties of communication networks."
+      }
+    ],
+    "retrievedAt": "2026-10-24T17:37:55.783Z",
+    "coverage": "Abstract only"
+  }
+]
