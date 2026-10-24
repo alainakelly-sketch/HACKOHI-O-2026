@@ -12,8 +12,7 @@ const papers = Array.from({ length: 4 }, (_, i) =>
 );
 const brief = {
   question: 'Synthetic test question',
-  fieldA: 'Synthetic A',
-  fieldB: 'Synthetic B',
+  field: 'Synthetic test field',
   resources: { data: '', equipment: '', skills: '', deadline: '' },
 };
 afterEach(() => vi.unstubAllEnvs());
@@ -58,6 +57,35 @@ describe('API boundaries and credentials', () => {
       .send({ brief, paperIds: ['W1', 'W2', 'W3', 'W4'] });
     expect(res.status).toBe(409);
     expect(analyze).not.toHaveBeenCalled();
+  });
+  it('accepts a single research field without requiring a second field', async () => {
+    const analyze = vi.fn().mockResolvedValue({
+      origin: 'live',
+      status: 'insufficient',
+      summary: 'Synthetic source-supported uncertainty',
+      hypotheses: [],
+    });
+    const app = createApp({
+      search: async () => ({ query: 'test', papers, retrievedAt: 'test' }),
+      analyze,
+    });
+    await request(app).get('/api/search?q=test');
+    const res = await request(app)
+      .post('/api/analyze')
+      .send({ brief, paperIds: papers.map((p) => p.id) });
+    expect(res.status).toBe(200);
+    expect(analyze.mock.calls[0][0]).toEqual(brief);
+    expect(analyze.mock.calls[0][0]).not.toHaveProperty('fieldB');
+  });
+  it('requires the one field rather than accepting only obsolete field A/B inputs', async () => {
+    const { field: _field, ...rest } = brief;
+    const res = await request(createApp())
+      .post('/api/analyze')
+      .send({
+        brief: { ...rest, fieldA: 'Old A', fieldB: 'Old B' },
+        paperIds: papers.map((p) => p.id),
+      });
+    expect(res.status).toBe(400);
   });
   it('rejects duplicate selected paper IDs', async () => {
     const res = await request(createApp())

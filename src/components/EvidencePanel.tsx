@@ -88,17 +88,15 @@ export function EvidencePanel({
     <aside className="panel evidence-panel" aria-labelledby="evidence-title">
       <h2 id="evidence-title">Evidence & limitations</h2>
       {!hypothesis ? (
-        <Empty
-          title="Choose a connection to inspect"
-          icon={<FileText size={30} />}
-        >
+        <Empty title="Inspect a gap hypothesis" icon={<FileText size={30} />}>
           Use “Compare source text” to read papers for free. Optional AI
           connection passages, assumptions and unknowns appear here.
         </Empty>
       ) : (
         <div className="evidence-content">
           <p className="evidence-intro">
-            A matching passage does not prove the interpretation is correct.
+            Scope: {brief.field}. A matching passage does not prove a gap exists
+            or that the interpretation is correct.
           </p>
           <div className="evidence-section">
             <h3>Supporting passages</h3>
@@ -112,13 +110,13 @@ export function EvidencePanel({
           </div>
           <div className="inference">
             <div className="source-label">PAPERBRIDGE INFERS</div>
-            <h3>What each field contributes</h3>
-            <h4>{brief.fieldA}</h4>
-            <p>{hypothesis.contributionA}</p>
-            <h4>{brief.fieldB}</h4>
-            <p>{hypothesis.contributionB}</p>
-            <h4>What might transfer</h4>
-            <p>{hypothesis.transfer}</p>
+            <h3>Evidence and the proposed gap</h3>
+            <h4>What the selected sources support</h4>
+            <p>{hypothesis.evidenceSummary}</p>
+            <h4>Why this may be worth investigating</h4>
+            <p>{hypothesis.gapRationale}</p>
+            <h4>Proposed approach</h4>
+            <p>{hypothesis.proposedApproach}</p>
           </div>
           <div className="hypothesis-note">
             <div className="source-label">UNTESTED HYPOTHESIS</div>

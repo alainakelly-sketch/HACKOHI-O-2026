@@ -6,13 +6,14 @@ export function canLoadFullText(paper: Paper) {
 }
 export function comparisonPassages(
   paper: Paper,
-  mode: 'abstract' | 'methods' | 'findings' | 'all',
+  mode: 'body' | 'abstract' | 'methods' | 'findings' | 'all',
   query: string,
 ): Passage[] {
   const keyword = query.trim().toLocaleLowerCase();
   return paper.passages.filter((p) => {
     const kind = p.kind ?? 'abstract';
     const section = (p.section ?? '').toLowerCase();
+    if (mode === 'body' && kind !== 'full-text') return false;
     if (mode === 'abstract' && kind !== 'abstract') return false;
     if (
       mode === 'methods' &&

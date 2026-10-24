@@ -8,10 +8,8 @@ export function priorQueries(brief: Brief, hypothesis: Hypothesis) {
   // Fixed, visible queries: no model-generated paper references or novelty scoring.
   return [
     ...new Set([
-      `${brief.fieldA} ${brief.fieldB}`.trim(),
-      `${brief.fieldA} ${brief.fieldB} ${hypothesis.title}`
-        .trim()
-        .slice(0, 400),
+      `${brief.field} ${brief.question}`.trim().slice(0, 400),
+      `${brief.field} ${hypothesis.title}`.trim().slice(0, 400),
     ]),
   ];
 }

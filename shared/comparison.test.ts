@@ -1,5 +1,8 @@
 // SYNTHETIC TEST PAPERS ONLY. These records are not used by the application.
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { ComparisonPanel } from '../src/components/ComparisonPanel';
 import type { Paper } from './types';
 import { canLoadFullText, comparisonPassages } from './comparison';
 const paper: Paper = {
@@ -45,6 +48,23 @@ describe('free comparison uses stored source text, not generated claims', () => 
     expect(comparisonPassages(paper, 'abstract', '').map((p) => p.id)).toEqual([
       'TEST1:abstract:1',
     ]);
+  });
+  it('defaults to body-only text without substituting abstracts', () => {
+    expect(comparisonPassages(paper, 'body', '').map((p) => p.id)).toEqual([
+      'TEST1:full:1',
+      'TEST1:full:2',
+      'TEST1:full:3',
+      'TEST1:full:4',
+    ]);
+    const abstractOnly = {
+      ...paper,
+      coverage: 'Abstract only' as const,
+      passages: [paper.passages[0]],
+    };
+    expect(comparisonPassages(abstractOnly, 'body', '')).toEqual([]);
+    expect(comparisonPassages(abstractOnly, 'abstract', '')[0].text).toBe(
+      'Synthetic abstract.',
+    );
   });
   it('uses source headings to select methods and findings, without guessing content', () => {
     expect(comparisonPassages(paper, 'methods', '').map((p) => p.id)).toEqual([
@@ -92,5 +112,99 @@ describe('free comparison uses stored source text, not generated claims', () => 
         },
       }),
     ).toBe(false);
+  });
+});
+
+describe('reader defaults prevent abstract-only confusion', () => {
+  const fullText = {
+    provider: 'Europe PMC' as const,
+    url: 'https://example.invalid/source',
+    license: null,
+    retrievedAt: 'test',
+    note: 'Synthetic body extraction.',
+    truncated: false,
+  };
+  function render(
+    papers: Paper[],
+    busy = new Set<string>(),
+    errors: Record<string, string> = {},
+  ) {
+    return renderToStaticMarkup(
+      createElement(ComparisonPanel, {
+        papers,
+        busy,
+        errors,
+        onLoad: () => {},
+        onExport: () => {},
+      }),
+    );
+  }
+  it('opens a single selected paper immediately so its article body can be read', () => {
+    const html = render([{ ...paper, fullText }]);
+    expect(html.match(/class="comparison-paper"/g)).toHaveLength(1);
+    expect(html).toContain('A synthetic graph method.');
+    expect(html).not.toContain('Synthetic abstract.');
+    expect(html).toContain('1 of 1 selected paper has article-body');
+  });
+  it('opens for two sources immediately and renders body text instead of available abstracts', () => {
+    const first = { ...paper, fullText };
+    const second = {
+      ...first,
+      id: 'TEST2',
+      passages: first.passages.map((p) => ({
+        ...p,
+        id: p.id.replace('TEST1', 'TEST2'),
+      })),
+    };
+    const html = render([first, second]);
+    expect(html.match(/class="comparison-paper"/g)).toHaveLength(2);
+    expect(html).toContain('A synthetic graph method.');
+    expect(html).not.toContain('Synthetic abstract.');
+    expect(html).toContain('2 of 2 selected papers have article-body');
+  });
+  it('shows a retrieving state and never renders an abstract as body text', () => {
+    const pending = {
+      ...paper,
+      id: 'PENDING',
+      fullText: undefined,
+      coverage: 'Abstract only' as const,
+      identifiers: { pmcid: 'PMC9' },
+      passages: [
+        { id: 'PENDING:abstract:1', text: 'Synthetic hidden abstract.' },
+      ],
+    };
+    const html = render(
+      [pending, { ...pending, id: 'PENDING2' }],
+      new Set(['PENDING']),
+    );
+    expect(html).toContain('Retrieving article-body text');
+    expect(html).toContain('Article body is not available here yet');
+    expect(html).not.toContain('Synthetic hidden abstract.');
+  });
+  it('distinguishes unsupported formats from failed imports', () => {
+    const unsupported = {
+      ...paper,
+      id: 'UNSUPPORTED',
+      fullText: undefined,
+      passages: [],
+      freeCopies: [
+        {
+          url: 'https://example.invalid/free.pdf',
+          format: 'PDF' as const,
+          via: 'Synthetic test repository',
+        },
+      ],
+    };
+    const failed = {
+      ...unsupported,
+      id: 'FAILED',
+      identifiers: { pmcid: 'PMC9' },
+    };
+    const html = render([unsupported, failed], new Set(), {
+      FAILED: 'Synthetic retrieval error',
+    });
+    expect(html).toContain('In-app article body unavailable for this record');
+    expect(html).toContain('Body retrieval failed');
+    expect(html).toContain('Synthetic retrieval error');
   });
 });

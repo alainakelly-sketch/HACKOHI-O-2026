@@ -11,9 +11,8 @@ function ref(paper: Paper, begins: string) {
 }
 export const exampleBrief: Brief = {
   question:
-    'Can network-removal simulations help compare vulnerability across ecological interaction types?',
-  fieldA: 'Network science',
-  fieldB: 'Ecology',
+    'Which ecological interaction layers are most sensitive to random versus targeted species removal?',
+  field: 'Network ecology',
   resources: {
     data: 'Public ecological networks, if access and licensing permit',
     equipment: 'Laptop',
@@ -28,19 +27,19 @@ const prepared = validateAnalysis(
   {
     status: 'connections',
     summary:
-      'Saved, manually prepared example: network-removal ideas may help explore ecological robustness, but interaction type matters. This is not a live model response or a claim of novelty.',
+      'Saved, manually prepared example within network ecology: the selected abstracts motivate a possible sensitivity comparison. This is a lead for further reading, not an established research gap, a live model response, or a claim of novelty.',
     hypotheses: [
       {
         id: 'network-ecology-1',
         title: 'Compare removal sensitivity across interaction layers',
         hypothesis:
           'The contrast between random and high-degree species removal may vary by ecological interaction layer. A small simulation can test this as a structural proxy, not a prediction of real extinctions.',
-        contributionA:
-          'The network-science abstracts describe random/targeted deletion and percolation models for reasoning about connectivity and resilience.',
-        contributionB:
-          'The ecology abstracts report interaction-dependent architecture and that connections between interaction layers affect their robustness interdependence.',
-        transfer:
-          'Try the random-versus-targeted removal comparison on typed ecological interaction layers. Whether connectivity captures ecological persistence is an assumption to test, not a statement established by these passages.',
+        evidenceSummary:
+          'The selected sources describe random/targeted deletion, percolation, and interaction-dependent ecological architecture. These are source-supported starting points for a within-field question.',
+        gapRationale:
+          'These abstracts do not establish whether a small targeted-versus-random removal contrast is already fully resolved for the specific networks and modelling assumptions the team plans to use. The cited ecological studies may already address much of this question; inspect full methods and later work before calling it a gap.',
+        proposedApproach:
+          'After checking whether existing papers already answer the question, consider a small random-versus-targeted removal comparison on typed ecological interaction layers. Whether connectivity captures ecological persistence is an assumption, not a statement established by these passages.',
         evidence: [
           ref(percolation, 'Recent work'),
           ref(attacks, 'However, error tolerance'),
@@ -79,7 +78,7 @@ const prepared = validateAnalysis(
           measure:
             'Compare remaining connectivity curves across layers, including the largest connected component as a structural proxy. Report uncertainty across random orderings and avoid treating connectivity as population survival.',
           against:
-            'If the layer differences are absent, unstable under plausible missing-edge changes, or indistinguishable from the control comparison, that counts against the proposed transfer. A mismatch between connectivity and known ecological behaviour also undermines the proxy.',
+            'If the layer differences are absent, unstable under plausible missing-edge changes, or indistinguishable from the control comparison, that counts against the proposed sensitivity hypothesis. A mismatch between connectivity and known ecological behaviour also undermines the proxy.',
         },
       },
     ],

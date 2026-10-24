@@ -24,8 +24,7 @@ import type {
 const short = z.string().trim().max(1200);
 const briefSchema = z.object({
   question: short.min(5),
-  fieldA: short.min(2).max(100),
-  fieldB: short.min(2).max(100),
+  field: short.min(2).max(100),
   resources: z.object({
     data: short,
     equipment: short,
@@ -185,7 +184,7 @@ export function createApp(
     const hypothesis: Hypothesis | undefined = analysis.result.hypotheses.find(
       (h) => h.id === hypothesisId,
     );
-    if (!hypothesis) throw new AppError(400, 'Unknown connection.');
+    if (!hypothesis) throw new AppError(400, 'Unknown gap hypothesis.');
     res.json(await checkPriorWork(analysis.brief, hypothesis, search));
   });
   const dist = path.resolve('dist');
@@ -213,7 +212,7 @@ export function createApp(
       if (err instanceof z.ZodError) {
         res.status(400).json({
           error:
-            'Please check your input. Provide a question, two fields, and 4–6 distinct papers when analyzing.',
+            'Please check your input. Provide a question, one field, and 4–6 distinct papers when analyzing.',
         });
         return;
       }

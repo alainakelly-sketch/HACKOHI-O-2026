@@ -53,6 +53,17 @@ describe('model integration without paid calls (SDK mocked)', () => {
     expect(payload.instructions).not.toContain('SYNTHETIC INJECTION TEST');
     expect(payload.input).toContain('SYNTHETIC INJECTION TEST');
   });
+  it('focuses optional analysis on a question within one field, not a mandatory bridge', async () => {
+    mocked.parse.mockResolvedValue({ output_parsed: exampleAnalysis });
+    await analyze(exampleBrief, examplePapers);
+    const payload = mocked.parse.mock.calls[0][0];
+    expect(payload.instructions).toContain('within the ONE field');
+    expect(payload.instructions).toContain(
+      'An absence of discussion is not itself evidence of a gap',
+    );
+    expect(JSON.parse(payload.input).brief.field).toBe('Network ecology');
+    expect(JSON.parse(payload.input).brief).not.toHaveProperty('fieldB');
+  });
   it('rejects unknown references rather than displaying model quotations', async () => {
     const invalid = structuredClone(exampleAnalysis);
     invalid.hypotheses[0].evidence[0].paperId = 'W999999';
@@ -60,6 +71,26 @@ describe('model integration without paid calls (SDK mocked)', () => {
     await expect(analyze(exampleBrief, examplePapers)).rejects.toThrow(
       'evidence validation',
     );
+  });
+  it('rejects references to stored passages that were outside the actual model excerpt', async () => {
+    const sources = structuredClone(examplePapers);
+    const excludedPaper = sources.find(
+      (p) => p.id === exampleAnalysis.hypotheses[0].evidence[0].paperId,
+    )!;
+    excludedPaper.passages.unshift({
+      id: `${excludedPaper.id}:synthetic-oversize-prefix`,
+      text: 'x'.repeat(24001),
+    });
+    mocked.parse.mockResolvedValue({ output_parsed: exampleAnalysis });
+    await expect(analyze(exampleBrief, sources)).rejects.toThrow(
+      'evidence validation',
+    );
+    const payload = JSON.parse(mocked.parse.mock.calls[0][0].input);
+    expect(
+      payload.sources.find(
+        (p: { paperId: string }) => p.paperId === excludedPaper.id,
+      ).passages,
+    ).toEqual([]);
   });
   it('handles a refused or incomplete result without a canned replacement', async () => {
     mocked.parse.mockResolvedValue({ output_parsed: null });

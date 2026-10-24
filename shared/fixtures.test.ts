@@ -18,17 +18,16 @@ export const testPaper = (n = 1): Paper => ({
 });
 export const testBrief: Brief = {
   question: 'Synthetic cross-field question?',
-  fieldA: 'Test field A',
-  fieldB: 'Test field B',
+  field: 'Synthetic test field',
   resources: { data: '', equipment: 'GPU', skills: '', deadline: '' },
 };
 export const testHypothesis: Hypothesis = {
   id: 'h1',
   title: 'SYNTHETIC TEST CONNECTION',
   hypothesis: 'Test transfer may improve the baseline.',
-  contributionA: 'Synthetic A inference',
-  contributionB: 'Synthetic B inference',
-  transfer: 'Synthetic transfer',
+  evidenceSummary: 'Synthetic A inference',
+  gapRationale: 'Synthetic B inference',
+  proposedApproach: 'Synthetic transfer',
   evidence: [
     { paperId: 'W1', passageId: 'W1:p1' },
     { paperId: 'W2', passageId: 'W2:p1' },

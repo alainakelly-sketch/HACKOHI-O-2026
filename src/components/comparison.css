@@ -1,0 +1,69 @@
+.reading-status {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 13px;
+  margin: 12px 0;
+  border: 1px solid #d7e2ed;
+  border-radius: 6px;
+  background: #f6f9fc;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #63718c;
+}
+.reading-status strong {
+  font-size: 12px;
+  color: #344762;
+}
+.retrieve-selected {
+  margin: 0 12px 13px 0;
+  max-width: 100%;
+  white-space: normal;
+}
+.paper-reading-state {
+  padding: 9px 10px;
+  border-radius: 5px;
+  background: #f3f5fa;
+  color: #6b7590;
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 8px 0;
+}
+.paper-reading-state.ready {
+  background: #edf7f1;
+  color: #3d7057;
+}
+.paper-reading-state.failed {
+  background: #fff3ed;
+  color: #965b39;
+}
+.paper-reading-state.loading {
+  background: #f0f1ff;
+  color: #6258aa;
+}
+.paper-reading-state p {
+  margin: 5px 0 0;
+  font-size: 10px;
+}
+.comparison-panel .comparison-controls select {
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+.comparison-panel .comparison-passages > .empty {
+  min-height: 240px;
+}
+.comparison-panel .text-scope {
+  font-size: 11px;
+  line-height: 1.75;
+}
+.comparison-panel .text-scope details {
+  margin-top: 7px;
+}
+.comparison-panel .text-scope summary {
+  color: #625b91;
+}
+
+.comparison-columns.single-reader {
+  grid-auto-columns: minmax(0, 1fr);
+}

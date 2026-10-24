@@ -25,10 +25,14 @@ export function BriefForm({
   brief,
   onCore,
   onResources,
+  onFindPapers,
+  searching,
 }: {
   brief: Brief;
-  onCore: (key: 'question' | 'fieldA' | 'fieldB', value: string) => void;
+  onCore: (key: 'question' | 'field', value: string) => void;
   onResources: (key: keyof Resources, value: string) => void;
+  onFindPapers: () => void;
+  searching: boolean;
 }) {
   return (
     <section
@@ -36,7 +40,7 @@ export function BriefForm({
       id="question"
       aria-labelledby="question-title"
     >
-      <h2 id="question-title">Research question</h2>
+      <h2 id="question-title">Research focus</h2>
       <label className="sr-only" htmlFor="question-input">
         Research question
       </label>
@@ -46,25 +50,28 @@ export function BriefForm({
         onChange={(e) => onCore('question', e.target.value)}
         maxLength={1200}
         rows={4}
-        placeholder="What question would you like to explore?"
+        placeholder="What interests you within this field? What is uncertain or worth investigating?"
       />
       <div className="char-count">{brief.question.length} / 1200</div>
-      <label htmlFor="field-a">Field A</label>
+      <label htmlFor="research-field">Your field of interest</label>
       <input
-        id="field-a"
-        value={brief.fieldA}
+        id="research-field"
+        value={brief.field}
         maxLength={100}
-        onChange={(e) => onCore('fieldA', e.target.value)}
-        placeholder="e.g. Network science"
+        onChange={(e) => onCore('field', e.target.value)}
+        placeholder="e.g. Neuroscience, ecology, education"
       />
-      <label htmlFor="field-b">Field B</label>
-      <input
-        id="field-b"
-        value={brief.fieldB}
-        maxLength={100}
-        onChange={(e) => onCore('fieldB', e.target.value)}
-        placeholder="e.g. Ecology"
-      />
+      <p className="focus-help">
+        Your field and question suggest editable search terms and help order the
+        gap leads. You do not need a second field.
+      </p>
+      <button
+        className="primary focus-search"
+        onClick={onFindPapers}
+        disabled={searching || brief.field.trim().length < 2}
+      >
+        {searching ? 'Finding papers…' : 'Find papers for this focus'}
+      </button>
       <details open className="resources">
         <summary>
           Resources <span>Optional</span>

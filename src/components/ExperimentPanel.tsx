@@ -35,7 +35,8 @@ export function ExperimentPanel({
       </div>
       {!hypothesis ? (
         <Empty title="No experiment plan yet" icon={<FlaskConical size={24} />}>
-          Inspect a proposed connection to develop a small, testable first step.
+          Inspect a proposed gap hypothesis to develop a small, testable first
+          step.
         </Empty>
       ) : (
         <>

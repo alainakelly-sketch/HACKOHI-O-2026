@@ -1,82 +1,68 @@
-# Validation of the free multi-source update
+# Validation of the one-field research-gap workflow
 
-Checked October 24, 2026, in the cloud workspace with Node 24.19.0. All changes are on `paperbridge-first-version`; no merge into main, deployment, purchase, or paid model call was performed.
+Checked October 24, 2026, in the cloud workspace using Node 24.19.0. Code is on `paperbridge-first-version`. No merge into main, deployment, purchase, or paid model request was performed.
 
 ## Automated checks
 
-- `npm test`: **144 tests passed in 11 files**.
-- Clean lockfile install with `npm ci --cache /workspace/.npm-cache --no-audit --no-fund`: passed.
-- `npm run typecheck`: passed for browser, backend and shared modules.
-- `npm run build`: passed.
-- Tests use clearly marked synthetic records and mocked provider responses. No synthetic paper is used as an application fallback.
-- Built-server smoke check passed: production HTML, compiled free-comparison UI, no model-key variable names in the browser asset, and disabled-model health. The temporary smoke-test server was stopped.
-- Original model tests still mock the official SDK. Actual OpenAI requests and model quality remain untested because API spending is not approved.
+- `npm test`: **198 tests passed in 13 files**.
+- `npm run typecheck`, `npm run build`, and `npm run format:check`: passed.
+- Original source parsing, full-text safety, deduplication, resource invalidation and credential-boundary tests remain passing.
+- New checks cover a single `field` request/prompt/schema, within-field prior-work queries, free discovery keyword suggestions, body-only reader defaults, a single-paper reader, local gap signals, negated/resolved phrases, source coverage, exact passage references, relevance ordering and background issues that may already be addressed by the same paper.
+- Optional model references must be in the actual bounded excerpt submitted to the provider, not merely somewhere in the full stored source. SDK responses are mocked; no paid call was used.
+- Synthetic paper data is confined to explicitly labelled automated tests. No synthetic papers or canned live responses are used in the application.
 
-Three helper agents worked in separate file areas: multi-source/comparison tests, full-text extraction/security tests, and documentation. The primary agent reviewed their changes and reran the complete suite.
+Helper agents owned separate areas: the single-field backend/schema, gap-lead logic, reader behavior, and documentation. The primary agent integrated and reviewed their results, reran the whole suite and checked the browser workflow.
 
-## Live source checks
+## Actual browser workflow
 
-These used real provider responses through PaperBridge's backend, with no AI key:
+The Browser plugin was unavailable. QA used installed Chromium through Playwright, at desktop 1500×1050 and mobile widths 390px/320px. Local test requests are internal checks, not externally accessible preview links.
 
-| Operation                              | Observed result                                                                                                                                                      |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Combined query `graph neural networks` | HTTP 200; all three provider statuses successful                                                                                                                     |
-| OpenAlex open-access search            | 16 records with reported free-copy links                                                                                                                             |
-| Europe PMC OA search                   | 12 records with reported free-copy links                                                                                                                             |
-| arXiv search                           | 12 records with reported free-copy links                                                                                                                             |
-| Combined output for that query         | 40 records after grouping; counts describe this request, not the entire literature                                                                                   |
-| PMC full-text import                   | HTTP 200 for _Enhancing structural to functional brain network prediction using topological graph learning_, PMC13655150; readable article-body paragraphs extracted |
-| arXiv HTML import                      | HTTP 200 for _Transformers are Graph Neural Networks_, arXiv:2506.22084v1; readable article-body paragraphs extracted                                                |
+| Check                                                                            | Result                                                                                             |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| One field of interest; no Field A/Field B form                                   | Passed                                                                                             |
+| Correct PaperBridge title, useful rendered content, no Vite overlay              | Passed                                                                                             |
+| Field/question create suggested terms when Find papers for this focus is clicked | Passed; input remains editable                                                                     |
+| Supported in-app body-text filter defaults on                                    | Passed                                                                                             |
+| Real combined search of OpenAlex, Europe PMC and arXiv                           | Passed; all three statuses successful                                                              |
+| Selecting a supported PMC and an arXiv paper automatically retrieves body text   | Passed with real provider responses                                                                |
+| Cached body text appears immediately when reselected                             | Passed                                                                                             |
+| Reader opens automatically; Article body is the default                          | Passed                                                                                             |
+| Body view never silently substitutes abstract text                               | Passed                                                                                             |
+| User can explicitly choose Abstracts only                                        | Passed                                                                                             |
+| Free gap scan over actual retrieved source text                                  | Passed; two author-stated leads found in the selected test sources, not claimed as field-wide gaps |
+| Gap quotation and passage ID resolve exactly to stored source text               | Passed                                                                                             |
+| Introductory limitation flagged as background that the same paper may address    | Passed                                                                                             |
+| Unsupported repository gets explicit unavailable-body state                      | Passed; no abstract shown as body                                                                  |
+| Page-wide horizontal overflow at 390px/320px                                     | None; source comparison intentionally scrolls within its own panel                                 |
+| Unexpected runtime or console errors                                             | None                                                                                               |
 
-Only supported article-body prose was imported. Figures, tables, references and supplements were omitted; formulas and formatting may be flattened. These checks do not establish scientific correctness, completeness of the publication, or unrestricted reuse rights.
+The focus-to-query wiring test used an explicitly marked empty response to inspect the request without inventing paper records. Separate real multi-source queries and automatic imports exercised the actual services. Both initial retrieval and reuse of already-imported text were checked.
 
-Official arXiv API documentation/TOS were read from its source repository. The legacy API is serialized to one connection, with at least 3.1 seconds after a request completes before the next starts. A bounded ten-minute cache and same-query pending-request sharing reduce duplicate requests. Official OpenAlex source documentation was consulted for open-access fields. Europe PMC's actual core search and fullTextXML endpoints were exercised. Direct documentation website access was unavailable during initial probing; successful application requests were checked separately.
+Actual combined query used for source testing: `graph neural networks`. The observed response contained 16 OpenAlex, 12 Europe PMC and 12 arXiv free-linked records. These are this request's records, not counts of all papers. The live body imports included _Enhancing structural to functional brain network prediction using topological graph learning_ (PMC13655150) and _Transformers are Graph Neural Networks_ (arXiv:2506.22084v1).
 
-## Browser validation
+A live introductory statement described a limitation of older prediction methods. Since the same paper may address it, the scanner now labels introductory/background leads accordingly, ranks them after nonbackground leads, and requires checking that paper's own findings first. This does not replace scientific reading.
 
-The Browser plugin was unavailable, so QA used Playwright with installed headless Chromium. Internal test address: port 5173 on the cloud machine. This is not a public preview link.
+Desktop/mobile screenshots were inspected for readable body text, source labels, missing-text states, gap quotations and follow-up actions. Full license notices remain expandable rather than pushing one paper's text far below another.
 
-| Check                                                                 | Result                                                          |
-| --------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Correct title, meaningful PaperBridge workspace, no Vite overlay      | Passed                                                          |
-| Real combined search from browser through all three adapters          | Passed                                                          |
-| Collection statuses and provenance displayed                          | Passed                                                          |
-| Select two papers from different sources without a question or AI key | Passed                                                          |
-| Free side-by-side comparison enabled                                  | Passed                                                          |
-| Available abstracts displayed directly from stored source text        | Passed                                                          |
-| Actual PMC and arXiv full-text retrieval through browser controls     | Passed                                                          |
-| Retrieved body passages visible in comparison                         | Passed                                                          |
-| Phrase filtering shows only matching source passages                  | Passed                                                          |
-| No-match phrase state                                                 | Passed                                                          |
-| Methods-section filter and honest missing-section state               | Passed                                                          |
-| Desktop 1500×1050 layout inspected                                    | Passed                                                          |
-| No page-wide horizontal overflow at 390px and 320px                   | Passed; the comparison has its own deliberate horizontal scroll |
-| One source failure preserves successful results                       | Passed with explicitly marked temporary test response           |
-| Empty free-search state                                               | Passed with explicitly marked temporary test response           |
-| Unexpected page/runtime/console errors                                | None                                                            |
+## Retained source and access boundaries
 
-Screenshots of the actual comparison at desktop and mobile widths were inspected. The full license notice was moved into an expandable source-license disclosure so it does not push one paper's evidence far below the other. Form/select labels were made explicit. No claim is made that a screenshot establishes scientific interpretation or source completeness.
+- Real metadata/links come from retrieved records. Source text remains untrusted data, never application/model instructions.
+- Stable passage IDs preserve provenance. Wrong paper/passage IDs and unsubmitted model references are rejected.
+- A source-reported free-copy link is different from article text retrieved into the reader. Unsupported free PDFs/repositories remain external links.
+- PMC XML and arXiv HTML imports use validated stored identifiers, fixed trusted endpoints, bounded HTTPS redirects, identity/version checks and bounded response/text sizes. No arbitrary metadata URL is fetched and no paywall is bypassed.
+- XML/Atom truncation and malformed responses are rejected. Body extraction omits figures, tables, references and supplements; mathematical formatting may be flattened. A shortened body is labelled as an excerpt.
+- Search failures remain explicit; partial source failures retain successful results. Empty searches do not establish novelty.
+- arXiv API requests are serialized and spaced; repeated-query caching and shared pending requests avoid redundant calls.
+- Previously retrieved body text survives later searches. A changed evidence snapshot clears old optional AI analysis.
+- Optional model calls remain disabled without both spending enablement and credentials. Browser source has no credential binding or backend-module import.
+- Codespaces uses the exact trusted forwarded hostname; development backend-port mistakes show recovery guidance or redirect to the known website port.
 
-## Important regression and boundary coverage
+## What has not been established
 
-- Missing abstracts, malformed JSON, empty result sets, safe source links, rate limits, network failures and bounded response bodies.
-- Truncated/malformed Atom and PMC XML are rejected rather than called complete.
-- DOI/PMC/arXiv duplicate grouping retains provenance and the earliest canonical paper ID, even when a late record bridges earlier groups. Versions may differ; grouping does not assert identical text. Similar titles alone are not treated as duplicates.
-- Stable, unique passage IDs; wrong paper/passage references rejected; source quotations resolve from stored text.
-- Full-text retrieval uses cached validated identifiers, not browser-supplied URLs. Redirects are bounded, HTTPS-only and restricted to the selected trusted article/version. No arbitrary repository crawling, paywall bypass or PDF extraction.
-- Full-text failures preserve the abstract. Excerpts are labelled when the reading limit truncates a paragraph or document.
-- PMC source front matter can supply missing abstract/year; unknown metadata is not invented.
-- Concurrent imports share pending retrieval, and later searches do not discard already-retrieved body text.
-- Non-OpenAlex source IDs are accepted only after server retrieval; fabricated IDs are rejected.
-- Resource edits invalidate prior assessments. Saved examples remain explicitly separate from live results. Model spending gates and secret boundaries remain enforced.
-- Codespaces tests cover exact trusted website hostname, accidental backend-port recovery, and rejection of unrelated origins. No wildcard host allowance is introduced.
-
-## Remaining limits / checks not performed
-
-- No live OpenAI request or evaluation of model-generated scientific quality.
-- No Firefox, Safari, physical-device or assistive-technology testing; this is not a full accessibility audit.
-- No full-paper binary/PDF parsing. Free PDFs and unsupported repository formats can be opened at their sources but are not imported into the comparison.
-- Not every free paper, repository or version is indexed by these services. A query with no match does not establish novelty.
-- Source access and licensing metadata can be incomplete or stale. Free-to-read does not imply a reuse license.
-- No public deployment or testing as a multi-user service with production accounts/abuse protection.
-- No new-cloud-instance restoration or publication verification. Saved startup/configuration is distinct from a published, restored environment.
+- **A confirmed research gap, novelty or scientific correctness.** The free scan uses explicit text signals. It can miss implicit issues or misread context, and later studies may already resolve a lead. A study limitation is not automatically a field-wide gap.
+- **Full scientific synthesis by the free scan.** Field/question terms affect discovery and ordering; no claim is made of semantic understanding or an exhaustive review.
+- **Live model quality/provider success.** Model calls were mocked; no paid requests were made.
+- **Complete publication extraction.** No PDF parser, figure/table/supplement import, or universal repository crawler is implemented.
+- **All free literature.** These services have coverage, query and access limits; free-access/license metadata may be incomplete or stale.
+- **Firefox/Safari, physical phones, or assistive technology.** Those checks were not performed; this is not a full accessibility audit.
+- **Public hosting or new-instance restoration.** No public deployment, production multi-user validation, new cloud restore, or publication verification was performed.

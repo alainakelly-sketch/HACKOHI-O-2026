@@ -102,12 +102,12 @@ export function PaperRow({
       </div>
       {paper.abstract ? (
         <details className="abstract">
-          <summary>Read available abstract</summary>
+          <summary>Abstract preview (not the article body)</summary>
           <p>{paper.abstract}</p>
           <p className="muted">
             {paper.fullText
               ? 'This panel shows the abstract; retrieved article-body text is available in the comparison.'
-              : 'Abstract only. Full text has not been retrieved into this workspace.'}
+              : 'Abstract only. Body text has not been retrieved yet. Selecting a supported record starts retrieval.'}
           </p>
         </details>
       ) : (
@@ -146,6 +146,8 @@ export function PaperPanel({
   onLoad,
   textBusy,
   textErrors,
+  query,
+  onQueryChange,
 }: {
   papers: Paper[];
   selected: Paper[];
@@ -159,9 +161,10 @@ export function PaperPanel({
   onLoad: (paper: Paper) => void;
   textBusy: Set<string>;
   textErrors: Record<string, string>;
+  query: string;
+  onQueryChange: (value: string) => void;
 }) {
-  const [query, setQuery] = useState('');
-  const [readableOnly, setReadableOnly] = useState(false);
+  const [readableOnly, setReadableOnly] = useState(true);
   const visible = readableOnly
     ? papers.filter((p) => p.fullText || canLoadFullText(p))
     : papers;
@@ -179,8 +182,8 @@ export function PaperPanel({
         </span>
       </div>
       <p className="collection-note">
-        Search free papers together: arXiv · Europe PMC / PubMed Central ·
-        OpenAlex, including repository links.
+        Search your focus across free papers: arXiv · Europe PMC / PubMed
+        Central · OpenAlex, including repository links.
       </p>
       <form
         className="search-form"
@@ -198,7 +201,7 @@ export function PaperPanel({
             id="paper-search"
             value={query}
             maxLength={400}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => onQueryChange(e.target.value)}
             placeholder="Search a topic, method, or keyword…"
           />
         </div>
@@ -266,7 +269,7 @@ export function PaperPanel({
         <>
           <p className="results-caption">
             {lastQuery
-              ? `${papers.length} combined records for “${lastQuery}” · interleaved source relevance, duplicates grouped`
+              ? `${visible.length} shown of ${papers.length} combined records for “${lastQuery}” · duplicates grouped`
               : `${papers.length} saved source records from OpenAlex · not a live search`}
           </p>
           <div className="paper-list">
@@ -300,7 +303,7 @@ export function PaperPanel({
         >
           {searched
             ? 'Try a shorter term, a specific method, or search each field separately.'
-            : 'Search across your two fields. Select 2–6 papers for free side-by-side reading.'}
+            : 'Search within your field of interest. Select 2–6 papers for free side-by-side reading.'}
         </Empty>
       ) : null}
       <p className="panel-footnote">

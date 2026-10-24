@@ -101,8 +101,7 @@ describe('full-text API source boundary', () => {
       .send({
         brief: {
           question: 'Synthetic test?',
-          fieldA: 'Test A',
-          fieldB: 'Test B',
+          field: 'Synthetic test field',
           resources: { data: '', equipment: '', skills: '', deadline: '' },
         },
         paperIds: records.map((p) => p.id),

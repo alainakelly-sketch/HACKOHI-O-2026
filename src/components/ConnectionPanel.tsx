@@ -1,6 +1,6 @@
 import { GitBranch, ArrowRight } from 'lucide-react';
 import type { Analysis, Brief, Health } from '../../shared/types';
-import { BridgeMark, Busy, Notice } from './Primitives';
+import { Busy, Notice } from './Primitives';
 export function analysisLabel(origin: Analysis['origin']) {
   return origin === 'live'
     ? 'Live model analysis · untested hypotheses'
@@ -29,8 +29,7 @@ export function ConnectionPanel({
 }) {
   const complete =
     brief.question.trim().length >= 5 &&
-    brief.fieldA.trim().length >= 2 &&
-    brief.fieldB.trim().length >= 2 &&
+    brief.field.trim().length >= 2 &&
     count >= 4 &&
     count <= 6;
   return (
@@ -40,7 +39,7 @@ export function ConnectionPanel({
       aria-labelledby="connections-title"
     >
       <div className="panel-heading">
-        <h2 id="connections-title">Optional AI connections</h2>
+        <h2 id="connections-title">Optional AI gap hypotheses</h2>
         <button
           className="primary"
           disabled={!complete || !health?.analysisAvailable || busy}
@@ -51,25 +50,18 @@ export function ConnectionPanel({
           ) : (
             <>
               <GitBranch size={15} />
-              {analysis ? 'Analyze again' : 'Generate AI connections'}
+              {analysis ? 'Analyze again' : 'Develop AI gap hypotheses'}
             </>
           )}
         </button>
       </div>
       {!analysis ? (
-        <div className="bridge-view">
-          <div className="field-node">
-            <strong>Field A</strong>
-            <span>{brief.fieldA || 'Not specified'}</span>
-          </div>
-          <div className="bridge-line">
-            <BridgeMark small />
-            <span>Potential connection</span>
-          </div>
-          <div className="field-node">
-            <strong>Field B</strong>
-            <span>{brief.fieldB || 'Not specified'}</span>
-          </div>
+        <div className="ai-gap-empty">
+          <h3>{brief.field || 'Your field of interest'}</h3>
+          <p>
+            Free author-stated gap leads appear above. Optional AI can help
+            develop a testable hypothesis from the selected evidence.
+          </p>
         </div>
       ) : (
         <>
@@ -81,8 +73,9 @@ export function ConnectionPanel({
           <p className="analysis-summary">{analysis.summary}</p>
           {analysis.status === 'insufficient' ? (
             <Notice>
-              Insufficient evidence. No connection or experiment was generated.
-              Try selecting more relevant papers with readable source text.
+              Insufficient evidence. No gap hypothesis or experiment was
+              generated. Try selecting more relevant papers with readable source
+              text.
             </Notice>
           ) : (
             <div className="connection-cards">
@@ -112,16 +105,16 @@ export function ConnectionPanel({
         <Notice>Checking server configuration…</Notice>
       ) : !health.analysisAvailable ? (
         <Notice>
-          <strong>AI connections are optional.</strong> Compare source text
-          above for free. {health.reason} Live requests never fall back to saved
-          examples.
+          <strong>AI analysis is optional.</strong> Read source text and scan
+          gap leads above for free. {health.reason} Live requests never fall
+          back to saved examples.
         </Notice>
       ) : (
         <p className="panel-footnote">{health.reason}</p>
       )}
       {!complete ? (
         <p className="panel-footnote">
-          To analyze: enter a question and two fields, then select 4–6 papers.
+          To analyze: enter a question and one field, then select 4–6 papers.
         </p>
       ) : null}
     </section>

@@ -1,14 +1,25 @@
 import { describe, it, expect, vi } from 'vitest';
 import { checkPriorWork, priorQueries } from './prior-work';
 import type { Brief, Hypothesis } from '../shared/types';
-const brief = { fieldA: 'Network science', fieldB: 'Ecology' } as Brief;
+const brief = {
+  field: 'Network ecology',
+  question: 'Species removal sensitivity',
+} as Brief;
 const hypothesis = { title: 'Synthetic method' } as Hypothesis;
 describe('prior-work outcomes', () => {
-  it('shows exact combination queries', () => {
+  it('shows the field and question used for follow-up queries', () => {
     expect(priorQueries(brief, hypothesis)).toEqual([
-      'Network science Ecology',
-      'Network science Ecology Synthetic method',
+      'Network ecology Species removal sensitivity',
+      'Network ecology Synthetic method',
     ]);
+  });
+  it('bounds the actual field/question queries to provider input limits', () => {
+    const queries = priorQueries(
+      { ...brief, question: 'q'.repeat(1200) },
+      hypothesis,
+    );
+    expect(queries.every((query) => query.length <= 400)).toBe(true);
+    expect(queries[0]).toContain('Network ecology');
   });
   it('does not establish novelty from empty results', async () => {
     const result = await checkPriorWork(

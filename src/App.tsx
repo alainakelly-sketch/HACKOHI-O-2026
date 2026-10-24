@@ -31,12 +31,16 @@ import { PaperPanel } from './components/PaperPanel';
 import { ConnectionPanel } from './components/ConnectionPanel';
 import { EvidencePanel } from './components/EvidencePanel';
 import { ComparisonPanel } from './components/ComparisonPanel';
+import { GapPanel } from './components/GapPanel';
+import { buildResearchQuery } from '../shared/research-query';
+import { canLoadFullText } from '../shared/comparison';
 import { ExperimentPanel } from './components/ExperimentPanel';
 const nav = [
-  { id: 'question', label: 'Question', icon: CircleHelp },
+  { id: 'question', label: 'Focus', icon: CircleHelp },
   { id: 'papers', label: 'Papers', icon: FileText },
   { id: 'comparison', label: 'Compare', icon: Columns2 },
-  { id: 'connections', label: 'AI connections', icon: GitBranch },
+  { id: 'gaps', label: 'Gap leads', icon: CircleHelp },
+  { id: 'connections', label: 'AI gaps', icon: GitBranch },
   { id: 'experiment', label: 'Experiment', icon: FlaskConical },
 ];
 export default function App() {
@@ -46,10 +50,10 @@ export default function App() {
       'network-ecology',
   );
   const [exampleError, setExampleError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [brief, setBrief] = useState<Brief>({
     question: '',
-    fieldA: '',
-    fieldB: '',
+    field: '',
     resources: { ...emptyResources },
   });
   const [papers, setPapers] = useState<Paper[]>([]),
@@ -146,7 +150,7 @@ export default function App() {
     setAnalysisBusy(false);
     setPriorBusy(false);
   }
-  function onCore(key: 'question' | 'fieldA' | 'fieldB', value: string) {
+  function onCore(key: 'question' | 'field', value: string) {
     clearAnalysis();
     setBrief((b) => ({ ...b, [key]: value }));
   }
@@ -164,19 +168,32 @@ export default function App() {
   }
   function toggle(paper: Paper) {
     clearAnalysis();
-    setSelected((items) =>
-      items.some((p) => p.id === paper.id)
-        ? items.filter((p) => p.id !== paper.id)
-        : items.length < 6
-          ? [...items, paper]
-          : items,
-    );
+    const alreadySelected = selected.some((p) => p.id === paper.id);
+    if (alreadySelected) {
+      setSelected((items) => items.filter((p) => p.id !== paper.id));
+      return;
+    }
+    if (selected.length >= 6) return;
+    setSelected((items) => [...items, paper]);
+    if (canLoadFullText(paper) && !textErrors[paper.id])
+      void loadFullText(paper);
+  }
+  function searchFocus() {
+    const query = buildResearchQuery(brief);
+    if (query.length >= 2) {
+      setSearchQuery(query);
+      void search(query);
+      document
+        .getElementById('papers')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
   async function search(query: string) {
     searchController.current?.abort();
     const controller = new AbortController();
     searchController.current = controller;
     setLastQuery(query);
+    setSearchQuery(query);
     setSearchBusy(true);
     setSearchError('');
     setSourceStatuses([]);
@@ -349,7 +366,7 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  const stage = hypothesis ? 4 : selected.length >= 2 ? 2 : searched ? 1 : 0;
+  const stage = hypothesis ? 5 : selected.length >= 2 ? 3 : searched ? 1 : 0;
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -362,10 +379,11 @@ export default function App() {
         </a>
         <nav className="steps" aria-label="Research workflow">
           {[
-            'Frame question',
+            'Set focus',
             'Select papers',
             'Compare text',
-            'AI connections',
+            'Find gap leads',
+            'Optional AI',
             'Plan experiment',
           ].map((label, i) => (
             <a
@@ -410,9 +428,10 @@ export default function App() {
       <main className="workspace">
         <div className="page-heading">
           <div>
-            <h1>Build a bridge between fields</h1>
+            <h1>Find the next question in your field</h1>
             <p>
-              Connect ideas. Inspect the evidence. Design a testable next step.
+              Read source text, investigate limitations, and develop a possible
+              research gap.
             </p>
           </div>
           {!exampleMode ? (
@@ -454,7 +473,13 @@ export default function App() {
         ) : null}
         {exampleError ? <Notice error>{exampleError}</Notice> : null}
         <div className="workspace-grid">
-          <BriefForm brief={brief} onCore={onCore} onResources={onResources} />
+          <BriefForm
+            brief={brief}
+            onCore={onCore}
+            onResources={onResources}
+            onFindPapers={searchFocus}
+            searching={searchBusy}
+          />
           <PaperPanel
             papers={papers}
             selected={selected}
@@ -468,6 +493,8 @@ export default function App() {
             onLoad={loadFullText}
             textBusy={textBusy}
             textErrors={textErrors}
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
           />
           <ComparisonPanel
             papers={selected}
@@ -475,6 +502,13 @@ export default function App() {
             busy={textBusy}
             errors={textErrors}
             onExport={onExport}
+          />
+          <GapPanel
+            papers={selected}
+            question={brief.question}
+            field={brief.field}
+            busy={textBusy}
+            onSearch={search}
           />
           <EvidencePanel
             hypothesis={hypothesis}
@@ -508,8 +542,8 @@ export default function App() {
       </main>
       <footer className="app-footer">
         <span>
-          Evidence coverage is labelled per source. Connections are hypotheses,
-          not findings.
+          Evidence coverage is labelled per source. Gap leads need follow-up;
+          they are not confirmed field-wide gaps.
         </span>
         <span>PaperBridge · No workspace is saved on reload</span>
       </footer>

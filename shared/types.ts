@@ -6,8 +6,7 @@ export type Resources = {
 };
 export type Brief = {
   question: string;
-  fieldA: string;
-  fieldB: string;
+  field: string;
   resources: Resources;
 };
 export type Passage = {
@@ -72,9 +71,9 @@ export type Hypothesis = {
   id: string;
   title: string;
   hypothesis: string;
-  contributionA: string;
-  contributionB: string;
-  transfer: string;
+  evidenceSummary: string;
+  gapRationale: string;
+  proposedApproach: string;
   evidence: Citation[];
   assumptions: string[];
   incompatibilities: string[];

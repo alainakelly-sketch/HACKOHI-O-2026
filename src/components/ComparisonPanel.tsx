@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Columns2, ArrowUpRight, Download } from 'lucide-react';
 import type { Paper } from '../../shared/types';
 import { comparisonPassages, canLoadFullText } from '../../shared/comparison';
 import { Busy, Empty, Notice } from './Primitives';
+import './comparison.css';
 export function ComparisonPanel({
   papers,
   onLoad,
@@ -11,16 +12,55 @@ export function ComparisonPanel({
   onExport,
 }: {
   papers: Paper[];
-  onLoad: (paper: Paper) => void;
+  onLoad: (paper: Paper) => void | Promise<void>;
   busy: Set<string>;
   errors: Record<string, string>;
   onExport: () => void;
 }) {
-  const [open, setOpen] = useState(false),
-    [mode, setMode] = useState<'abstract' | 'methods' | 'findings' | 'all'>(
-      'abstract',
-    ),
-    [query, setQuery] = useState('');
+  // Opening follows the selection, not a separate hidden step. A deliberate
+  // collapse applies only to that selection, so new papers reopen the reader.
+  const selectionKey = papers.map((paper) => paper.id).join('|');
+  const [closedSelection, setClosedSelection] = useState<string | null>(null);
+  const open = papers.length >= 1 && closedSelection !== selectionKey;
+  const [mode, setMode] = useState<
+    'body' | 'abstract' | 'methods' | 'findings' | 'all'
+  >('body');
+  const [query, setQuery] = useState('');
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchError, setBatchError] = useState('');
+  const batchRunning = useRef(false);
+  const currentSelection = useRef(selectionKey);
+  useEffect(() => {
+    currentSelection.current = selectionKey;
+  }, [selectionKey]);
+  const bodyReady = papers.filter((paper) =>
+    paper.passages.some((p) => p.kind === 'full-text'),
+  ).length;
+  const remaining = papers.filter(
+    (paper) => canLoadFullText(paper) && !busy.has(paper.id),
+  );
+  async function retrieveSelected() {
+    if (batchRunning.current) return;
+    batchRunning.current = true;
+    setBatchBusy(true);
+    setBatchError('');
+    const startedFor = selectionKey;
+    try {
+      for (const paper of remaining) {
+        if (currentSelection.current !== startedFor) break;
+        // Root owns request sharing and errors. Waiting here keeps this explicit
+        // batch to one retrieval at a time instead of starting every source.
+        await onLoad(paper);
+      }
+    } catch {
+      setBatchError(
+        'Selected-text retrieval could not complete. Check the per-paper status and retry, or open the source copy.',
+      );
+    } finally {
+      batchRunning.current = false;
+      setBatchBusy(false);
+    }
+  }
   return (
     <section
       className="panel comparison-panel"
@@ -34,25 +74,57 @@ export function ComparisonPanel({
         </div>
         <button
           className="primary"
-          disabled={papers.length < 2}
-          onClick={() => setOpen((v) => !v)}
+          disabled={papers.length < 1}
+          onClick={() => setClosedSelection(open ? selectionKey : null)}
         >
           <Columns2 size={15} />
-          {open ? 'Close comparison' : 'Compare selected papers'}
+          {open
+            ? 'Collapse reader'
+            : papers.length === 1
+              ? 'Read selected paper'
+              : 'Compare selected papers'}
         </button>
       </div>
-      {!open || papers.length < 2 ? (
+      {!open || papers.length < 1 ? (
         <p className="panel-footnote">
-          Select 2–6 papers from any collection to read them side by side.
-          Optional AI connections are separate below.
+          Select one paper to read its body text, or 2–6 papers to compare them
+          side by side. Optional AI analysis is separate below.
         </p>
       ) : (
         <>
           <p className="comparison-intro">
-            These are passages from the retrieved text, not AI summaries.
-            Compare what the sources actually say. Free-copy links may provide
-            more than the text available here.
+            Article-body text is the default view. Abstracts are available only
+            when you choose them below. These are retrieved source passages, not
+            AI summaries.
           </p>
+          <div className="reading-status" role="status">
+            <strong>
+              {bodyReady} of {papers.length} selected{' '}
+              {papers.length === 1 ? 'paper has' : 'papers have'} article-body
+              text.
+            </strong>
+            <span>
+              {busy.size
+                ? 'Text retrieval is in progress. Ready papers can already be read.'
+                : bodyReady === papers.length
+                  ? 'Ready to read. Check each source’s extraction scope below.'
+                  : 'Papers without imported body text are labelled below; an abstract is not a substitute for the body.'}
+            </span>
+          </div>
+          {remaining.length > 0 ? (
+            <button
+              className="secondary retrieve-selected"
+              onClick={retrieveSelected}
+              disabled={batchBusy}
+            >
+              {batchBusy ? (
+                <Busy>Retrieving selected full texts</Busy>
+              ) : (
+                'Retrieve selected full texts'
+              )}
+            </button>
+          ) : null}
+          {batchError ? <Notice error>{batchError}</Notice> : null}
           <button className="text-button source-export" onClick={onExport}>
             <Download size={13} />
             Export sources (JSON)
@@ -65,7 +137,8 @@ export function ComparisonPanel({
                 value={mode}
                 onChange={(e) => setMode(e.target.value as typeof mode)}
               >
-                <option value="abstract">Abstracts</option>
+                <option value="body">Article body — retrieved text</option>
+                <option value="abstract">Abstracts only</option>
                 <option value="methods">Methods sections</option>
                 <option value="findings">
                   Findings & limitations sections
@@ -85,7 +158,7 @@ export function ComparisonPanel({
             </div>
           </div>
           <div
-            className="comparison-columns"
+            className={`comparison-columns ${papers.length === 1 ? 'single-reader' : ''}`}
             tabIndex={0}
             aria-label="Side-by-side source text; scroll horizontally for more papers"
           >
@@ -114,6 +187,30 @@ export function ComparisonPanel({
                       Read at source <ArrowUpRight size={12} />
                     </a>
                   </header>
+                  {busy.has(paper.id) ? (
+                    <div className="paper-reading-state loading" role="status">
+                      <Busy>Retrieving article-body text…</Busy>
+                      <p>The abstract is not being shown as full text.</p>
+                    </div>
+                  ) : paper.fullText ? (
+                    <div className="paper-reading-state ready">
+                      {paper.fullText.truncated
+                        ? 'Body excerpt ready'
+                        : 'Article body ready'}
+                    </div>
+                  ) : errors[paper.id] ? (
+                    <div className="paper-reading-state failed">
+                      Body retrieval failed · no full text was imported
+                    </div>
+                  ) : canLoadFullText(paper) ? (
+                    <div className="paper-reading-state waiting">
+                      Article body not retrieved yet
+                    </div>
+                  ) : (
+                    <div className="paper-reading-state unavailable">
+                      In-app article body unavailable for this record
+                    </div>
+                  )}
                   {!paper.fullText && canLoadFullText(paper) ? (
                     <button
                       className="secondary"
@@ -177,12 +274,30 @@ export function ComparisonPanel({
                         title={
                           query
                             ? 'No matching passages'
-                            : 'This section is not available'
+                            : mode === 'body'
+                              ? busy.has(paper.id)
+                                ? 'Retrieving article body'
+                                : paper.fullText
+                                  ? 'No readable body passages'
+                                  : 'Article body is not available here yet'
+                              : mode === 'abstract'
+                                ? 'No abstract was retrieved'
+                                : 'This section is not available'
                         }
                       >
-                        {mode === 'methods' || mode === 'findings'
-                          ? 'Retrieve readable full text first. Section headings may differ; try “All retrieved passages.”'
-                          : 'No text was retrieved for this view. Try a different filter or open the free copy.'}
+                        {query
+                          ? 'No stored passages in this view contain that phrase. Try another phrase or view.'
+                          : mode === 'body' && !paper.fullText
+                            ? busy.has(paper.id)
+                              ? 'Keep this workspace open while the source responds. The reader will display its body text when retrieval succeeds.'
+                              : errors[paper.id]
+                                ? 'The source could not provide importable body text. Retry retrieval, or open the source’s free copy. Choose “Abstracts only” explicitly if you want to read the abstract instead.'
+                                : canLoadFullText(paper)
+                                  ? 'Use “Retrieve free full text” above. The reader will display article-body passages automatically when ready.'
+                                  : 'Open “Read at source” to read the free copy. This repository or PDF format cannot currently be imported. Choose “Abstracts only” explicitly to read an available abstract.'
+                            : mode === 'methods' || mode === 'findings'
+                              ? 'Source headings can vary. Retrieve article body first, then try “Article body” if this section heading is absent.'
+                              : 'No text was retrieved for this view. Open the source copy to inspect it.'}
                       </Empty>
                     )}
                   </div>
