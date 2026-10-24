@@ -733,6 +733,7 @@ export default function App() {
               filters={filters}
               onFiltersChange={changeFilters}
               verification={verification}
+              resources={brief.resources}
               onCheckText={() => void verifyPapers(papers)}
               onRead={() => setActiveNav('comparison')}
             />
@@ -752,6 +753,7 @@ export default function App() {
               errors={textErrors}
               onExport={onExport}
               onInspect={inspectComparison}
+              onGoPapers={() => setActiveNav('papers')}
             />
           </div>
           <div

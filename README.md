@@ -99,11 +99,21 @@ No filter retrieves every paper in a field. A blank filtered list is not evidenc
 
 ### Understand the free comparison overview
 
-The overview requires article-body text for at least two selected papers. It does not use their abstracts as a substitute. **In common** shows words and phrases found in two or more retrieved bodies; **Distinct emphases** shows terms found in one retrieved body but not the others. The source-statement matrix displays exact excerpts for aims/purpose, methods, findings and limitations/future work, using source headings or explicit textual cues. An unavailable row stays unavailable.
+The overview requires article-body text for at least two selected papers. Choose **Paper A** and **Paper B** from your selected sources. **What they have in common** shows topics explicitly present in both retrieved bodies, with evidence buttons. **How they differ** offers **Question**, **Method**, **Findings**, and **Limitations** buttons, each displaying two readable source-excerpt cards. Missing passages stay unavailable. Matching excerpt wording is labelled; differing wording is not automatically a scientific disagreement.
 
-Click a source button or **Inspect full passage** to open the complete stored quotation in **Evidence & limitations**, together with its paper link and passage ID. The preview can be shortened, but the inspector shows the supporting passage.
+Click **Inspect full passage** to open the complete stored quotation in **Evidence & limitations**, including its paper link and passage ID. **Other differences in wording** and the explanation of the comparison are expandable. The longer multi-paper source reader is under **Read full retrieved passages · optional deeper reading**; it opens automatically for a single selected paper.
 
-This is a local text comparison, not a claim of scientific agreement, equivalent methods or contradictory findings. A term not seen in the retrieved bodies may appear in omitted material or use different wording. Shared vocabulary alone does not establish a connection, and a missing matrix cell does not establish that the original paper lacks that aspect.
+This free comparison uses local words and exact quotations, not an AI scientific summary. Shared vocabulary does not establish agreement, and missing text does not establish that an original paper lacks an aspect.
+
+### Filter papers using your resources
+
+Leave all four resource fields blank to keep the usual research-focus search and result order. Filling resource fields automatically screens the results already retrieved; it does not make paid model calls or change your research-focus query. Changes apply immediately, without rerunning search, and selected papers stay selected.
+
+Use short comma-separated notes such as **Python, laptop**, **no GPU**, or **public data only**. The filter uses explicit author method statements, not a title keyword or an assumption that an unmentioned tool is unavailable. **Automatic** shows supported matches when available-resource terms are supplied; with only exclusions or a deadline, it keeps unknown papers and hides explicit conflicts. A supported match means at least one resource term matches; it does not mean every requirement is satisfied. A conflict takes priority over a matching term.
+
+In **Papers → Match papers to my resources**, switch to **Include unknowns; hide explicit conflicts**, **Show supported resource matches**, or **Off**. **Review hidden papers and why** preserves access to excluded records and their explanations. Each assessment can show the exact supporting source sentence, passage ID and whether it came from an abstract or article body.
+
+Deadline checks are deliberately limited: an explicitly reported procedure taking three days conflicts with a one-day deadline. A shorter procedure does not establish total project duration. Dates such as “next Friday,” skill proficiency, equipment capacity, budgets, and vague prose can remain Unknown. This is a resource-term screen, not a feasibility guarantee; methods may also be adaptable. When strict matching finds nothing, include unknowns or turn the filter off instead of assuming no suitable research exists.
 
 ### What “full text” means here
 

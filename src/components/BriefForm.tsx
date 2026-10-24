@@ -77,7 +77,10 @@ export function BriefForm({
           Resources <span>Optional</span>
         </summary>
         <p className="muted">
-          Ground the idea in what you have. Include limitations, too.
+          Optional: filter papers by method requirements stated in their
+          retrieved text. Leave every resource field blank for the usual
+          focus-only results. Enter short items separated by commas, such as
+          “Python, laptop” or “no GPU”. Unknown feasibility stays labelled.
         </p>
         {fields.map((f) => (
           <div key={f.key} className="resource-field">

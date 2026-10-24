@@ -279,8 +279,8 @@ try {
   );
   await open('Papers');
   await page
-    .getByLabel('Select SYNTHETIC TEST PAPER 0', { exact: true })
-    .uncheck();
+    .getByTitle('Remove SYNTHETIC TEST PAPER 0', { exact: true })
+    .click();
   await open('Experiment');
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),

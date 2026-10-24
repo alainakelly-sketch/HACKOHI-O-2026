@@ -235,11 +235,25 @@ describe('free comparison overview grounded in body text', () => {
         onInspect: () => {},
       }),
     );
-    expect(html).toContain('In common');
-    expect(html).toContain('Distinct emphases');
-    expect(html).toContain('Compare what the sources state');
+    expect(html).toContain('What they have in common');
+    expect(html).toContain('How they differ');
+    expect(html).toContain('Comparison paper A');
+    expect(html).toContain('Comparison paper B');
+    expect(html).toContain('aria-pressed="true">Method');
+    expect(html).not.toContain('<table');
     expect(html).toContain('Inspect full passage');
-    expect(html).toContain('No clearly labelled section');
+    const missing = renderToStaticMarkup(
+      createElement(ComparisonOverview, {
+        papers: [
+          a,
+          paper('C', [
+            paragraph('C:x', 'An unrelated source statement.', 'Discussion'),
+          ]),
+        ],
+        onInspect: () => {},
+      }),
+    );
+    expect(missing).toContain('No clear method passage found');
     expect(html).not.toContain('scientifically verified');
   });
   it('renders honest instruction with only one paper', () => {

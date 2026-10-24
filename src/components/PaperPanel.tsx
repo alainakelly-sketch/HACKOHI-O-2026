@@ -1,8 +1,19 @@
+import { useMemo, useState } from 'react';
 import { ArrowUpRight, Search, FileSearch, X } from 'lucide-react';
-import type { Paper, SearchSourceStatus, SourceName } from '../../shared/types';
+import type {
+  Paper,
+  Resources,
+  SearchSourceStatus,
+  SourceName,
+} from '../../shared/types';
 import { defaultFilter, filterPapers } from '../../shared/paper-filters';
 import type { PaperFilters } from '../../shared/paper-filters';
 import { canLoadFullText } from '../../shared/comparison';
+import {
+  assessPaperResources,
+  hasResourceNotes,
+  suggestedResourceMode,
+} from '../../shared/resource-filter';
 import { Busy, Empty, Notice } from './Primitives';
 export function PaperRow({
   paper,
@@ -178,6 +189,7 @@ export function PaperPanel({
   onFiltersChange,
   verification,
   onCheckText,
+  resources,
 }: {
   papers: Paper[];
   selected: Paper[];
@@ -198,8 +210,36 @@ export function PaperPanel({
   onFiltersChange: (next: PaperFilters) => void;
   verification: { running: boolean; checked: number; total: number };
   onCheckText: () => void;
+  resources: Resources;
 }) {
-  const visible = filterPapers(papers, filters);
+  const [resourceMode, setResourceMode] = useState('auto');
+  const effectiveResourceMode =
+    resourceMode === 'auto' ? suggestedResourceMode(resources) : resourceMode;
+  const baseVisible = useMemo(
+    () => filterPapers(papers, filters),
+    [papers, filters],
+  );
+  const resourceActive = hasResourceNotes(resources);
+  const resourceAssessments = useMemo(
+    () =>
+      baseVisible.map((paper) => ({
+        paper,
+        assessment: assessPaperResources(paper, resources),
+      })),
+    [baseVisible, resources],
+  );
+  const admitted = resourceAssessments.filter(
+    ({ assessment }) =>
+      !resourceActive ||
+      effectiveResourceMode === 'off' ||
+      (assessment.status !== 'potential-mismatch' &&
+        (effectiveResourceMode === 'unknown' ||
+          assessment.status === 'likely-match')),
+  );
+  const visible = admitted.map(({ paper }) => paper);
+  const hiddenByResources = resourceAssessments.filter(
+    ({ paper }) => !visible.some((p) => p.id === paper.id),
+  );
   const failed = papers.filter((p) => !!textErrors[p.id]);
   const update = (patch: Partial<PaperFilters>) =>
     onFiltersChange({ ...filters, ...patch });
@@ -376,6 +416,79 @@ export function PaperPanel({
           Reset filters
         </button>
       </details>
+      <section
+        className="resource-search-filter"
+        aria-label="Resource-based paper filtering"
+      >
+        <h3>Match papers to my resources</h3>
+        {!resourceActive ? (
+          <p>
+            Off — resource fields are blank. Results use your research focus and
+            the paper filters above.
+          </p>
+        ) : (
+          <>
+            <label htmlFor="resource-match-mode">Resource filter</label>
+            <select
+              id="resource-match-mode"
+              value={resourceMode}
+              onChange={(event) => setResourceMode(event.target.value)}
+            >
+              <option value="auto">
+                Automatic — match available terms; keep unknowns for limits only
+              </option>
+              <option value="matches">Show supported resource matches</option>
+              <option value="unknown">
+                Include unknowns; hide explicit conflicts
+              </option>
+              <option value="off">
+                Off — show all results matching other filters
+              </option>
+            </select>
+            <p role="status">
+              {effectiveResourceMode === 'off'
+                ? 'Resource filtering is off.'
+                : `${visible.length} shown · ${hiddenByResources.length} hidden by resources.`}
+            </p>
+            <p>
+              A supported match means at least one available resource term
+              appears in an explicit method statement. Other requirements can
+              remain unknown. A matching tool or dataset does not establish that
+              the whole experiment fits your budget, skills, or deadline.
+              Unknown requirements are not a confirmed conflict.
+            </p>
+            <details>
+              <summary>Resource notes used for this filter</summary>
+              <dl>
+                {Object.entries(resources)
+                  .filter(([, value]) => value.trim())
+                  .map(([key, value]) => (
+                    <div key={key}>
+                      <dt>{key}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+              </dl>
+            </details>
+            {hiddenByResources.length ? (
+              <details className="hidden-resource-results">
+                <summary>
+                  Review {hiddenByResources.length} hidden papers and why
+                </summary>
+                {hiddenByResources.map(({ paper, assessment }) => (
+                  <div key={paper.id}>
+                    <strong>{paper.title}</strong>
+                    <ResourceResult assessment={assessment} />
+                    <a href={paper.url} target="_blank" rel="noreferrer">
+                      Open source record
+                    </a>
+                  </div>
+                ))}
+              </details>
+            ) : null}
+          </>
+        )}
+      </section>
       {verification.running ? (
         <Notice>
           <Busy>
@@ -474,30 +587,45 @@ export function PaperPanel({
           </p>
           <div className="paper-list">
             {visible.map((p) => (
-              <PaperRow
-                key={p.id}
-                paper={p}
-                selected={selected.some((s) => s.id === p.id)}
-                disabled={
-                  selected.length >= 6 && !selected.some((s) => s.id === p.id)
-                }
-                onToggle={() => onToggle(p)}
-                onRead={onRead}
-                onLoad={() => onLoad(p)}
-                textBusy={textBusy.has(p.id)}
-                textError={textErrors[p.id]}
-              />
+              <div key={p.id}>
+                {resourceActive && effectiveResourceMode !== 'off' ? (
+                  <ResourceResult
+                    assessment={
+                      resourceAssessments.find(
+                        (item) => item.paper.id === p.id,
+                      )!.assessment
+                    }
+                  />
+                ) : null}
+                <PaperRow
+                  key={p.id}
+                  paper={p}
+                  selected={selected.some((s) => s.id === p.id)}
+                  disabled={
+                    selected.length >= 6 && !selected.some((s) => s.id === p.id)
+                  }
+                  onToggle={() => onToggle(p)}
+                  onRead={onRead}
+                  onLoad={() => onLoad(p)}
+                  textBusy={textBusy.has(p.id)}
+                  textError={textErrors[p.id]}
+                />
+              </div>
             ))}
           </div>
           {!visible.length ? (
             <p className="panel-footnote">
-              {verification.running
-                ? 'Article-body checks are still running; no matching retrieved text is ready yet.'
-                : !filters.sources.length
-                  ? 'Choose at least one collection above.'
-                  : filters.access === 'verified'
-                    ? 'No imported article body matches these filters yet. Check more article texts, review failed retrievals, or change Text availability to see free-copy links.'
-                    : 'No records match these filters. Widen the year range, collections, or publication-version setting.'}
+              {resourceActive &&
+              effectiveResourceMode !== 'off' &&
+              baseVisible.length > 0
+                ? 'No papers currently meet this resource setting. Include unknowns, turn off the resource filter, or edit your resource notes. This does not mean no suitable research exists.'
+                : verification.running
+                  ? 'Article-body checks are still running; no matching retrieved text is ready yet.'
+                  : !filters.sources.length
+                    ? 'Choose at least one collection above.'
+                    : filters.access === 'verified'
+                      ? 'No imported article body matches these filters yet. Check more article texts, review failed retrievals, or change Text availability to see free-copy links.'
+                      : 'No records match these filters. Widen the year range, collections, or publication-version setting.'}
             </p>
           ) : null}
         </>
@@ -518,5 +646,43 @@ export function PaperPanel({
         selection stays while you search.
       </p>
     </section>
+  );
+}
+
+function ResourceResult({
+  assessment,
+}: {
+  assessment: ReturnType<typeof assessPaperResources>;
+}) {
+  return (
+    <details className={`resource-result ${assessment.status}`}>
+      <summary>
+        {assessment.status === 'likely-match'
+          ? 'Matches stated resource terms'
+          : assessment.status === 'potential-mismatch'
+            ? 'Potential resource conflict'
+            : 'Resource fit unknown'}{' '}
+        · why?
+      </summary>
+      <ul>
+        {assessment.rows.map((row, index) => (
+          <li key={index}>
+            <strong>{row.category}:</strong> {row.message}
+            {row.evidence ? (
+              <>
+                <blockquote>{row.evidence.quote}</blockquote>
+                <small>
+                  {row.evidence.kind === 'abstract'
+                    ? 'Abstract only'
+                    : 'Retrieved article body'}{' '}
+                  · {row.evidence.reference.passageId}
+                </small>
+              </>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <p>{assessment.note}</p>
+    </details>
   );
 }

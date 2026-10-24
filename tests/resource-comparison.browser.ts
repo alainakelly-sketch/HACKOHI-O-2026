@@ -1,0 +1,199 @@
+/** SYNTHETIC mocked paper retrieval only. No provider or paid model requests. */
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import type { Paper } from '../shared/types';
+const methods = [
+  'We implemented the analysis using Python on a laptop.',
+  'We trained the model using a GPU.',
+  'We implemented the analysis using MATLAB.',
+  'The simulation took three days.',
+];
+const papers: Paper[] = methods.map((method, i) => ({
+  id: `test:${i}`,
+  title: `SYNTHETIC RESOURCE TEST ${i}`,
+  year: 2026,
+  doi: null,
+  url: 'https://example.invalid/test',
+  authors: [],
+  abstract: null,
+  passages: [
+    { id: `method:${i}`, kind: 'full-text', section: 'Methods', text: method },
+    {
+      id: `limitation:${i}`,
+      kind: 'full-text',
+      section: 'Limitations',
+      text: 'Future work should investigate larger network samples.',
+    },
+  ],
+  retrievedAt: 'test',
+  coverage: 'Full text retrieved',
+  sources: [
+    {
+      provider: 'Europe PMC',
+      id: `test:${i}`,
+      url: 'https://example.invalid/test',
+    },
+  ],
+  fullText: {
+    provider: 'Europe PMC',
+    url: 'https://example.invalid/test',
+    license: null,
+    retrievedAt: 'test',
+    note: 'SYNTHETIC TEST',
+    truncated: false,
+  },
+}));
+const browser = await chromium.launch({
+  executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
+  args: ['--no-sandbox'],
+});
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const errors: string[] = [];
+let searches = 0;
+page.on('pageerror', (e) => errors.push(e.message));
+await page.route('**/api/**', async (route) => {
+  const path = new URL(route.request().url()).pathname;
+  if (path === '/api/health')
+    await route.fulfill({
+      json: {
+        analysisAvailable: false,
+        analysisState: 'spending-disabled',
+        reason: 'SYNTHETIC TEST: paid AI off.',
+        openalexKeyConfigured: false,
+      },
+    });
+  else if (path === '/api/search') {
+    searches++;
+    assert.match(
+      new URL(route.request().url()).searchParams.get('q')!,
+      /network/i,
+    );
+    await route.fulfill({
+      json: {
+        papers,
+        query: 'network',
+        retrievedAt: 'test',
+        sourceStatuses: [],
+      },
+    });
+  } else
+    throw new Error(`Unexpected request ${path}; no model calls permitted.`);
+});
+const tab = (name: string) => page.getByRole('tab', { name, exact: true });
+try {
+  await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
+  await page
+    .getByLabel('Research question', { exact: true })
+    .fill('How can network analysis be improved?');
+  await page.getByLabel('Your field of interest').fill('Network science');
+  await page.getByLabel('Available equipment', { exact: true }).fill('laptop');
+  await page.getByLabel('Available skills', { exact: true }).fill('Python');
+  await page
+    .getByRole('button', { name: 'Find papers for this focus' })
+    .click();
+  await page.locator('.paper-row').first().waitFor();
+  assert.equal(await page.locator('.paper-row').count(), 1);
+  await page
+    .getByText('Review 3 hidden papers and why', { exact: true })
+    .waitFor();
+  await page.locator('.paper-list .resource-result summary').click();
+  await page.getByText(methods[0], { exact: true }).first().waitFor();
+  await mkdir('/tmp/paperbridge-resources', { recursive: true });
+  await page.locator('.resource-search-filter').scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: '/tmp/paperbridge-resources/filter-desktop.png',
+  });
+  await tab('Focus').click();
+  await page.getByLabel('Available equipment', { exact: true }).fill('');
+  await page.getByLabel('Available skills', { exact: true }).fill('');
+  await tab('Papers').click();
+  assert.equal(await page.locator('.paper-row').count(), 4);
+  await page
+    .getByText('Off — resource fields are blank.', { exact: false })
+    .waitFor();
+  await tab('Focus').click();
+  await page.getByLabel('Available equipment', { exact: true }).fill('no GPU');
+  await tab('Papers').click();
+  assert.equal(await page.locator('.paper-row').count(), 3);
+  assert.equal(
+    await page
+      .locator('.paper-row')
+      .filter({ hasText: 'SYNTHETIC RESOURCE TEST 1' })
+      .count(),
+    0,
+  );
+  await page
+    .getByText('Review 1 hidden papers and why', { exact: true })
+    .click();
+  await page
+    .getByText('Potential resource conflict · why?', { exact: true })
+    .click();
+  await page.getByText(methods[1], { exact: true }).waitFor();
+  await tab('Focus').click();
+  await page.getByLabel('Project deadline', { exact: true }).fill('one day');
+  await tab('Papers').click();
+  assert.equal(await page.locator('.paper-row').count(), 2);
+  await page.getByLabel('Resource filter', { exact: true }).selectOption('off');
+  assert.equal(await page.locator('.paper-row').count(), 4);
+  for (let i = 0; i < 3; i++)
+    await page
+      .getByLabel(`Select SYNTHETIC RESOURCE TEST ${i}`, { exact: true })
+      .check();
+  await tab('Compare').click();
+  await page.getByText('What they have in common', { exact: true }).waitFor();
+  await page.getByText('How they differ', { exact: true }).waitFor();
+  assert.equal(
+    await page.getByLabel('Comparison paper A').inputValue(),
+    'test:0',
+  );
+  await page.getByLabel('Comparison paper B').selectOption('test:2');
+  await page.getByRole('button', { name: 'Method', exact: true }).click();
+  await page
+    .locator('.comparison-overview')
+    .getByText(methods[2], { exact: false })
+    .waitFor();
+  await page.getByRole('button', { name: 'Findings', exact: true }).click();
+  await page.getByRole('button', { name: 'Limitations', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Inspect full passage' })
+    .first()
+    .click();
+  await page.locator('#evidence-inspector blockquote').waitFor();
+  assert.equal(await page.locator('.comparison-passages:visible').count(), 0);
+  await page
+    .getByText('Read full retrieved passages · optional deeper reading', {
+      exact: true,
+    })
+    .click();
+  assert.equal(await page.locator('.comparison-passages:visible').count(), 3);
+  assert.equal(searches, 1);
+  assert.deepEqual(errors, []);
+  assert.equal(await page.locator('vite-error-overlay').count(), 0);
+  await page
+    .getByText('Read full retrieved passages · optional deeper reading', {
+      exact: true,
+    })
+    .click();
+  await mkdir('/tmp/paperbridge-resources', { recursive: true });
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({
+    path: '/tmp/paperbridge-resources/compare-desktop.png',
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({
+    path: '/tmp/paperbridge-resources/compare-mobile.png',
+  });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+    false,
+  );
+  console.log(
+    'PASS: resource matches/conflicts/unknowns, blank reset, deadline conflict, overrides, source evidence, retained selection, two-paper comparison/aspects, optional reader, mobile. No paid requests.',
+  );
+} finally {
+  await browser.close();
+}
