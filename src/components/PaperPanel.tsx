@@ -1,6 +1,7 @@
 import { ArrowUpRight, Search, FileSearch, X } from 'lucide-react';
-import { useState } from 'react';
-import type { Paper, SearchSourceStatus } from '../../shared/types';
+import type { Paper, SearchSourceStatus, SourceName } from '../../shared/types';
+import { defaultFilter, filterPapers } from '../../shared/paper-filters';
+import type { PaperFilters } from '../../shared/paper-filters';
 import { canLoadFullText } from '../../shared/comparison';
 import { Busy, Empty, Notice } from './Primitives';
 export function PaperRow({
@@ -20,6 +21,9 @@ export function PaperRow({
   textBusy?: boolean;
   textError?: string;
 }) {
+  const body = paper.passages.filter(
+    (p) => p.kind === 'full-text' && p.text.trim(),
+  );
   return (
     <article className={`paper-row ${selected ? 'selected' : ''}`}>
       <div className="paper-top">
@@ -100,6 +104,27 @@ export function PaperRow({
           </div>
         </div>
       </div>
+      {body.length ? (
+        <div className="body-preview">
+          <strong>Article body retrieved · {body.length} paragraphs</strong>
+          <p>
+            {body[0].text.slice(0, 240)}
+            {body[0].text.length > 240 ? '…' : ''}
+          </p>
+          <button
+            className="secondary"
+            disabled={disabled}
+            onClick={() => {
+              if (!selected) onToggle?.();
+              document
+                .getElementById('comparison')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          >
+            Read article body
+          </button>
+        </div>
+      ) : null}
       {paper.abstract ? (
         <details className="abstract">
           <summary>Abstract preview (not the article body)</summary>
@@ -148,6 +173,10 @@ export function PaperPanel({
   textErrors,
   query,
   onQueryChange,
+  filters,
+  onFiltersChange,
+  verification,
+  onCheckText,
 }: {
   papers: Paper[];
   selected: Paper[];
@@ -163,11 +192,16 @@ export function PaperPanel({
   textErrors: Record<string, string>;
   query: string;
   onQueryChange: (value: string) => void;
+  filters: PaperFilters;
+  onFiltersChange: (next: PaperFilters) => void;
+  verification: { running: boolean; checked: number; total: number };
+  onCheckText: () => void;
 }) {
-  const [readableOnly, setReadableOnly] = useState(true);
-  const visible = readableOnly
-    ? papers.filter((p) => p.fullText || canLoadFullText(p))
-    : papers;
+  const visible = filterPapers(papers, filters);
+  const failed = papers.filter((p) => !!textErrors[p.id]);
+  const update = (patch: Partial<PaperFilters>) =>
+    onFiltersChange({ ...filters, ...patch });
+  const collections: SourceName[] = ['OpenAlex', 'Europe PMC', 'arXiv'];
   return (
     <section
       className="panel paper-panel"
@@ -212,14 +246,174 @@ export function PaperPanel({
           {loading ? <Busy>Searching</Busy> : 'Search'}
         </button>
       </form>
-      <label className="readable-filter">
-        <input
-          type="checkbox"
-          checked={readableOnly}
-          onChange={(e) => setReadableOnly(e.target.checked)}
-        />
-        Show only records with supported in-app text retrieval
-      </label>
+      <details className="paper-filters">
+        <summary>
+          Filters ·{' '}
+          {filters.access === 'verified'
+            ? 'Retrieved article body only'
+            : filters.access === 'supported'
+              ? 'Supported routes'
+              : 'All free-copy records'}
+        </summary>
+        <label htmlFor="article-access">Text availability</label>
+        <select
+          id="article-access"
+          value={filters.access}
+          onChange={(e) =>
+            update({ access: e.target.value as PaperFilters['access'] })
+          }
+        >
+          <option value="verified">Retrieved article body only</option>
+          <option value="supported">
+            Supported retrieval route — not checked
+          </option>
+          <option value="all">
+            All free-copy records — may be abstract-only
+          </option>
+        </select>
+        <p className="filter-explanation">
+          The default admits only article-body text actually imported into this
+          workspace. A free link or identifier alone does not qualify. Figures,
+          tables and supplements are still separate at the source.
+        </p>
+        {filters.access === 'verified' ? (
+          <label className="filter-check">
+            <input
+              type="checkbox"
+              checked={filters.allowExcerpt}
+              onChange={(e) => update({ allowExcerpt: e.target.checked })}
+            />
+            Include labelled partial-text excerpts
+          </label>
+        ) : null}
+        <fieldset>
+          <legend>Show collections</legend>
+          <div className="collection-checks">
+            {collections.map((source) => (
+              <label key={source}>
+                <input
+                  type="checkbox"
+                  checked={filters.sources.includes(source)}
+                  onChange={(e) =>
+                    update({
+                      sources: e.target.checked
+                        ? [...filters.sources, source]
+                        : filters.sources.filter((s) => s !== source),
+                    })
+                  }
+                />
+                {source === 'Europe PMC' ? 'Europe PMC / PMC' : source}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="filter-years">
+          <div>
+            <label htmlFor="year-from">Year from</label>
+            <input
+              id="year-from"
+              type="number"
+              min={1000}
+              max={3000}
+              placeholder="Any"
+              value={filters.yearFrom ?? ''}
+              onChange={(e) =>
+                update({
+                  yearFrom: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            />
+          </div>
+          <div>
+            <label htmlFor="year-to">Year to</label>
+            <input
+              id="year-to"
+              type="number"
+              min={1000}
+              max={3000}
+              placeholder="Any"
+              value={filters.yearTo ?? ''}
+              onChange={(e) =>
+                update({
+                  yearTo: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            />
+          </div>
+        </div>
+        <label htmlFor="article-kind">Publication versions</label>
+        <select
+          id="article-kind"
+          value={filters.articleKind}
+          onChange={(e) =>
+            update({
+              articleKind: e.target.value as PaperFilters['articleKind'],
+            })
+          }
+        >
+          <option value="all">All records</option>
+          <option value="exclude-preprints">
+            Exclude identified preprints / mixed versions
+          </option>
+          <option value="preprints">
+            Only identified preprints / mixed versions
+          </option>
+        </select>
+        <p className="filter-explanation">
+          Excluding preprints does not establish peer review.
+        </p>
+        <button
+          className="text-button"
+          onClick={() =>
+            onFiltersChange({
+              ...defaultFilter,
+              sources: [...defaultFilter.sources],
+            })
+          }
+        >
+          Reset filters
+        </button>
+      </details>
+      {verification.running ? (
+        <Notice>
+          <Busy>
+            Checking article text: {verification.checked} of{' '}
+            {verification.total}
+          </Busy>{' '}
+          Retrieved papers appear as soon as they are ready. Checks are limited
+          to 12 records per batch.
+        </Notice>
+      ) : null}
+      {papers.length > 0 ? (
+        <button
+          className="secondary check-article-text"
+          onClick={onCheckText}
+          disabled={verification.running}
+        >
+          Check more article texts
+        </button>
+      ) : null}
+      {failed.length ? (
+        <details className="retrieval-failures">
+          <summary>
+            {failed.length} text retrieval check{failed.length === 1 ? '' : 's'}{' '}
+            failed — inspect or retry
+          </summary>
+          {failed.map((p) => (
+            <div key={p.id}>
+              <strong>{p.title}</strong>
+              <p>{textErrors[p.id]}</p>
+              <button
+                className="text-button"
+                disabled={textBusy.has(p.id)}
+                onClick={() => onLoad(p)}
+              >
+                {textBusy.has(p.id) ? 'Retrying…' : 'Retry this article'}
+              </button>
+            </div>
+          ))}
+        </details>
+      ) : null}
       {sourceStatuses.length ? (
         <div className="source-statuses" aria-label="Search collection status">
           {sourceStatuses.map((s) => (
@@ -250,6 +444,10 @@ export function PaperPanel({
               <X size={12} />
             </button>
           ))}
+          <span className="selection-note">
+            Filters change search results; selected papers stay until you remove
+            their chips.
+          </span>
         </div>
       ) : null}
       {error ? (
@@ -290,8 +488,13 @@ export function PaperPanel({
           </div>
           {!visible.length ? (
             <p className="panel-footnote">
-              No results match this filter. Turn it off to see linked free PDFs
-              and repositories.
+              {verification.running
+                ? 'Article-body checks are still running; no matching retrieved text is ready yet.'
+                : !filters.sources.length
+                  ? 'Choose at least one collection above.'
+                  : filters.access === 'verified'
+                    ? 'No imported article body matches these filters yet. Check more article texts, review failed retrievals, or change Text availability to see free-copy links.'
+                    : 'No records match these filters. Widen the year range, collections, or publication-version setting.'}
             </p>
           ) : null}
         </>

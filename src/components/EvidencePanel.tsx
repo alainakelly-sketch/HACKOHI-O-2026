@@ -9,6 +9,11 @@ import type {
 } from '../../shared/types';
 import { resolveCitation } from '../../shared/evidence';
 import { Busy, Empty, Notice } from './Primitives';
+export type EvidenceInspection = {
+  reference: Citation;
+  label: string;
+  explanation?: string;
+};
 function SourceQuote({
   reference,
   papers,
@@ -72,6 +77,7 @@ export function EvidencePanel({
   priorBusy,
   priorError,
   onPrior,
+  inspection = null,
 }: {
   hypothesis: Hypothesis | null;
   papers: Paper[];
@@ -83,14 +89,32 @@ export function EvidencePanel({
   priorBusy: boolean;
   priorError: string;
   onPrior: () => void;
+  inspection?: EvidenceInspection | null;
 }) {
   return (
-    <aside className="panel evidence-panel" aria-labelledby="evidence-title">
+    <aside
+      className="panel evidence-panel"
+      id="evidence-inspector"
+      aria-labelledby="evidence-title"
+    >
       <h2 id="evidence-title">Evidence & limitations</h2>
-      {!hypothesis ? (
+      {inspection ? (
+        <div className="evidence-content">
+          <h3 className="inspected-evidence-title">{inspection.label}</h3>
+          <SourceQuote reference={inspection.reference} papers={papers} />
+          {inspection.explanation ? (
+            <p className="evidence-intro">{inspection.explanation}</p>
+          ) : null}
+          <Notice>
+            This is retrieved source text. Its presence does not prove a
+            scientific interpretation or a currently open research gap.
+          </Notice>
+        </div>
+      ) : !hypothesis ? (
         <Empty title="Inspect a gap hypothesis" icon={<FileText size={30} />}>
-          Use “Compare source text” to read papers for free. Optional AI
-          connection passages, assumptions and unknowns appear here.
+          Click “Inspect evidence” on a free gap lead or comparison item to see
+          its source passage here. Optional AI hypotheses also show supporting
+          passages and limitations.
         </Empty>
       ) : (
         <div className="evidence-content">

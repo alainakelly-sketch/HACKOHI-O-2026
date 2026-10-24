@@ -68,15 +68,42 @@ Each service has a visible status. If one is unavailable, the successful service
 
 **Free-copy links are reported by the source and may change.** A publisher-record link is a reference page and may not itself contain the free copy. Use the separately marked free-copy link. Free to read does not necessarily mean unrestricted reuse; check the source's license and terms.
 
+## Show papers whose body text is actually ready
+
+The default **Filters → Text availability → Retrieved article body only** admits only records whose article-body paragraphs have actually been imported, with full-text provenance metadata and no reported truncation. A free link, PMC/arXiv identifier, abstract, or coverage label alone does not qualify. This confirms text availability, **not scientific correctness or completeness of the whole publication**.
+
+After each search, PaperBridge automatically checks up to **12 supported candidate records**, with at most two checks running together. Ready papers appear as soon as their text arrives. Use **Check more article texts** for another batch. Failed checks remain visible under **text retrieval checks failed — inspect or retry**; expand it to read the error and choose **Retry this article**. A failed import is not silently counted as full text.
+
+A result card admitted by the default filter shows **Article body retrieved**, an actual paragraph preview, and **Read article body**. That button selects the paper if needed and takes you to the reader. A search can return free-linked records while showing no ready text yet: wait for checks, check more candidates, or deliberately widen the filter.
+
+Other filters are explicit:
+
+- **Supported retrieval route — not checked:** show records with a supported import route or available body passages; this is not a promise that retrieval will succeed.
+- **All free-copy records — may be abstract-only:** show the broader free-linked discovery results, including unsupported repositories and PDFs.
+- **Include labelled partial-text excerpts:** allow explicitly labelled body excerpts in the retrieved-text filter; this is off by default.
+- **Show collections**, **Year from / Year to**, and **Publication versions:** narrow the currently retrieved records. A year range excludes records without a known year. Excluding identified preprints/mixed versions does not prove that the remaining papers were peer reviewed.
+
+Filters apply to search results; selected papers remain in the reader and gap scan until you remove their selection chips.
+
+No filter retrieves every paper in a field. A blank filtered list is not evidence that no relevant literature exists.
+
 ## Read and compare article text for free
 
-1. Search a topic and select papers using the checkboxes. **Supported article-body retrieval starts automatically when you select a PMC or arXiv record.** There can be up to six selected papers.
+1. Search a topic and let the article-text checks run. Click **Read article body** on a ready result, or select papers using the checkboxes. Supported retrieval also starts automatically when you select a record that still needs it. There can be up to six selected papers.
 2. The reader opens automatically with **one selected paper**; select two or more to compare them side by side. With more papers or a narrow screen, scroll horizontally within it. You can use **Collapse reader** to close it for the current selection.
 3. The default **Article body — retrieved text** view shows only imported article-body passages. It never silently substitutes an abstract for missing body text. Each card shows whether text is arriving, ready, not retrieved, unavailable or failed.
 4. If supported papers are still missing text, use **Retrieve selected full texts** for an explicit sequential batch. Use a paper's **Retrieve free full text** button to retry, or **Read at source** to open its free copy.
-5. Use **Show** for methods, findings/limitations, or all retrieved passages. **Abstracts only** is available when you explicitly choose it. **Find a phrase** filters the actual stored text.
+5. For two or more selected papers with body text, use the **Similarities & differences overview** above the reader: inspect shared terms, distinct textual emphases, and quoted aims/methods/findings/limitations. Then use **Show** for particular sections or all retrieved passages. **Abstracts only** is available only when you explicitly choose it. **Find a phrase** filters the actual stored text.
 
 **Export sources (JSON)** saves selected metadata and retrieved text without requiring AI analysis. The reader shows stored passages, **not AI summaries**. Source links and passage IDs remain inspectable. Missing methods or findings are not invented: source section headings vary, and an abstract cannot provide sections that were never retrieved.
+
+### Understand the free comparison overview
+
+The overview requires article-body text for at least two selected papers. It does not use their abstracts as a substitute. **In common** shows words and phrases found in two or more retrieved bodies; **Distinct emphases** shows terms found in one retrieved body but not the others. The source-statement matrix displays exact excerpts for aims/purpose, methods, findings and limitations/future work, using source headings or explicit textual cues. An unavailable row stays unavailable.
+
+Click a source button or **Inspect full passage** to open the complete stored quotation in **Evidence & limitations**, together with its paper link and passage ID. The preview can be shortened, but the inspector shows the supporting passage.
+
+This is a local text comparison, not a claim of scientific agreement, equivalent methods or contradictory findings. A term not seen in the retrieved bodies may appear in omitted material or use different wording. Shared vocabulary alone does not establish a connection, and a missing matrix cell does not establish that the original paper lacks that aspect.
 
 ### What “full text” means here
 
@@ -95,7 +122,11 @@ No model configuration, account, database, or payment is needed for this reading
 
 ## Find possible research-gap leads
 
-Select one or more relevant sources, let supported body text arrive, and click **Find gap leads** in **Possible research gap leads**. The free local scan looks for explicit author-stated signals of:
+Click **Find gap leads** in **Possible research gap leads** at any time. The button is always usable: with no selected papers, it opens a selection guide and **Go to papers** action rather than remaining disabled. A field or question can help order leads but is **not required to run this free scan**.
+
+Select at least one relevant source with imported body text. **Evidence to scan** defaults to **Retrieved article body only**. Abstracts are excluded unless you deliberately choose **Include abstracts too — limited evidence**; abstract leads remain labelled. If none of the selected papers has body text, the panel says that no article-body scan ran and offers **Retrieve selected article text** for supported records. It does not turn missing body text into an abstract-based result.
+
+The free local scan looks for explicit author-stated signals of:
 
 - A reported limitation of a study.
 - Proposed future work.
@@ -103,9 +134,9 @@ Select one or more relevant sources, let supported body text arrive, and click *
 
 Background or introductory issues are flagged as potentially already addressed by the same paper and shown after nonbackground leads. Read that paper’s results first.
 
-Each lead includes an exact signal sentence, its complete supporting passage, a stable passage ID, the source link, and whether it came from article-body text or an abstract. Body-text leads are ordered ahead of abstract-only leads; simple keyword overlap with your question and field helps order the remaining candidates. That ordering is **not a scientific confidence, importance or novelty score**.
+Each lead includes an exact signal sentence, its complete supporting passage, a stable passage ID, the source link, and whether it came from article-body text or an explicitly included abstract. Click **Inspect evidence** to open that stored quotation in the evidence inspector. Nonbackground leads are shown before introductory/background issues. Within that grouping, body-text leads are preferred to any deliberately included abstract-only leads; simple keyword overlap with your question and field helps order the remaining candidates. That ordering is **not a scientific confidence, importance or novelty score**.
 
-This is a lexical scan of selected retrieved text, not AI scientific synthesis or an exhaustive review of the field. It can miss implicit gaps, unfamiliar phrasing, non-English signals and context, and it can surface statements about earlier work rather than a currently unresolved issue. The coverage summary shows which selected sources have body text, only abstracts or only metadata. Leads update as additional text arrives. If nothing explicit is found, PaperBridge reports insufficient evidence rather than inventing a gap.
+This is a lexical scan of selected retrieved text, not AI scientific synthesis or an exhaustive review of the field. It can miss implicit gaps, unfamiliar phrasing, non-English signals and context, and it can surface statements about earlier work rather than a currently unresolved issue. The coverage summary shows how many selected sources have readable body text and how many do not, along with the chosen evidence scope. Leads update as additional text arrives. If nothing explicit is found, PaperBridge reports insufficient evidence rather than inventing a gap.
 
 Click **Search for follow-up work** on a lead to run its visible follow-up terms through the free-paper search. Inspect newer and related work before treating the lead as a research opportunity: a limitation in one paper is not automatically a field-wide gap, and later studies may already answer the question. **Not finding a lead or a close search match does not establish absence or novelty.**
 
@@ -113,7 +144,7 @@ Click **Search for follow-up work** on a lead to run its visible follow-up terms
 
 **Explore saved example** opens a separate tab and leaves your live workspace alone. It includes four real OpenAlex records and an explicitly **manually prepared, within-field example in network ecology**, not a live AI response. The proposed sensitivity comparison is a hypothesis to investigate, not a confirmed research gap. Its original stored evidence is abstract-only, even though live search can retrieve more kinds of text.
 
-Click its saved hypothesis to inspect source passages, possible-gap rationale, assumptions and unknowns. **Assess resources** initially returns **Unknown**. Adding `tripartite ecological networks` to **Available data** and reassessing demonstrates the conservative phrase match; writing `No tripartite ecological networks` instead demonstrates **Potential mismatch**. Edits immediately invalidate the previous assessment.
+Because the example’s original records are abstract-only, they may be hidden by the default retrieved-body search filter. This does not imply body text was imported. The saved hypothesis and its source quotations remain clearly labelled; explicitly include abstracts if you want the local scan to examine that limited evidence. Click the saved hypothesis to inspect source passages, possible-gap rationale, assumptions and unknowns. **Assess resources** initially returns **Unknown**. Adding `tripartite ecological networks` to **Available data** and reassessing demonstrates the conservative phrase match; writing `No tripartite ecological networks` instead demonstrates **Potential mismatch**. Edits immediately invalidate the previous assessment.
 
 **Check related prior work** uses the live combined free-paper search. The visible queries and candidate overlaps do not establish novelty. A failed provider makes the search incomplete. The experiment section is a proposal, not an established protocol. **Export workspace**, when a saved or AI hypothesis is present, downloads sources, notes, analysis origin and the current assessment as JSON.
 
@@ -162,16 +193,16 @@ npm start            # Serve the built website and API on port 3001
 
 For development, use `npm run dev` and open **5173**. For the built server, run a successful build first, use `npm start`, and forward **3001** instead. Keep `HOST=127.0.0.1` unless your environment explicitly needs another binding.
 
-Tests cover source parsing, free access, duplicate grouping, source IDs, retrieval failures, body-only reading, one-field query suggestions, local gap-lead signals and limitations, excerpt evidence validation, model spending gates, prior-work outcomes and resource invalidation. Synthetic papers belong only in labelled automated tests. Check [docs/VALIDATION.md](docs/VALIDATION.md) for current results and untested cases; a mocked test is not a live-provider verification.
+Tests cover source parsing, free access, duplicate grouping, source IDs, retrieval failures, actual imported-body filters, body-only reading, quoted comparison overviews, always-usable gap controls, one-field query suggestions, local gap-lead signals and limitations, excerpt evidence validation, model spending gates, prior-work outcomes and resource invalidation. Synthetic papers belong only in labelled automated tests. Check [docs/VALIDATION.md](docs/VALIDATION.md) for current results and untested cases; a mocked test is not a live-provider verification.
 
 ## Work as four teammates
 
-| Teammate                        | Work independently in                                                                                                              | Responsibility                                                                                                          |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 1 — interface                   | `src/components/`, `src/styles.css`, `src/components/comparison.css`                                                               | Focus form, search and reading panels, gap-lead inspection and mobile layout.                                           |
-| 2 — retrieval                   | `server/openalex.ts`, `server/sources/`, related tests                                                                             | Collection adapters, grouping, free copies, body extraction and provenance.                                             |
-| 3 — analysis/evidence           | `server/analysis.ts`, `server/evidence-validation.ts`, `shared/analysis-schema.ts`                                                 | Optional within-field gap hypotheses and submitted-evidence checks; never enable spending without approval.             |
-| 4 — discovery/resources/testing | `shared/research-query.ts`, `shared/gaps.ts`, `shared/comparison.ts`, `server/prior-work.ts`, `shared/resources.ts`, related tests | Editable keyword suggestions, conservative local gap scan, passage filtering, follow-up search, resource checks and QA. |
+| Teammate                        | Work independently in                                                                                                                                                                          | Responsibility                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1 — interface                   | `src/components/`, `src/styles.css`, reader/overview CSS                                                                                                                                       | Focus form, actual-text filters, reader/overview, evidence inspector and mobile layout.                                     |
+| 2 — retrieval                   | `server/openalex.ts`, `server/sources/`, related tests                                                                                                                                         | Collection adapters, grouping, free copies, body extraction and provenance.                                                 |
+| 3 — analysis/evidence           | `server/analysis.ts`, `server/evidence-validation.ts`, `shared/analysis-schema.ts`                                                                                                             | Optional within-field gap hypotheses and submitted-evidence checks; never enable spending without approval.                 |
+| 4 — discovery/resources/testing | `shared/research-query.ts`, `shared/gaps.ts`, `shared/paper-filters.ts`, `shared/comparison-overview.ts`, `shared/comparison.ts`, `server/prior-work.ts`, `shared/resources.ts`, related tests | Editable queries, conservative gap scan, actual-text filtering, comparison rules, follow-up search, resource checks and QA. |
 
 Coordinate before editing `shared/types.ts`, `server/app.ts` or `src/App.tsx`, which connect these modules. Give teammates separate branches. The implementation branch is `paperbridge-first-version`; changes are reviewed there without merging into `main` or deploying automatically.
 

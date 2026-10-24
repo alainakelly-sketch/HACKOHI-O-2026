@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { Columns2, ArrowUpRight, Download } from 'lucide-react';
-import type { Paper } from '../../shared/types';
+import type { Paper, Citation } from '../../shared/types';
 import { comparisonPassages, canLoadFullText } from '../../shared/comparison';
 import { Busy, Empty, Notice } from './Primitives';
 import './comparison.css';
+import { ComparisonOverview } from './ComparisonOverview';
 export function ComparisonPanel({
   papers,
   onLoad,
   busy,
   errors,
   onExport,
+  onInspect,
 }: {
   papers: Paper[];
   onLoad: (paper: Paper) => void | Promise<void>;
   busy: Set<string>;
   errors: Record<string, string>;
   onExport: () => void;
+  onInspect?: (reference: Citation) => void;
 }) {
   // Opening follows the selection, not a separate hidden step. A deliberate
   // collapse applies only to that selection, so new papers reopen the reader.
@@ -92,6 +95,11 @@ export function ComparisonPanel({
         </p>
       ) : (
         <>
+          <ComparisonOverview
+            papers={papers}
+            onInspect={onInspect ?? (() => {})}
+          />
+          <h3 className="reader-heading">Read the supporting article text</h3>
           <p className="comparison-intro">
             Article-body text is the default view. Abstracts are available only
             when you choose them below. These are retrieved source passages, not
@@ -104,7 +112,7 @@ export function ComparisonPanel({
               text.
             </strong>
             <span>
-              {busy.size
+              {papers.some((p) => busy.has(p.id))
                 ? 'Text retrieval is in progress. Ready papers can already be read.'
                 : bodyReady === papers.length
                   ? 'Ready to read. Check each source’s extraction scope below.'

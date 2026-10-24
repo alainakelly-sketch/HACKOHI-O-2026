@@ -18,6 +18,7 @@ import type {
   Resources,
   SearchResult,
   SearchSourceStatus,
+  Citation,
 } from '../shared/types';
 import {
   assessResources,
@@ -29,6 +30,14 @@ import { BridgeMark, Notice } from './components/Primitives';
 import { BriefForm } from './components/BriefForm';
 import { PaperPanel } from './components/PaperPanel';
 import { ConnectionPanel } from './components/ConnectionPanel';
+import type { EvidenceInspection } from './components/EvidencePanel';
+import type { GapLead } from '../shared/gaps';
+import {
+  defaultFilter,
+  filterPapers,
+  hasArticleBody,
+} from '../shared/paper-filters';
+import type { PaperFilters } from '../shared/paper-filters';
 import { EvidencePanel } from './components/EvidencePanel';
 import { ComparisonPanel } from './components/ComparisonPanel';
 import { GapPanel } from './components/GapPanel';
@@ -51,6 +60,19 @@ export default function App() {
   );
   const [exampleError, setExampleError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<PaperFilters>(() => ({
+    ...defaultFilter,
+    sources: [...defaultFilter.sources],
+  }));
+  const [verification, setVerification] = useState({
+    running: false,
+    checked: 0,
+    total: 0,
+  });
+  const verificationRun = useRef(0);
+  const [inspection, setInspection] = useState<EvidenceInspection | null>(null);
+  const selectedIds = useRef(new Set<string>());
+  const textPending = useRef(new Map<string, Promise<void>>());
   const [brief, setBrief] = useState<Brief>({
     question: '',
     field: '',
@@ -89,6 +111,9 @@ export default function App() {
     analysisController = useRef<AbortController | null>(null),
     priorController = useRef<AbortController | null>(null);
   const generation = useRef(0);
+  useEffect(() => {
+    selectedIds.current = new Set(selected.map((p) => p.id));
+  }, [selected]);
   useEffect(() => {
     const controller = new AbortController();
     api<Health>('/api/health', undefined, controller.signal)
@@ -141,6 +166,7 @@ export default function App() {
     analysisController.current?.abort();
     priorController.current?.abort();
     setAnalysis(null);
+    setInspection(null);
     setAnalysisId('');
     setActiveId(null);
     setAssessment(null);
@@ -192,6 +218,8 @@ export default function App() {
     searchController.current?.abort();
     const controller = new AbortController();
     searchController.current = controller;
+    verificationRun.current++;
+    setVerification({ running: false, checked: 0, total: 0 });
     setLastQuery(query);
     setSearchQuery(query);
     setSearchBusy(true);
@@ -209,6 +237,8 @@ export default function App() {
       if (!controller.signal.aborted) {
         setPapers(result.papers);
         setSourceStatuses(result.sourceStatuses ?? []);
+        if (filters.access === 'verified')
+          void verifyPapers(result.papers, controller.signal);
       }
     } catch (e) {
       if (!controller.signal.aborted)
@@ -217,8 +247,19 @@ export default function App() {
       if (!controller.signal.aborted) setSearchBusy(false);
     }
   }
-  async function loadFullText(paper: Paper) {
-    if (textControllers.current.has(paper.id)) return;
+  function loadFullText(paper: Paper): Promise<void> {
+    const existing = textPending.current.get(paper.id);
+    if (existing) return existing;
+    if (paper.fullText && hasArticleBody(paper)) return Promise.resolve();
+    const pending = requestFullText(paper);
+    textPending.current.set(paper.id, pending);
+    void pending.finally(() => {
+      if (textPending.current.get(paper.id) === pending)
+        textPending.current.delete(paper.id);
+    });
+    return pending;
+  }
+  async function requestFullText(paper: Paper): Promise<void> {
     const controller = new AbortController();
     textControllers.current.set(paper.id, controller);
     setTextBusy((ids) => new Set(ids).add(paper.id));
@@ -230,12 +271,20 @@ export default function App() {
         controller.signal,
       );
       if (controller.signal.aborted) return;
-      clearAnalysis();
+      if (!updated.fullText || !hasArticleBody(updated))
+        throw new Error(
+          'The provider did not return article-body text. This record was not admitted to the retrieved-text filter.',
+        );
+      if (selectedIds.current.has(updated.id)) clearAnalysis();
       setSelected((items) =>
-        items.map((p) => (p.id === updated.id ? updated : p)),
+        items.some((p) => p.id === updated.id)
+          ? items.map((p) => (p.id === updated.id ? updated : p))
+          : items,
       );
       setPapers((items) =>
-        items.map((p) => (p.id === updated.id ? updated : p)),
+        items.some((p) => p.id === updated.id)
+          ? items.map((p) => (p.id === updated.id ? updated : p))
+          : items,
       );
     } catch (error) {
       if (!controller.signal.aborted)
@@ -255,7 +304,83 @@ export default function App() {
         });
     }
   }
+  async function verifyPapers(
+    records: Paper[],
+    signal?: AbortSignal,
+    limit = 12,
+    settings: PaperFilters = filters,
+    retryFailures = false,
+  ) {
+    const scope = retryFailures
+      ? records
+      : filterPapers(records, {
+          ...settings,
+          access: 'supported',
+          allowExcerpt: true,
+        });
+    const candidates = scope
+      .filter((p) => canLoadFullText(p) && (retryFailures || !textErrors[p.id]))
+      .slice(0, limit);
+    const run = ++verificationRun.current;
+    setVerification({
+      running: !!candidates.length,
+      checked: 0,
+      total: candidates.length,
+    });
+    let cursor = 0,
+      checked = 0;
+    async function worker() {
+      while (
+        cursor < candidates.length &&
+        !signal?.aborted &&
+        run === verificationRun.current
+      ) {
+        const paper = candidates[cursor++];
+        await loadFullText(paper);
+        checked++;
+        if (run === verificationRun.current && !signal?.aborted)
+          setVerification({ running: true, checked, total: candidates.length });
+      }
+    }
+    try {
+      await Promise.all([worker(), worker()]);
+    } finally {
+      if (run === verificationRun.current)
+        setVerification({ running: false, checked, total: candidates.length });
+    }
+  }
+  function changeFilters(next: PaperFilters) {
+    setFilters(next);
+    verificationRun.current++;
+    setVerification({ running: false, checked: 0, total: 0 });
+    if (next.access === 'verified')
+      void verifyPapers(papers, undefined, 12, next);
+  }
+  function inspectComparison(reference: Citation) {
+    setActiveId(null);
+    setInspection({
+      reference,
+      label: 'Comparison supporting passage',
+      explanation:
+        'This passage supports the displayed text comparison. Shared terms do not by themselves establish scientific agreement, and differences in wording are not proof that the studies disagree.',
+    });
+    document
+      .getElementById('evidence-inspector')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function inspectGap(lead: GapLead) {
+    setActiveId(null);
+    setInspection({
+      reference: { paperId: lead.paperId, passageId: lead.passageId },
+      label: lead.label,
+      explanation: lead.followUp,
+    });
+    document
+      .getElementById('evidence-inspector')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   async function runAnalysis() {
+    setInspection(null);
     priorController.current?.abort();
     setPriorBusy(false);
     const controller = new AbortController();
@@ -300,6 +425,7 @@ export default function App() {
     assessment?.hypothesisId === activeId &&
     assessmentIsCurrent(assessment?.revision ?? null, resourceRevision);
   function choose(id: string) {
+    setInspection(null);
     priorController.current?.abort();
     setPriorBusy(false);
     setActiveId(id);
@@ -495,6 +621,10 @@ export default function App() {
             textErrors={textErrors}
             query={searchQuery}
             onQueryChange={setSearchQuery}
+            filters={filters}
+            onFiltersChange={changeFilters}
+            verification={verification}
+            onCheckText={() => void verifyPapers(papers)}
           />
           <ComparisonPanel
             papers={selected}
@@ -502,6 +632,7 @@ export default function App() {
             busy={textBusy}
             errors={textErrors}
             onExport={onExport}
+            onInspect={inspectComparison}
           />
           <GapPanel
             papers={selected}
@@ -509,8 +640,13 @@ export default function App() {
             field={brief.field}
             busy={textBusy}
             onSearch={search}
+            onRetrieve={() =>
+              verifyPapers(selected, undefined, 6, filters, true)
+            }
+            onInspect={inspectGap}
           />
           <EvidencePanel
+            inspection={inspection}
             hypothesis={hypothesis}
             papers={selected}
             brief={brief}
