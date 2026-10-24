@@ -1,0 +1,5 @@
+# Local Environment Variables (API keys, secrets)
+.env
+
+# Dependencies (if using Node.js/Python/etc.)
+node_modules/

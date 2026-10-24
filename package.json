@@ -1,0 +1,8 @@
+{
+  "name": "paperbridge",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "start": "node --env-file=.env server.js" },
+  "engines": { "node": ">=20" },
+  "dependencies": { "express": "^4.19.2" }
+}

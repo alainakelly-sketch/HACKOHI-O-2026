@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaperBridge</title>
+<style>
+:root{--bg:#f5f6fb;--sf:#fff;--ink:#181a2b;--mu:#5d6179;--ln:#dfe1ee;--ind:#4338ca;--soft:#e7e6fb;--ok:#0f766e;--bad:#9f1239;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--bg:#12131f;--sf:#1b1d2e;--ink:#eceefb;--mu:#a1a5c2;--ln:#2f3250;--ind:#8b86ff;--soft:#2a2866;--ok:#5eead4;--bad:#fda4b8}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}
+main{max-width:900px;margin:0 auto;padding:24px 20px 64px}
+h1{font:600 clamp(28px,5vw,42px)/1.1 Georgia,serif;margin:0 0 8px}h2{font:600 22px Georgia,serif;margin:28px 0 10px}h3{font-size:15px;margin:0 0 6px}
+.mu{color:var(--mu)}.fine{font-size:14px;color:var(--mu)}
+textarea{width:100%;min-height:80px;font:inherit;font-size:17px;padding:12px;border:1px solid var(--ln);border-radius:10px;background:var(--sf);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}
+.chip{border:1px solid var(--ln);background:var(--sf);color:var(--ink);border-radius:999px;padding:5px 13px;font:inherit;font-size:14px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--soft);border-color:var(--ind);color:var(--ind)}
+.btn{background:var(--ind);color:#fff;border:0;border-radius:10px;padding:11px 20px;font:600 16px system-ui;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:wait}.btn.ghost{background:none;color:var(--ind);border:1px solid var(--ind)}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:12px;padding:16px;margin-bottom:12px}
+.hyp{border-left:4px solid var(--ind);background:var(--soft);padding:14px 16px;border-radius:0 12px 12px 0;font:500 20px/1.35 Georgia,serif}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+blockquote{margin:8px 0;padding:6px 12px;border-left:3px solid var(--ln);font-size:14px;color:var(--mu)}
+.tag{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;margin-left:6px}
+.tag.ok{background:var(--soft);color:var(--ok)}.tag.bad{background:var(--soft);color:var(--bad)}
+a{color:var(--ind)}ul{padding-left:20px;margin:6px 0}
+dt{font-weight:600;margin-top:12px}dd{margin:2px 0 0;color:var(--mu)}
+#err{color:var(--bad);margin-top:12px}
+</style>
+</head>
+<body>
+<main>
+  <h1>PaperBridge</h1>
+  <p class="mu">Describe what you're investigating. PaperBridge searches OpenAlex, finds methods from other fields, and drafts an evidence-backed hypothesis you can verify.</p>
+  <label for="q"><b>What are you investigating?</b></label>
+  <textarea id="q">Can typing patterns help detect early Parkinson's disease?</textarea>
+  <div class="chips" id="chips" role="group" aria-label="Fields">
+    <button class="chip" aria-pressed="true">Neurology</button>
+    <button class="chip" aria-pressed="true">Machine learning</button>
+    <button class="chip" aria-pressed="true">Behavioral data</button>
+    <button class="chip" aria-pressed="false">Signal processing</button>
+  </div>
+  <button class="btn" id="go">Find connections</button>
+  <p id="status" class="fine" role="status"></p><p id="err" role="alert"></p>
+  <div id="out"></div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const h = (t, c, ...k) => { const e = document.createElement(t); if (c) e.className = c; k.flat().forEach((x) => e.append(x)); return e; };
+const link = (p) => { const e = h("a", "", `${p.title} (${p.year})`); e.href = p.url; e.target = "_blank"; e.rel = "noopener"; return e; };
+const paperList = (ps) => h("ul", "", ps.map((p) => h("li", "", link(p), h("span", "fine", ` · ${p.cites} citations`))));
+
+$("#chips").addEventListener("click", (e) => {
+  const c = e.target.closest(".chip"); if (c) c.setAttribute("aria-pressed", c.getAttribute("aria-pressed") !== "true");
+});
+
+$("#go").addEventListener("click", async () => {
+  const btn = $("#go"), out = $("#out");
+  $("#err").textContent = ""; out.replaceChildren();
+  btn.disabled = true; $("#status").textContent = "Searching papers and analysing connections. This takes 20 to 40 seconds.";
+  try {
+    const fields = [...document.querySelectorAll('.chip[aria-pressed="true"]')].map((c) => c.textContent);
+    const r = await fetch("/api/discover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: $("#q").value, fields }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "Request failed");
+    render(d);
+  } catch (e) { $("#err").textContent = e.message; }
+  btn.disabled = false; $("#status").textContent = "";
+});
+
+function render({ papersA, papersB, analysis: a, novelty }) {
+  const out = $("#out");
+  out.append(h("h2", "", "Papers found"),
+    h("div", "cols", h("div", "card", h("h3", "", `About your problem (${papersA.length})`), paperList(papersA)),
+                     h("div", "card", h("h3", "", `Methods from other fields (${papersB.length})`), paperList(papersB))));
+
+  if (!a.hypothesis) { out.append(h("div", "card", h("h3", "", "No supported connection found"), h("p", "mu", a.why || ""))); return; }
+
+  out.append(h("h2", "", "Hypothesis"), h("div", "hyp", a.hypothesis),
+    h("p", "fine", "A hypothesis drafted from the papers above, not an established finding. ", a.why || ""));
+
+  (a.connections || []).forEach((c) => {
+    out.append(h("div", "card", h("h3", "", "Connection"), h("div", "", link(c.paperA), " ↔ ", link(c.paperB)), h("p", "mu", c.transfer || ""),
+      (c.evidence || []).map((e) => h("blockquote", "", `“${e.quote}” `, link(e.paper),
+        h("span", "tag " + (e.verified ? "ok" : "bad"), e.verified ? "Quote verified" : "Quote not found in abstract")))));
+  });
+
+  out.append(h("div", "cols",
+    h("div", "card", h("h3", "", "Contradicting or unclear"), h("ul", "", (a.contradictions || []).map((x) => h("li", "", x)))),
+    h("div", "card", h("h3", "", "Speculative parts"), h("ul", "", (a.speculative || []).map((x) => h("li", "", x))))));
+
+  out.append(h("div", "card", h("h3", "", "Novelty check: closest existing work"),
+    novelty.length ? paperList(novelty) : h("p", "fine", "No close matches returned."),
+    h("p", "fine", "Check these before calling the idea new. This is a search-based assessment, not proof nobody has studied it.")));
+
+  const labels = { question: "Research question", data: "Required data", method: "Method", evaluation: "Evaluation", falsification: "What would disprove it" };
+  const dl = h("dl", "");
+  Object.entries(labels).forEach(([k, l]) => dl.append(h("dt", "", l), h("dd", "", (a.plan || {})[k] || "")));
+  const copy = h("button", "btn ghost", "Copy as proposal");
+  copy.onclick = async () => {
+    const text = `${a.hypothesis}\n\n` + Object.entries(labels).map(([k, l]) => `${l}: ${(a.plan || {})[k] || ""}`).join("\n\n");
+    try { await navigator.clipboard.writeText(text); copy.textContent = "Copied"; } catch { copy.textContent = "Copy blocked"; }
+  };
+  out.append(h("h2", "", "First experiment"), h("div", "card", dl, copy));
+}
+</script>
+</body>
+</html>
