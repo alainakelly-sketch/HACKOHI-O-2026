@@ -150,6 +150,16 @@ Because the example’s original records are abstract-only, they may be hidden b
 
 Reloading clears the browser workspace. The backend keeps bounded, temporary source and analysis caches for one hour; restarting it clears live cache entries. Search and reselect if sources expire. Saved-example loading is explicit and never replaces a failed live request.
 
+## Workflow tabs and editable planning
+
+The numbered **Focus → Papers → Compare → Gap leads → AI hypotheses → Experiment** controls are real in-app tabs. Only the active step is displayed. Your work stays in memory while switching tabs; tab visits do not rerun searches or AI. Arrow Left/Right and Home/End navigate the top tabs. The sidebar uses the same selection. Visiting a step does not mark it complete.
+
+In **AI hypotheses**, the checklist identifies missing question/field, selected paper count (4–6), usable source text, and server readiness. **Recheck server readiness** makes only a health request. The backend distinguishes deliberately disabled spending, missing model credentials, and provider authentication, quota, timeout or response failures. A failed request is never replaced by an example. Live AI remains off until the owner explicitly approves spending and configures it.
+
+Choose **Plan an experiment** on a hypothesis to reuse its existing plan, or **Draft an experiment from this lead** on a free gap lead. You can also open **Experiment → Start my own experiment draft** without any AI. Manual unknowns remain blank and the draft is labelled user-created. Edit the seven planning fields, then **Copy current plan** or **Export current plan**. The exported JSON includes your current edits, source IDs, and creation-time focus/resources. Source or resource changes flag plans for review without deleting edits. Session drafts can be reopened using the draft picker. Evidence inspection preserves the chosen hypothesis and plan. Reloading still clears session data: export before refreshing.
+
+Browser regression checks use **synthetic mocked paper and AI responses**, never paid model calls. With the existing dev server running, run `npx tsx tests/workflow.browser.ts`. It uses `/usr/bin/chromium` by default; set `CHROMIUM_PATH` if your installed browser has another path. `PAPERBRIDGE_TEST_URL` can point to your local test server. This does not validate live AI/provider access.
+
 ## Optional AI gap hypotheses — spending approval required
 
 Select **4–6 papers**, enter a research question and **one field**, then use **Develop AI gap hypotheses** only if an owner has configured and approved it. **No paid model requests were made while building this app.** Live AI calls remain disabled by default. A ChatGPT subscription does not pay for API calls.

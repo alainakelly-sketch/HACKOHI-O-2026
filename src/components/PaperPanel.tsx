@@ -9,6 +9,7 @@ export function PaperRow({
   selected,
   disabled,
   onToggle,
+  onRead,
   onLoad,
   textBusy,
   textError,
@@ -17,6 +18,7 @@ export function PaperRow({
   selected?: boolean;
   disabled?: boolean;
   onToggle?: () => void;
+  onRead?: () => void;
   onLoad?: () => void;
   textBusy?: boolean;
   textError?: string;
@@ -116,9 +118,7 @@ export function PaperRow({
             disabled={disabled}
             onClick={() => {
               if (!selected) onToggle?.();
-              document
-                .getElementById('comparison')
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              onRead?.();
             }}
           >
             Read article body
@@ -167,6 +167,7 @@ export function PaperPanel({
   lastQuery,
   onSearch,
   onToggle,
+  onRead,
   sourceStatuses = [],
   onLoad,
   textBusy,
@@ -186,6 +187,7 @@ export function PaperPanel({
   lastQuery: string;
   onSearch: (query: string) => void;
   onToggle: (paper: Paper) => void;
+  onRead?: () => void;
   sourceStatuses?: SearchSourceStatus[];
   onLoad: (paper: Paper) => void;
   textBusy: Set<string>;
@@ -480,6 +482,7 @@ export function PaperPanel({
                   selected.length >= 6 && !selected.some((s) => s.id === p.id)
                 }
                 onToggle={() => onToggle(p)}
+                onRead={onRead}
                 onLoad={() => onLoad(p)}
                 textBusy={textBusy.has(p.id)}
                 textError={textErrors[p.id]}

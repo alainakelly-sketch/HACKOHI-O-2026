@@ -28,6 +28,8 @@ export function GapPanel({
   onSearch,
   onRetrieve,
   onInspect,
+  onPlan,
+  onGoPapers,
 }: {
   papers: Paper[];
   question: string;
@@ -36,6 +38,8 @@ export function GapPanel({
   onSearch: (query: string) => void;
   onRetrieve?: () => Promise<void> | void;
   onInspect?: (lead: GapLead) => void;
+  onPlan?: (lead: GapLead) => void;
+  onGoPapers?: () => void;
 }) {
   const [opened, setOpened] = useState(false);
   const [scope, setScope] = useState<GapEvidenceScope>('body');
@@ -170,14 +174,7 @@ export function GapPanel({
               Wait for its article-body text to arrive, then return here. No gap
               scan has run yet.
             </p>
-            <button
-              className="secondary"
-              onClick={() =>
-                document
-                  .getElementById('papers')
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }
-            >
+            <button className="secondary" onClick={onGoPapers}>
               Go to papers
             </button>
           </div>
@@ -229,6 +226,11 @@ export function GapPanel({
                       onClick={() => onInspect(lead)}
                     >
                       Inspect evidence
+                    </button>
+                  ) : null}
+                  {onPlan ? (
+                    <button className="primary" onClick={() => onPlan(lead)}>
+                      Draft an experiment from this lead
                     </button>
                   ) : null}
                   <h4>Before treating this as a gap</h4>

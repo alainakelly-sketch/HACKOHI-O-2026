@@ -110,6 +110,7 @@ export function createApp(
     const status = analysisAvailability();
     res.json({
       analysisAvailable: status.available,
+      analysisState: status.state,
       reason: status.reason,
       openalexKeyConfigured: !!process.env.OPENALEX_API_KEY,
     });

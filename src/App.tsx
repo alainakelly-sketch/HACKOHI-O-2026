@@ -44,12 +44,18 @@ import { GapPanel } from './components/GapPanel';
 import { buildResearchQuery } from '../shared/research-query';
 import { canLoadFullText } from '../shared/comparison';
 import { ExperimentPanel } from './components/ExperimentPanel';
+import {
+  createHypothesisPlan,
+  createManualPlan,
+  planContextKey,
+} from '../shared/experiment-plan';
+import type { ExperimentDraft } from '../shared/experiment-plan';
 const nav = [
   { id: 'question', label: 'Focus', icon: CircleHelp },
   { id: 'papers', label: 'Papers', icon: FileText },
   { id: 'comparison', label: 'Compare', icon: Columns2 },
   { id: 'gaps', label: 'Gap leads', icon: CircleHelp },
-  { id: 'connections', label: 'AI gaps', icon: GitBranch },
+  { id: 'connections', label: 'AI hypotheses', icon: GitBranch },
   { id: 'experiment', label: 'Experiment', icon: FlaskConical },
 ];
 export default function App() {
@@ -58,6 +64,38 @@ export default function App() {
       new URLSearchParams(window.location.search).get('example') ===
       'network-ecology',
   );
+  const [plan, setPlan] = useState<ExperimentDraft | null>(null);
+  const drafts = useRef(new Map<string, ExperimentDraft>());
+  const [planSources, setPlanSources] = useState<Paper[]>([]);
+  function editPlan(next: ExperimentDraft) {
+    drafts.current.set(next.id, next);
+    setPlan(next);
+  }
+  function retainPlanSources() {
+    setPlanSources((previous) => [
+      ...previous.filter((p) => !selected.some((x) => x.id === p.id)),
+      ...selected,
+    ]);
+  }
+  const [readinessBusy, setReadinessBusy] = useState(false);
+  async function recheckHealth() {
+    setReadinessBusy(true);
+    try {
+      setHealth(
+        await api<Health>('/api/health', undefined, AbortSignal.timeout(10000)),
+      );
+    } catch {
+      setHealth({
+        analysisAvailable: false,
+        analysisState: 'unreachable',
+        reason:
+          'Backend unreachable. Check that npm run dev is running, then recheck.',
+        openalexKeyConfigured: false,
+      });
+    } finally {
+      setReadinessBusy(false);
+    }
+  }
   const [exampleError, setExampleError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<PaperFilters>(() => ({
@@ -99,14 +137,18 @@ export default function App() {
   const [prior, setPrior] = useState<PriorWork | null>(null),
     [priorBusy, setPriorBusy] = useState(false),
     [priorError, setPriorError] = useState('');
-  const [resourceRevision, setResourceRevision] = useState(0),
-    [planRevision, setPlanRevision] = useState(0);
+  const [resourceRevision, setResourceRevision] = useState(0);
   const [assessment, setAssessment] = useState<{
     revision: number;
     hypothesisId: string;
     value: Fit;
   } | null>(null);
   const [activeNav, setActiveNav] = useState('question');
+  useEffect(() => {
+    document
+      .getElementById(`tab-${activeNav}`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeNav]);
   const searchController = useRef<AbortController | null>(null),
     analysisController = useRef<AbortController | null>(null),
     priorController = useRef<AbortController | null>(null);
@@ -116,17 +158,29 @@ export default function App() {
   }, [selected]);
   useEffect(() => {
     const controller = new AbortController();
+    let disposed = false;
+    const readinessTimeout = window.setTimeout(
+      () =>
+        controller.abort(
+          new Error('Backend readiness timed out. Recheck server readiness.'),
+        ),
+      10000,
+    );
     api<Health>('/api/health', undefined, controller.signal)
       .then(setHealth)
       .catch((e) => {
-        if (!controller.signal.aborted)
+        if (!disposed)
           setHealth({
             analysisAvailable: false,
+            analysisState: 'unreachable',
             reason: e instanceof Error ? e.message : 'Backend unavailable.',
             openalexKeyConfigured: false,
           });
-      });
+      })
+      .finally(() => window.clearTimeout(readinessTimeout));
     return () => {
+      disposed = true;
+      window.clearTimeout(readinessTimeout);
       controller.abort();
       textControllers.current.forEach((c) => c.abort());
       searchController.current?.abort();
@@ -209,9 +263,7 @@ export default function App() {
     if (query.length >= 2) {
       setSearchQuery(query);
       void search(query);
-      document
-        .getElementById('papers')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveNav('papers');
     }
   }
   async function search(query: string) {
@@ -357,7 +409,6 @@ export default function App() {
       void verifyPapers(papers, undefined, 12, next);
   }
   function inspectComparison(reference: Citation) {
-    setActiveId(null);
     setInspection({
       reference,
       label: 'Comparison supporting passage',
@@ -369,7 +420,6 @@ export default function App() {
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function inspectGap(lead: GapLead) {
-    setActiveId(null);
     setInspection({
       reference: { paperId: lead.paperId, passageId: lead.passageId },
       label: lead.label,
@@ -409,8 +459,6 @@ export default function App() {
         setAnalysis(result.result);
         setAnalysisId(result.analysisId);
         setActiveId(result.result.hypotheses[0]?.id ?? null);
-        setPlanRevision(resourceRevision);
-        setActiveNav('connections');
       }
     } catch (e) {
       if (!controller.signal.aborted)
@@ -474,6 +522,7 @@ export default function App() {
             brief,
             papers: selected,
             analysis,
+            experimentPlan: plan,
             priorWork: prior,
             resourceAssessment: fitCurrent ? assessment?.value : null,
             limitations:
@@ -492,35 +541,75 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  const stage = hypothesis ? 5 : selected.length >= 2 ? 3 : searched ? 1 : 0;
+  function startHypothesisPlan(id: string) {
+    const h = analysis?.hypotheses.find((item) => item.id === id);
+    if (!h || !analysis) return;
+    choose(id);
+    const draft = createHypothesisPlan(h, brief, selected, analysis.origin);
+    draft.id = `${analysisId}:${draft.id}`;
+    editPlan(drafts.current.get(draft.id) ?? draft);
+    retainPlanSources();
+    setActiveNav('experiment');
+  }
+  function startManualPlan(lead?: GapLead) {
+    setInspection(null);
+    const draft = createManualPlan(brief, selected, lead);
+    editPlan(drafts.current.get(draft.id) ?? draft);
+    retainPlanSources();
+    setActiveNav('experiment');
+  }
+  function tabKeys(event: React.KeyboardEvent, index: number) {
+    const next =
+      event.key === 'ArrowRight'
+        ? (index + 1) % nav.length
+        : event.key === 'ArrowLeft'
+          ? (index + nav.length - 1) % nav.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? nav.length - 1
+              : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    setActiveNav(nav[next].id);
+    document.getElementById(`tab-${nav[next].id}`)?.focus();
+  }
+  const activeIndex = nav.findIndex((item) => item.id === activeNav);
   return (
     <div className="app-shell">
       <header className="app-header">
-        <a className="brand" href="#question">
+        <a
+          className="brand"
+          href="#question"
+          onClick={(e) => {
+            e.preventDefault();
+            setActiveNav('question');
+          }}
+        >
           <BridgeMark />
           <div>
             <strong>PaperBridge</strong>
             <span>Research workspace</span>
           </div>
         </a>
-        <nav className="steps" aria-label="Research workflow">
-          {[
-            'Set focus',
-            'Select papers',
-            'Compare text',
-            'Find gap leads',
-            'Optional AI',
-            'Plan experiment',
-          ].map((label, i) => (
-            <a
-              href={`#${nav[i].id}`}
-              key={label}
-              className={i <= stage ? 'current' : ''}
-              onClick={() => setActiveNav(nav[i].id)}
+        <nav className="steps" role="tablist" aria-label="Research workflow">
+          {nav.map((item, i) => (
+            <button
+              type="button"
+              role="tab"
+              aria-label={item.label}
+              id={`tab-${item.id}`}
+              aria-controls={`step-${item.id}`}
+              aria-selected={activeNav === item.id}
+              tabIndex={activeNav === item.id ? 0 : -1}
+              key={item.id}
+              className={activeNav === item.id ? 'current' : ''}
+              onClick={() => setActiveNav(item.id)}
+              onKeyDown={(event) => tabKeys(event, i)}
             >
               <span>{String(i + 1).padStart(2, '0')}</span>
-              <b>{label}</b>
-            </a>
+              <b>{item.label}</b>
+            </button>
           ))}
         </nav>
         <span
@@ -532,15 +621,16 @@ export default function App() {
       </header>
       <nav className="sidebar" aria-label="Workspace sections">
         {nav.map((item) => (
-          <a
-            href={`#${item.id}`}
+          <button
+            type="button"
+            aria-current={activeNav === item.id ? 'step' : undefined}
             onClick={() => setActiveNav(item.id)}
             className={activeNav === item.id ? 'active' : ''}
             key={item.id}
           >
             <item.icon size={19} />
             <span>{item.label}</span>
-          </a>
+          </button>
         ))}
         <div className="sidebar-bottom">
           <BridgeMark small />
@@ -598,82 +688,222 @@ export default function App() {
           </div>
         ) : null}
         {exampleError ? <Notice error>{exampleError}</Notice> : null}
-        <div className="workspace-grid">
-          <BriefForm
-            brief={brief}
-            onCore={onCore}
-            onResources={onResources}
-            onFindPapers={searchFocus}
-            searching={searchBusy}
-          />
-          <PaperPanel
-            papers={papers}
-            selected={selected}
-            loading={searchBusy}
-            error={searchError}
-            searched={searched}
-            lastQuery={lastQuery}
-            onSearch={search}
-            onToggle={toggle}
-            sourceStatuses={sourceStatuses}
-            onLoad={loadFullText}
-            textBusy={textBusy}
-            textErrors={textErrors}
-            query={searchQuery}
-            onQueryChange={setSearchQuery}
-            filters={filters}
-            onFiltersChange={changeFilters}
-            verification={verification}
-            onCheckText={() => void verifyPapers(papers)}
-          />
-          <ComparisonPanel
-            papers={selected}
-            onLoad={loadFullText}
-            busy={textBusy}
-            errors={textErrors}
-            onExport={onExport}
-            onInspect={inspectComparison}
-          />
-          <GapPanel
-            papers={selected}
-            question={brief.question}
-            field={brief.field}
-            busy={textBusy}
-            onSearch={search}
-            onRetrieve={() =>
-              verifyPapers(selected, undefined, 6, filters, true)
+        <div
+          className={`workspace-grid tab-workspace ${['comparison', 'gaps', 'connections', 'experiment'].includes(activeNav) ? 'with-evidence' : ''}`}
+        >
+          <div
+            className="workflow-panel"
+            role="tabpanel"
+            id="step-question"
+            aria-labelledby="tab-question"
+            hidden={activeNav !== 'question'}
+            tabIndex={0}
+          >
+            <BriefForm
+              brief={brief}
+              onCore={onCore}
+              onResources={onResources}
+              onFindPapers={searchFocus}
+              searching={searchBusy}
+            />
+          </div>
+          <div
+            className="workflow-panel"
+            role="tabpanel"
+            id="step-papers"
+            aria-labelledby="tab-papers"
+            hidden={activeNav !== 'papers'}
+            tabIndex={0}
+          >
+            <PaperPanel
+              papers={papers}
+              selected={selected}
+              loading={searchBusy}
+              error={searchError}
+              searched={searched}
+              lastQuery={lastQuery}
+              onSearch={search}
+              onToggle={toggle}
+              sourceStatuses={sourceStatuses}
+              onLoad={loadFullText}
+              textBusy={textBusy}
+              textErrors={textErrors}
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              filters={filters}
+              onFiltersChange={changeFilters}
+              verification={verification}
+              onCheckText={() => void verifyPapers(papers)}
+              onRead={() => setActiveNav('comparison')}
+            />
+          </div>
+          <div
+            className="workflow-panel"
+            role="tabpanel"
+            id="step-comparison"
+            aria-labelledby="tab-comparison"
+            hidden={activeNav !== 'comparison'}
+            tabIndex={0}
+          >
+            <ComparisonPanel
+              papers={selected}
+              onLoad={loadFullText}
+              busy={textBusy}
+              errors={textErrors}
+              onExport={onExport}
+              onInspect={inspectComparison}
+            />
+          </div>
+          <div
+            className="workflow-panel"
+            role="tabpanel"
+            id="step-gaps"
+            aria-labelledby="tab-gaps"
+            hidden={activeNav !== 'gaps'}
+            tabIndex={0}
+          >
+            <GapPanel
+              papers={selected}
+              question={brief.question}
+              field={brief.field}
+              busy={textBusy}
+              onSearch={search}
+              onRetrieve={() =>
+                verifyPapers(selected, undefined, 6, filters, true)
+              }
+              onInspect={inspectGap}
+              onPlan={startManualPlan}
+              onGoPapers={() => setActiveNav('papers')}
+            />
+          </div>
+          <div
+            className="workflow-evidence"
+            hidden={
+              !['comparison', 'gaps', 'connections', 'experiment'].includes(
+                activeNav,
+              )
             }
-            onInspect={inspectGap}
-          />
-          <EvidencePanel
-            inspection={inspection}
-            hypothesis={hypothesis}
-            papers={selected}
-            brief={brief}
-            fit={fitCurrent ? assessment!.value : null}
-            staleFit={!!assessment && !fitCurrent}
-            onAssess={onAssess}
-            prior={prior}
-            priorBusy={priorBusy}
-            priorError={priorError}
-            onPrior={onPrior}
-          />
-          <ConnectionPanel
-            brief={brief}
-            analysis={analysis}
-            activeId={activeId}
-            health={health}
-            count={selected.length}
-            busy={analysisBusy}
-            error={analysisError}
-            onAnalyze={runAnalysis}
-            onSelect={choose}
-          />
-          <ExperimentPanel
-            hypothesis={hypothesis}
-            resourcesChanged={resourceRevision !== planRevision}
-            onExport={onExport}
-          />
+          >
+            <EvidencePanel
+              inspection={inspection}
+              hypothesis={
+                activeNav !== 'experiment' ||
+                plan?.id === `${analysisId}:hypothesis:${activeId}`
+                  ? hypothesis
+                  : null
+              }
+              papers={[
+                ...planSources.filter(
+                  (p) => !selected.some((s) => s.id === p.id),
+                ),
+                ...selected,
+              ]}
+              brief={brief}
+              fit={fitCurrent ? assessment!.value : null}
+              staleFit={!!assessment && !fitCurrent}
+              onAssess={onAssess}
+              prior={prior}
+              priorBusy={priorBusy}
+              priorError={priorError}
+              onPrior={onPrior}
+            />
+          </div>
+          <div
+            className="workflow-panel"
+            role="tabpanel"
+            id="step-connections"
+            aria-labelledby="tab-connections"
+            hidden={activeNav !== 'connections'}
+            tabIndex={0}
+          >
+            <ConnectionPanel
+              brief={brief}
+              analysis={analysis}
+              activeId={activeId}
+              health={health}
+              count={selected.length}
+              busy={analysisBusy}
+              error={analysisError}
+              onAnalyze={runAnalysis}
+              onSelect={choose}
+              papers={selected}
+              onRecheck={recheckHealth}
+              readinessBusy={readinessBusy}
+              onPlan={startHypothesisPlan}
+            />
+          </div>
+          <div
+            className="workflow-panel"
+            role="tabpanel"
+            id="step-experiment"
+            aria-labelledby="tab-experiment"
+            hidden={activeNav !== 'experiment'}
+            tabIndex={0}
+          >
+            {drafts.current.size > 1 ? (
+              <label className="draft-picker">
+                Open a saved session draft
+                <select
+                  aria-label="Open a saved session draft"
+                  value={plan?.id ?? ''}
+                  onChange={(event) => {
+                    setInspection(null);
+                    const draft =
+                      drafts.current.get(event.target.value) ?? null;
+                    setPlan(draft);
+                    const matched = analysis?.hypotheses.find(
+                      (h) => draft?.id === `${analysisId}:hypothesis:${h.id}`,
+                    );
+                    if (matched) choose(matched.id);
+                  }}
+                >
+                  {[...drafts.current.values()].map((draft) => (
+                    <option key={draft.id} value={draft.id}>
+                      {draft.fields.question.slice(0, 80) ||
+                        'Untitled manual draft'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <ExperimentPanel
+              plan={plan}
+              onChange={editPlan}
+              onStartManual={() => startManualPlan()}
+              needsReview={
+                !!plan && plan.contextKey !== planContextKey(brief, selected)
+              }
+              onReview={() => {
+                if (plan)
+                  editPlan({
+                    ...plan,
+                    contextKey: planContextKey(brief, selected),
+                  });
+              }}
+              onInspect={(reference) =>
+                setInspection({ reference, label: 'Experiment draft source' })
+              }
+            />
+          </div>
+        </div>
+        <div className="workflow-controls">
+          <button
+            className="secondary"
+            disabled={activeIndex === 0}
+            onClick={() => setActiveNav(nav[activeIndex - 1].id)}
+          >
+            Back
+          </button>
+          <span>
+            Step {activeIndex + 1} of {nav.length} · {nav[activeIndex].label}
+          </span>
+          <button
+            className="primary"
+            disabled={activeIndex === nav.length - 1}
+            onClick={() => setActiveNav(nav[activeIndex + 1].id)}
+          >
+            Continue
+          </button>
         </div>
       </main>
       <footer className="app-footer">

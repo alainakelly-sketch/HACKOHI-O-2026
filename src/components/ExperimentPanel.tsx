@@ -1,23 +1,87 @@
-import { FlaskConical, Download } from 'lucide-react';
-import type { Hypothesis } from '../../shared/types';
+import { useState } from 'react';
+import { FlaskConical, Download, Copy } from 'lucide-react';
+import type { Citation } from '../../shared/types';
+import type {
+  ExperimentDraft,
+  ExperimentFields,
+} from '../../shared/experiment-plan';
+import { exportPlan } from '../../shared/experiment-plan';
 import { Empty, Notice } from './Primitives';
-const labels = {
-  question: 'Research question',
-  data: 'Required data',
-  method: 'Proposed method',
-  baseline: 'Baseline comparison',
-  measure: 'Evaluation measure',
-  against: 'What would count against it?',
-};
+const fields: { key: keyof ExperimentFields; label: string; hint: string }[] = [
+  {
+    key: 'question',
+    label: 'Research question / hypothesis',
+    hint: 'What specific claim or question will you test?',
+  },
+  {
+    key: 'data',
+    label: 'Required data',
+    hint: 'Identify a dataset, population, or measurements. Leave unknown details blank.',
+  },
+  {
+    key: 'method',
+    label: 'Proposed method',
+    hint: 'Describe a small first test. Confirm feasibility before writing a protocol.',
+  },
+  {
+    key: 'baseline',
+    label: 'Baseline or comparison',
+    hint: 'What existing approach, control, or reference will you compare against?',
+  },
+  {
+    key: 'measure',
+    label: 'Evaluation measure',
+    hint: 'What measurable outcome would distinguish the alternatives?',
+  },
+  {
+    key: 'against',
+    label: 'What result would count against the hypothesis',
+    hint: 'Describe a result that would weaken the claim.',
+  },
+  {
+    key: 'constraints',
+    label: 'Resource constraints and unresolved questions',
+    hint: 'List unknowns, unavailable resources, and questions for your team.',
+  },
+];
 export function ExperimentPanel({
-  hypothesis,
-  resourcesChanged,
-  onExport,
+  plan,
+  needsReview,
+  onChange,
+  onStartManual,
+  onInspect,
+  onReview,
 }: {
-  hypothesis: Hypothesis | null;
-  resourcesChanged: boolean;
-  onExport: () => void;
+  plan: ExperimentDraft | null;
+  needsReview: boolean;
+  onChange: (plan: ExperimentDraft) => void;
+  onStartManual: () => void;
+  onInspect?: (citation: Citation) => void;
+  onReview?: () => void;
 }) {
+  const [copyMessage, setCopyMessage] = useState('');
+  function download() {
+    if (!plan) return;
+    const url = URL.createObjectURL(
+      new Blob([exportPlan(plan)], { type: 'application/json' }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'paperbridge-experiment-plan.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  async function copy() {
+    if (!plan) return;
+    try {
+      await navigator.clipboard.writeText(exportPlan(plan));
+      setCopyMessage('Current edited plan copied.');
+    } catch {
+      setCopyMessage(
+        'Copy is unavailable in this browser. Use Export current plan to save the same edited content.',
+      );
+    }
+  }
   return (
     <section
       className="panel experiment-panel"
@@ -26,38 +90,136 @@ export function ExperimentPanel({
     >
       <div className="panel-heading">
         <h2 id="experiment-title">First experiment</h2>
-        {hypothesis ? (
-          <button className="text-button" onClick={onExport}>
-            <Download size={14} />
-            Export workspace
-          </button>
+        {plan ? (
+          <div className="button-row">
+            <button className="text-button" onClick={copy}>
+              <Copy size={14} />
+              Copy current plan
+            </button>
+            <button className="text-button" onClick={download}>
+              <Download size={14} />
+              Export current plan
+            </button>
+          </div>
         ) : null}
       </div>
-      {!hypothesis ? (
-        <Empty title="No experiment plan yet" icon={<FlaskConical size={24} />}>
-          Inspect a proposed gap hypothesis to develop a small, testable first
-          step.
-        </Empty>
+      {!plan ? (
+        <>
+          <Empty
+            title="No experiment plan yet"
+            icon={<FlaskConical size={24} />}
+          >
+            Choose “Plan an experiment” on a hypothesis or gap lead, or start
+            your own draft below. No paid AI is needed for a manual plan.
+          </Empty>
+          <button className="primary" onClick={onStartManual}>
+            Start my own experiment draft
+          </button>
+        </>
       ) : (
         <>
           <p className="panel-footnote">
-            Proposed experiment · not an established protocol. Review
-            feasibility, ethics, and safety with your team.
+            <strong>
+              {plan.origin === 'user-created'
+                ? 'User-created draft · not AI-generated'
+                : plan.origin === 'saved-example'
+                  ? 'Saved example · manually prepared'
+                  : 'AI-generated proposal · editable'}
+            </strong>
+            . This is a proposal, not an established protocol. Blank fields need
+            your input; no method is inferred for manual drafts.
           </p>
-          {resourcesChanged ? (
+          {needsReview ? (
             <Notice>
-              Your resources changed after this plan was generated. Reassess
-              resource fit and review the plan before using it.
+              Your research focus, selected source text, or resources changed.
+              Your edits have been kept. Review this plan and reassess resource
+              fit before using it.
+              {onReview ? (
+                <button className="text-button" onClick={onReview}>
+                  I have reviewed this plan against the current workspace
+                </button>
+              ) : null}
             </Notice>
           ) : null}
-          <dl className="experiment-grid">
-            {Object.entries(labels).map(([key, label]) => (
-              <div key={key}>
-                <dt>{label}</dt>
-                <dd>{hypothesis.experiment[key as keyof typeof labels]}</dd>
+          {plan.id !== 'manual' ? (
+            <button className="secondary" onClick={onStartManual}>
+              Open my own experiment draft
+            </button>
+          ) : null}
+          <div className="experiment-grid">
+            {fields.map(({ key, label, hint }) => (
+              <div key={key} className="resource-field">
+                <label htmlFor={`plan-${key}`}>{label}</label>
+                <textarea
+                  id={`plan-${key}`}
+                  aria-describedby={`plan-${key}-hint`}
+                  rows={key === 'method' ? 5 : 3}
+                  value={plan.fields[key]}
+                  placeholder={hint}
+                  onChange={(event) => {
+                    setCopyMessage('');
+                    onChange({
+                      ...plan,
+                      fields: { ...plan.fields, [key]: event.target.value },
+                    });
+                  }}
+                />
+                <small id={`plan-${key}-hint`}>{hint}</small>
               </div>
             ))}
-          </dl>
+          </div>
+          <details>
+            <summary>
+              Research focus, resources, and source references carried into this
+              draft
+            </summary>
+            <p>
+              <strong>Field:</strong> {plan.focus.field || 'Not provided'}
+              <br />
+              <strong>Research focus:</strong>{' '}
+              {plan.focus.question || 'Not provided'}
+            </p>
+            <dl>
+              {Object.entries(plan.resources).map(([key, value]) => (
+                <div key={key}>
+                  <dt>{key}</dt>
+                  <dd>{value || 'Not provided'}</dd>
+                </div>
+              ))}
+            </dl>
+            <p>
+              These are the resources recorded when the draft was created;
+              compare them with your current focus before planning.
+            </p>
+            {plan.sources.length ? (
+              <ul>
+                {plan.sources.map((citation) => (
+                  <li key={`${citation.paperId}:${citation.passageId}`}>
+                    <button
+                      className="text-button"
+                      onClick={() => onInspect?.(citation)}
+                    >
+                      Inspect source passage {citation.passageId}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>
+                No supporting passage is attached to this user-created draft.
+              </p>
+            )}
+            <ul>
+              {plan.sourcePapers.map((paper) => (
+                <li key={paper.id}>
+                  <a href={paper.url} target="_blank" rel="noreferrer">
+                    {paper.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
+          {copyMessage ? <p role="status">{copyMessage}</p> : null}
         </>
       )}
     </section>

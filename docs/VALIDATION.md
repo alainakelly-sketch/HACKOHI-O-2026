@@ -58,3 +58,14 @@ Screenshots of the actual filters, quoted comparison and mobile layout were insp
 ## Not performed / remaining limitations
 
 No Firefox, Safari, physical-device, or assistive-technology checks were performed. The overview and gap scan are conservative text rules, not a full scientific synthesis or exhaustive review; they can miss implicit results, unfamiliar headings, other languages, or context. Missing text is kept unknown. No universal free-paper coverage, confirmed scientific gap, public deployment, production multi-user validation, or newly restored cloud instance is claimed.
+
+## Workflow tabs, AI diagnosis and editable planning
+
+- Existing feature branch inspected at `fdcc726` with a clean working tree before edits.
+- Workflow steps now use keyboard-operable tabs; mounted hidden panels retain local reader/filter/scan state. Switching tabs makes no search or model request.
+- AI input checklist mirrors server constraints, counts usable submitted source text, and separates unreachable backend, spending disabled, missing credentials and safe provider errors. Readiness recheck is a bounded health request.
+- Hypothesis plans reuse the generated proposal; manual and gap-lead drafts leave unknown methods blank. Draft edits/export, evidence inspection, source/resource review flags and distinct analysis draft identities are covered.
+- Unit/API suites: 255 tests passed across 18 files. TypeScript and production build passed.
+- `tests/workflow.browser.ts` exercises Chromium at desktop 1440×1000 and mobile 390×844, using explicitly synthetic mock papers and AI responses. It verifies all tabs, state retention, three-paper checklist, readiness recheck, unreachable backend, provider timeout/retry, insufficient evidence, successful request wiring, hypothesis-to-plan, edited JSON export, evidence inspection, no draft collision across analyses, free gap-to-plan and review warnings after changing papers/resources. No page errors or horizontal overflow were found.
+- Browser plugin not available; Playwright with installed `/usr/bin/chromium` used. Screenshots inspected outside the repository. Firefox, Safari, physical devices and assistive technology were not tested.
+- Actual local health endpoint reported `spending-disabled`. No paid provider calls were made; live AI generation/authentication/quota remain unverified. Existing legal source retrieval behavior is unchanged by this update.

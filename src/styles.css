@@ -1945,3 +1945,195 @@ details summary {
   overflow: visible;
   margin-top: 4px;
 }
+
+/* One persistent workspace with a single visible workflow step. */
+.app-header {
+  position: sticky;
+  top: 0;
+}
+.steps {
+  gap: 12px;
+  overflow-x: auto;
+}
+.steps > button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 5px;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+  font-size: 11px;
+}
+.steps > button > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: #f2f4f8;
+  border-radius: 50%;
+}
+.steps > button.current {
+  color: var(--accent);
+}
+.steps > button.current > span {
+  background: #eeedff;
+  box-shadow: 0 0 0 1px #ddd9ff inset;
+}
+.sidebar > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 12px;
+  border: 0;
+  background: transparent;
+  color: #5d6884;
+  font-size: 12px;
+  border-radius: 5px;
+  text-align: left;
+}
+.sidebar > button.active {
+  background: #eeefff;
+  color: var(--accent);
+  font-weight: 600;
+}
+.tab-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.tab-workspace.with-evidence {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+.workflow-panel {
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+}
+.workflow-panel > .panel {
+  grid-area: auto;
+  max-height: none;
+}
+.workflow-evidence {
+  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
+}
+.workflow-evidence .evidence-panel {
+  max-height: calc(100vh - 120px);
+  position: sticky;
+  top: 95px;
+}
+[hidden] {
+  display: none !important;
+}
+.workflow-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+button:focus-visible,
+[role='tabpanel']:focus-visible {
+  outline: 3px solid #8b83ec;
+  outline-offset: 3px;
+}
+@media (max-width: 1100px) {
+  .session-note {
+    display: none;
+  }
+  .steps {
+    display: flex;
+  }
+  .app-header {
+    gap: 12px;
+  }
+  .tab-workspace.with-evidence {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workflow-evidence {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .workflow-evidence .evidence-panel {
+    position: static;
+    max-height: none;
+  }
+}
+@media (max-width: 650px) {
+  .app-header {
+    height: auto;
+    min-height: 76px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+  }
+  .steps {
+    width: 100%;
+  }
+  .steps > button b {
+    display: inline;
+  }
+  .workflow-controls span {
+    font-size: 10px;
+  }
+}
+.experiment-grid .field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.experiment-grid textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  resize: vertical;
+  font: inherit;
+}
+.experiment-grid small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.experiment-panel .panel-heading {
+  flex-wrap: wrap;
+}
+.button-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.analysis-readiness {
+  padding: 16px;
+  background: #f8f9ff;
+  border-radius: 8px;
+  margin: 18px 0;
+}
+.analysis-readiness ul {
+  padding-left: 20px;
+  line-height: 1.9;
+}
+.draft-picker {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.draft-picker select {
+  max-width: 100%;
+}
+.tab-workspace {
+  display: grid;
+}
+.workflow-panel,
+.workflow-evidence {
+  width: 100%;
+}
+@media (max-width: 760px) {
+  .sidebar {
+    display: none;
+  }
+}

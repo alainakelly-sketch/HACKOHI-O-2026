@@ -9,17 +9,20 @@ export function analysisAvailability() {
   if (process.env.ENABLE_LIVE_ANALYSIS !== 'true')
     return {
       available: false,
+      state: 'spending-disabled' as const,
       reason:
         'Live analysis is off. A project owner must approve API spending before enabling it on the server.',
     };
   if (!(process.env.PAPERBRIDGE_MODEL_KEY || process.env.OPENAI_API_KEY))
     return {
       available: false,
+      state: 'not-configured' as const,
       reason:
         'Live analysis needs a server-side model API key. Paper search remains available.',
     };
   return {
     available: true,
+    state: 'ready' as const,
     reason:
       'Live analysis is configured. Each analysis sends selected source passages to the model provider and may incur API charges.',
   };
@@ -41,7 +44,11 @@ export async function analyze(
     ...p,
     passages: modelPassages(p),
   }));
-  if (modelSources.filter((p) => p.passages.length).length < 2)
+  if (
+    modelSources.filter((p) =>
+      p.passages.some((passage) => passage.text.trim().length > 0),
+    ).length < 2
+  )
     return {
       origin: 'live',
       status: 'insufficient',
@@ -99,10 +106,49 @@ Experiment plan is a PROPOSAL, never an established protocol. Include question, 
     }
   } catch (error) {
     if (error instanceof AppError) throw error;
-    // Never return provider bodies, headers, URLs or keys to the browser/logs.
-    throw new AppError(
-      502,
-      'Model analysis failed or timed out. Check server-side provider access, quota, and model configuration. No fallback result was substituted.',
-    );
+    throw providerFailure(error);
   }
+}
+
+// Read only coarse SDK error properties; never expose provider bodies or secrets.
+export function providerFailure(error: unknown): AppError {
+  const detail =
+    error && typeof error === 'object'
+      ? (error as { status?: unknown; name?: unknown })
+      : {};
+  const suffix =
+    ' No fallback result was substituted. You can retry after correcting the issue.';
+  if (detail.status === 401 || detail.status === 403)
+    return new AppError(
+      502,
+      'Provider authentication or access was rejected. A project owner should check the server-side key and model access.' +
+        suffix,
+    );
+  if (detail.status === 429)
+    return new AppError(
+      502,
+      'Provider quota or rate limit reached. A project owner should check provider limits; do not enable billing automatically.' +
+        suffix,
+    );
+  if (
+    detail.name === 'APIConnectionTimeoutError' ||
+    detail.status === 408 ||
+    detail.status === 504
+  )
+    return new AppError(
+      504,
+      'The model provider timed out. Retry when the provider is available.' +
+        suffix,
+    );
+  if (detail.name === 'APIConnectionError')
+    return new AppError(
+      502,
+      'The server could not reach the model provider. Check network access and retry.' +
+        suffix,
+    );
+  return new AppError(
+    502,
+    'The model provider returned an error. Check server-side model configuration and provider availability.' +
+      suffix,
+  );
 }

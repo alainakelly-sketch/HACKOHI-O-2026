@@ -1,5 +1,6 @@
 import { GitBranch, ArrowRight } from 'lucide-react';
-import type { Analysis, Brief, Health } from '../../shared/types';
+import type { Analysis, Brief, Health, Paper } from '../../shared/types';
+import { analysisReadiness } from '../../shared/analysis-readiness';
 import { Busy, Notice } from './Primitives';
 export function analysisLabel(origin: Analysis['origin']) {
   return origin === 'live'
@@ -16,22 +17,27 @@ export function ConnectionPanel({
   error,
   onAnalyze,
   onSelect,
+  papers,
+  onRecheck,
+  readinessBusy = false,
+  onPlan,
 }: {
   brief: Brief;
   analysis: Analysis | null;
   activeId: string | null;
   health: Health | null;
   count: number;
+  papers?: Paper[];
+  onRecheck?: () => void;
+  readinessBusy?: boolean;
+  onPlan?: (id: string) => void;
   busy: boolean;
   error: string;
   onAnalyze: () => void;
   onSelect: (id: string) => void;
 }) {
-  const complete =
-    brief.question.trim().length >= 5 &&
-    brief.field.trim().length >= 2 &&
-    count >= 4 &&
-    count <= 6;
+  const readiness = analysisReadiness(brief, count, papers, health);
+  const complete = readiness.every((item) => item.ready);
   return (
     <section
       className="panel connection-panel"
@@ -42,7 +48,7 @@ export function ConnectionPanel({
         <h2 id="connections-title">Optional AI gap hypotheses</h2>
         <button
           className="primary"
-          disabled={!complete || !health?.analysisAvailable || busy}
+          disabled={!complete || busy || readinessBusy}
           onClick={onAnalyze}
         >
           {busy ? (
@@ -55,12 +61,37 @@ export function ConnectionPanel({
           )}
         </button>
       </div>
+      <div className="analysis-readiness" aria-live="polite">
+        <h3>Before generating</h3>
+        <ul>
+          {readiness.map((item) => (
+            <li key={item.key}>
+              {item.ready ? '✓' : '○'} {item.message}
+            </li>
+          ))}
+        </ul>
+        {onRecheck ? (
+          <button
+            className="secondary"
+            onClick={onRecheck}
+            disabled={readinessBusy}
+          >
+            {readinessBusy ? 'Checking server…' : 'Recheck server readiness'}
+          </button>
+        ) : null}
+        <p className="panel-footnote">
+          Search, comparison, gap scanning and user-created experiment drafts
+          work without paid AI. Rechecking readiness does not make a model
+          request.
+        </p>
+      </div>
       {!analysis ? (
         <div className="ai-gap-empty">
           <h3>{brief.field || 'Your field of interest'}</h3>
           <p>
-            Free author-stated gap leads appear above. Optional AI can help
-            develop a testable hypothesis from the selected evidence.
+            Free author-stated gap leads are available in the Gap leads tab.
+            Optional AI can help develop a testable hypothesis from the selected
+            evidence.
           </p>
         </div>
       ) : (
@@ -80,21 +111,27 @@ export function ConnectionPanel({
           ) : (
             <div className="connection-cards">
               {analysis.hypotheses.map((h, i) => (
-                <button
-                  key={h.id}
-                  className={`connection-card ${activeId === h.id ? 'active' : ''}`}
-                  onClick={() => onSelect(h.id)}
-                  aria-pressed={activeId === h.id}
-                >
-                  <span className="connection-number">0{i + 1}</span>
-                  <div>
-                    <strong>{h.title}</strong>
-                    <p>{h.hypothesis}</p>
-                    <span>
-                      Inspect evidence & limitations <ArrowRight size={13} />
-                    </span>
-                  </div>
-                </button>
+                <div key={h.id}>
+                  <button
+                    className={`connection-card ${activeId === h.id ? 'active' : ''}`}
+                    onClick={() => onSelect(h.id)}
+                    aria-pressed={activeId === h.id}
+                  >
+                    <span className="connection-number">0{i + 1}</span>
+                    <div>
+                      <strong>{h.title}</strong>
+                      <p>{h.hypothesis}</p>
+                      <span>
+                        Inspect evidence & limitations <ArrowRight size={13} />
+                      </span>
+                    </div>
+                  </button>
+                  {onPlan ? (
+                    <button className="secondary" onClick={() => onPlan(h.id)}>
+                      Plan an experiment
+                    </button>
+                  ) : null}
+                </div>
               ))}
             </div>
           )}
@@ -106,8 +143,8 @@ export function ConnectionPanel({
       ) : !health.analysisAvailable ? (
         <Notice>
           <strong>AI analysis is optional.</strong> Read source text and scan
-          gap leads above for free. {health.reason} Live requests never fall
-          back to saved examples.
+          gap leads for free. {health.reason} Live requests never fall back to
+          saved examples.
         </Notice>
       ) : (
         <p className="panel-footnote">{health.reason}</p>

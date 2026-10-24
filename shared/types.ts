@@ -118,6 +118,8 @@ export type Fit = {
   note: string;
 };
 export type Health = {
+  analysisState?:
+    'ready' | 'spending-disabled' | 'not-configured' | 'unreachable';
   analysisAvailable: boolean;
   reason: string;
   openalexKeyConfigured: boolean;

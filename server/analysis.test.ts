@@ -8,7 +8,7 @@ vi.mock('openai', () => ({
     }
   },
 }));
-import { analyze } from './analysis';
+import { analyze, analysisAvailability } from './analysis';
 import {
   exampleAnalysis,
   exampleBrief,
@@ -126,4 +126,41 @@ describe('model integration without paid calls (SDK mocked)', () => {
     expect(result.status).toBe('insufficient');
     expect(mocked.parse).not.toHaveBeenCalled();
   });
+});
+
+describe('safe provider failure distinctions (synthetic errors, no live calls)', () => {
+  it.each([
+    [{ status: 401 }, 'authentication'],
+    [{ status: 403 }, 'authentication'],
+    [{ status: 429 }, 'quota or rate limit'],
+    [{ name: 'APIConnectionTimeoutError' }, 'timed out'],
+    [{ name: 'APIConnectionError' }, 'could not reach'],
+    [{ status: 500 }, 'provider returned an error'],
+  ])(
+    'classifies %j without leaking response details',
+    async (error, expected) => {
+      mocked.parse.mockRejectedValue({
+        ...error,
+        message: 'SYNTHETIC_SECRET_PROVIDER_DETAIL',
+      });
+      await expect(analyze(exampleBrief, examplePapers)).rejects.toThrow(
+        expected,
+      );
+      try {
+        await analyze(exampleBrief, examplePapers);
+      } catch (e) {
+        expect(String(e)).not.toContain('SYNTHETIC_SECRET_PROVIDER_DETAIL');
+      }
+    },
+  );
+});
+
+it('distinguishes missing credentials from deliberately disabled spending', () => {
+  vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'false');
+  expect(analysisAvailability().state).toBe('spending-disabled');
+  vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'true');
+  vi.stubEnv('PAPERBRIDGE_MODEL_KEY', '');
+  vi.stubEnv('OPENAI_API_KEY', '');
+  expect(analysisAvailability().state).toBe('not-configured');
+  expect(mocked.parse).not.toHaveBeenCalled();
 });
