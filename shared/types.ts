@@ -63,6 +63,11 @@ export type Paper = {
   };
 };
 export type Citation = { paperId: string; passageId: string };
+export type ResearchLeadContext = {
+  question: string;
+  reason: string;
+  evidence: Citation[];
+};
 export type Requirement = {
   category: keyof Resources;
   term: string;
@@ -87,6 +92,10 @@ export type Hypothesis = {
     baseline: string;
     measure: string;
     against: string;
+    independent?: string;
+    dependent?: string;
+    confounders?: string;
+    supports?: string;
   };
 };
 export type Analysis = {

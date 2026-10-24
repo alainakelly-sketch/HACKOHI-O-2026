@@ -5,6 +5,10 @@ export type ExperimentFields = {
   question: string;
   data: string;
   method: string;
+  independent: string;
+  dependent: string;
+  confounders: string;
+  supports: string;
   baseline: string;
   measure: string;
   against: string;
@@ -49,6 +53,10 @@ export function createHypothesisPlan(
     origin,
     fields: {
       ...hypothesis.experiment,
+      independent: hypothesis.experiment.independent ?? '',
+      dependent: hypothesis.experiment.dependent ?? '',
+      confounders: hypothesis.experiment.confounders ?? '',
+      supports: hypothesis.experiment.supports ?? '',
       constraints: [
         ...hypothesis.assumptions,
         ...hypothesis.incompatibilities,
@@ -71,6 +79,10 @@ export function createManualPlan(
       question: lead ? lead.signalText : brief.question,
       data: '',
       method: '',
+      independent: '',
+      dependent: '',
+      confounders: '',
+      supports: '',
       baseline: '',
       measure: '',
       against: '',

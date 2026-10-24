@@ -97,6 +97,45 @@ describe('editable experiment drafts', () => {
     expect(plan.sources).toEqual([]);
     expect(plan.fields.baseline).toBe('');
   });
+  it('preserves explicitly generated proposed variables while keeping older outputs compatible', () => {
+    const generated = structuredClone(hypothesis);
+    generated.experiment.independent =
+      'SYNTHETIC proposed population comparison';
+    generated.experiment.dependent = 'SYNTHETIC proposed accuracy measure';
+    generated.experiment.supports = 'SYNTHETIC supporting result';
+    const plan = createHypothesisPlan(generated, brief, [paper]);
+    expect(plan.fields.independent).toBe(generated.experiment.independent);
+    expect(plan.fields.dependent).toBe(generated.experiment.dependent);
+    expect(plan.fields.supports).toBe(generated.experiment.supports);
+  });
+  it('leaves unknown variable definitions and result criteria blank in all draft origins', () => {
+    for (const plan of [
+      createManualPlan(brief, [paper], lead),
+      createHypothesisPlan(hypothesis, brief, [paper]),
+      createHypothesisPlan(hypothesis, brief, [paper], 'saved-example'),
+    ]) {
+      expect(plan.fields.independent).toBe('');
+      expect(plan.fields.dependent).toBe('');
+      expect(plan.fields.confounders).toBe('');
+      expect(plan.fields.supports).toBe('');
+    }
+  });
+  it('exports current variable, confounder and support edits alongside the existing plan', () => {
+    const plan = createManualPlan(brief, [paper], lead);
+    plan.fields.independent = 'Synthetic comparison groups';
+    plan.fields.dependent = 'Synthetic outcome';
+    plan.fields.confounders = 'Synthetic possible confounder';
+    plan.fields.supports = 'Synthetic expected direction';
+    const exported = JSON.parse(exportPlan(plan));
+    expect(exported.fields).toMatchObject({
+      independent: 'Synthetic comparison groups',
+      dependent: 'Synthetic outcome',
+      confounders: 'Synthetic possible confounder',
+      supports: 'Synthetic expected direction',
+      method: '',
+    });
+    expect(exported.sources).toEqual(plan.sources);
+  });
   it('flags resources, paper selection, and source text changes without mutating edits', () => {
     const plan = createManualPlan(brief, [paper]);
     plan.fields.method = 'My edited method';
@@ -140,8 +179,12 @@ describe('editable experiment drafts', () => {
       }),
     );
     expect(html).toContain('User-created draft · not AI-generated');
-    expect(html.match(/<textarea/g)).toHaveLength(7);
+    expect(html.match(/<textarea/g)).toHaveLength(11);
     expect(html).toContain('Your edits have been kept');
     expect(html).toContain('Export current plan');
+    expect(html).toContain('Independent variables');
+    expect(html).toContain('Dependent variables');
+    expect(html).toContain('Possible confounding factors');
+    expect(html).toContain('What result would support the hypothesis');
   });
 });

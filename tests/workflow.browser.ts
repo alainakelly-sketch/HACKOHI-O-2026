@@ -67,6 +67,7 @@ const analysis: Analysis = {
       unknowns: ['Synthetic unknown'],
       requirements: [],
       experiment: {
+        independent: 'Synthetic proposed variable',
         question: 'Synthetic plan question',
         data: 'Synthetic plan data',
         method: 'Synthetic method',
@@ -244,6 +245,12 @@ try {
     .getByRole('button', { name: 'Plan an experiment', exact: true })
     .click();
   assert.equal(await tab('Experiment').getAttribute('aria-selected'), 'true');
+  assert.equal(
+    await page
+      .getByLabel('Independent variables', { exact: true })
+      .inputValue(),
+    'Synthetic proposed variable',
+  );
   await page
     .getByLabel('Proposed method', { exact: true })
     .fill('Edited synthetic method');

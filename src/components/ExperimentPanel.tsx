@@ -24,6 +24,26 @@ const fields: { key: keyof ExperimentFields; label: string; hint: string }[] = [
     hint: 'Describe a small first test. Confirm feasibility before writing a protocol.',
   },
   {
+    key: 'independent',
+    label: 'Independent variables',
+    hint: 'What will you change or compare? Specify levels only when you can justify them; leave unknown details blank.',
+  },
+  {
+    key: 'dependent',
+    label: 'Dependent variables',
+    hint: 'What outcome will you measure? Connect it to the research question and evaluation measure.',
+  },
+  {
+    key: 'confounders',
+    label: 'Possible confounding factors',
+    hint: 'What else could explain the result? Note controls or checks that still need to be decided.',
+  },
+  {
+    key: 'supports',
+    label: 'What result would support the hypothesis',
+    hint: 'Describe the direction of evidence you would expect. Supporting a hypothesis would not prove it.',
+  },
+  {
     key: 'baseline',
     label: 'Baseline or comparison',
     hint: 'What existing approach, control, or reference will you compare against?',
@@ -127,7 +147,9 @@ export function ExperimentPanel({
                   : 'AI-generated proposal · editable'}
             </strong>
             . This is a proposal, not an established protocol. Blank fields need
-            your input; no method is inferred for manual drafts.
+            your input; no method is inferred for manual drafts. Variable
+            definitions, possible confounders, and supporting-result criteria
+            are left for you to specify when they have not been generated.
           </p>
           {needsReview ? (
             <Notice>

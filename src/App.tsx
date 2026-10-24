@@ -19,6 +19,7 @@ import type {
   SearchResult,
   SearchSourceStatus,
   Citation,
+  ResearchLeadContext,
 } from '../shared/types';
 import {
   assessResources,
@@ -42,6 +43,9 @@ import {
 import type { PaperFilters } from '../shared/paper-filters';
 import { EvidencePanel } from './components/EvidencePanel';
 import { ComparisonPanel } from './components/ComparisonPanel';
+import { DiscoveryPanel } from './components/DiscoveryPanel';
+import type { DiscoveryLead } from './components/DiscoveryPanel';
+import { PriorWorkCheck } from './components/PriorWorkCheck';
 import { GapPanel } from './components/GapPanel';
 import { buildResearchQuery } from '../shared/research-query';
 import { canLoadFullText } from '../shared/comparison';
@@ -66,6 +70,10 @@ export default function App() {
       new URLSearchParams(window.location.search).get('example') ===
       'network-ecology',
   );
+  const [researchLead, setResearchLead] = useState<{
+    lead: DiscoveryLead;
+    contextKey: string;
+  } | null>(null);
   const [usageEntries, setUsageEntries] = useState<UsageEntry[]>([]);
   const [plan, setPlan] = useState<ExperimentDraft | null>(null);
   const drafts = useRef(new Map<string, ExperimentDraft>());
@@ -234,6 +242,7 @@ export default function App() {
     setPriorBusy(false);
   }
   function onCore(key: 'question' | 'field', value: string) {
+    setResearchLead(null);
     clearAnalysis();
     setBrief((b) => ({ ...b, [key]: value }));
   }
@@ -471,7 +480,20 @@ export default function App() {
         sources: Paper[];
       }>(
         '/api/analyze',
-        { brief, paperIds: selected.map((p) => p.id) },
+        {
+          brief,
+          paperIds: selected.map((p) => p.id),
+          ...(researchLead &&
+          researchLead.contextKey === planContextKey(brief, selected)
+            ? {
+                lead: {
+                  question: researchLead.lead.question,
+                  reason: researchLead.lead.reason,
+                  evidence: researchLead.lead.sources,
+                } satisfies ResearchLeadContext,
+              }
+            : {}),
+        },
         controller.signal,
       );
       record('complete', result.result.cost ?? null);
@@ -548,6 +570,7 @@ export default function App() {
             papers: selected,
             analysis,
             experimentPlan: plan,
+            selectedResearchLead: researchLead,
             aiUsage: usageEntries,
             priorWork: prior,
             resourceAssessment: fitCurrent ? assessment?.value : null,
@@ -583,6 +606,27 @@ export default function App() {
     editPlan(drafts.current.get(draft.id) ?? draft);
     retainPlanSources();
     setActiveNav('experiment');
+  }
+  function startDiscoveryPlan(lead: DiscoveryLead) {
+    const draft = createManualPlan(brief, selected);
+    draft.id = `discovery:${lead.id}`;
+    draft.fields.question = lead.question;
+    draft.fields.constraints = lead.reason;
+    draft.sources = lead.sources.map((reference) => ({ ...reference }));
+    setInspection(null);
+    editPlan(drafts.current.get(draft.id) ?? draft);
+    retainPlanSources();
+    setActiveNav('experiment');
+  }
+  function startDiscoveryHypothesis(lead: DiscoveryLead) {
+    const next = { ...brief, question: lead.question.slice(0, 1200) };
+    clearAnalysis();
+    setBrief(next);
+    setResearchLead({
+      lead: { ...lead, question: next.question },
+      contextKey: planContextKey(next, selected),
+    });
+    setActiveNav('connections');
   }
   function tabKeys(event: React.KeyboardEvent, index: number) {
     const next =
@@ -790,19 +834,37 @@ export default function App() {
             hidden={activeNav !== 'gaps'}
             tabIndex={0}
           >
-            <GapPanel
+            <DiscoveryPanel
               papers={selected}
-              question={brief.question}
-              field={brief.field}
-              busy={textBusy}
-              onSearch={search}
-              onRetrieve={() =>
-                verifyPapers(selected, undefined, 6, filters, true)
-              }
-              onInspect={inspectGap}
-              onPlan={startManualPlan}
-              onGoPapers={() => setActiveNav('papers')}
+              focus={{ question: brief.question, field: brief.field }}
+              onInspect={(reference, label) => {
+                setInspection({
+                  reference,
+                  label: label ?? 'Discovery source passage',
+                });
+                document
+                  .getElementById('evidence-inspector')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onPlan={startDiscoveryPlan}
+              onHypothesis={startDiscoveryHypothesis}
             />
+            <details className="author-lead-scan" open>
+              <summary>Scan author-stated limitations and future work</summary>
+              <GapPanel
+                papers={selected}
+                question={brief.question}
+                field={brief.field}
+                busy={textBusy}
+                onSearch={search}
+                onRetrieve={() =>
+                  verifyPapers(selected, undefined, 6, filters, true)
+                }
+                onInspect={inspectGap}
+                onPlan={startManualPlan}
+                onGoPapers={() => setActiveNav('papers')}
+              />
+            </details>
           </div>
           <div
             className="workflow-evidence"
@@ -845,6 +907,34 @@ export default function App() {
             tabIndex={0}
           >
             <CostPanel entries={usageEntries} />
+            {researchLead ? (
+              <section className="panel selected-discovery-lead">
+                <h3>Selected discovery lead</h3>
+                <p>{researchLead.lead.question}</p>
+                <p className="muted">{researchLead.lead.reason}</p>
+                <p>
+                  {researchLead.contextKey === planContextKey(brief, selected)
+                    ? 'This lead and its source references are prepared for the next explicit AI generation. Opening this tab does not call OpenAI.'
+                    : 'Your focus, sources or resources changed. Review this lead; it will not be submitted automatically until you choose it again.'}
+                </p>
+                <div className="button-row">
+                  {researchLead.lead.sources.map((reference) => (
+                    <button
+                      className="text-button"
+                      key={`${reference.paperId}:${reference.passageId}`}
+                      onClick={() =>
+                        setInspection({
+                          reference,
+                          label: 'Selected discovery lead evidence',
+                        })
+                      }
+                    >
+                      Inspect selected source passage
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             <ConnectionPanel
               brief={brief}
               analysis={analysis}
@@ -913,6 +1003,13 @@ export default function App() {
                 setInspection({ reference, label: 'Experiment draft source' })
               }
             />
+            {plan ? (
+              <PriorWorkCheck
+                key={`plan:${plan.id}`}
+                initialQuery={plan.fields.question.slice(0, 400)}
+                field={brief.field}
+              />
+            ) : null}
           </div>
         </div>
         <div className="workflow-controls">

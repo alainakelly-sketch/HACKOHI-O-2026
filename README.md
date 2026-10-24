@@ -170,6 +170,20 @@ Choose **Plan an experiment** on a hypothesis to reuse its existing plan, or **D
 
 Browser regression checks use **synthetic mocked paper and AI responses**, never paid model calls. With the existing dev server running, run `npx tsx tests/workflow.browser.ts`. It uses `/usr/bin/chromium` by default; set `CHROMIUM_PATH` if your installed browser has another path. `PAPERBRIDGE_TEST_URL` can point to your local test server. This does not validate live AI/provider access.
 
+## Evidence-led discovery
+
+In **Focus → Help me shape a question**, compose a question from a topic, outcome, optional population/conditions and dataset, or choose an editable starter. Opening the guide changes nothing; **Use this question** applies your template. Templates are not AI findings or claims that a question is unexplored.
+
+After selecting papers, open **Gap leads → Follow the evidence**. The free local scan shows actual selected-source coverage and an interactive evidence map. Source nodes open extracted sample size, population, dataset, method, evaluation measure, author-stated limitation and future-work passages. Expand **Explore reported method and dataset nodes** for those source-linked nodes. Missing details stay **Not identified in retrieved text**, not “never tested.”
+
+**Possible finding tensions** pairs explicit source statements with the same outcome, opposite directional wording, and shared topical anchors. It labels possible scope differences, including overall versus subgroup and adult versus pediatric contexts. Click a node to see both exact findings and the population/dataset/method passages that could explain the difference. These are conservative lexical leads, **not confirmed contradictions or a scientific contradiction detector**. Many implicit, statistical, domain-specific or differently worded disagreements will not be detected. Empty lanes do not establish agreement or a field-wide gap. Reporting-pattern counts concern selected extracted text only.
+
+A lead’s **Draft an experiment · free** carries the question, reasoning and actual source references into a user-created draft. Variables, confounding factors and supporting-result criteria are editable; manual unknown protocol details remain blank. Optional live generation can propose these fields, clearly as plan elements, and must leave unsupported new details blank. **Use this question in AI hypotheses** prepares the question and citations without making a model call. Only the separate explicit generation button can incur an OpenAI charge. The backend validates lead references against selected stored papers and prioritizes those passages within the existing model excerpt limit. Edits to focus/resources/sources flag stale context.
+
+**Check related prior work** now works directly from a discovery lead or any experiment draft, without an AI result or key. Edit the visible search terms and click the search button; opening a lead/plan never reruns the search. It searches the real free-paper collections, shows retrieved titles, links, available abstracts and possible topical overlap, and uses the existing three honest outcomes. No close match does not establish novelty, and related results do not establish an identical experiment. Search errors remain **Search incomplete**.
+
+Evidence inspection includes publication details, section, exact stored passage ID and coverage. Page numbers remain unavailable when extraction supplies paragraph text only. Full-publication completeness, scientific evidence-strength ratings, PDF uploads, arbitrary URL import, dataset ingestion and proof of novelty are not implemented. Existing source links remain available for checking omitted figures, tables, supplements and PDFs.
+
 ## Optional AI gap hypotheses — spending approval required
 
 Select **4–6 papers**, enter a research question and **one field**, then use **Develop AI gap hypotheses** only if an owner has configured and approved it. **No paid model requests were made while building this app.** Live AI calls remain disabled by default. A ChatGPT subscription does not pay for API calls.

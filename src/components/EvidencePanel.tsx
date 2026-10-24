@@ -43,6 +43,20 @@ function SourceQuote({
         >
           {paper.title} <ArrowUpRight size={12} />
         </a>
+        <p className="muted">
+          {paper.year ?? 'Publication year unavailable'} ·{' '}
+          {paper.authors.length
+            ? paper.authors.slice(0, 3).join(', ')
+            : 'Authors unavailable'}{' '}
+          ·{' '}
+          {passage.kind === 'full-text'
+            ? 'Retrieved body passage'
+            : 'Abstract only'}
+        </p>
+        <p className="muted">
+          Section: {passage.section ?? 'Abstract'}. Page numbers are unavailable
+          in this extracted text.
+        </p>
         <code>{passage.id}</code>
       </div>
     );

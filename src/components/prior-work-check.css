@@ -1,0 +1,87 @@
+.prior-work-check {
+  margin-top: 20px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafbff;
+  min-width: 0;
+}
+.prior-work-check h3 {
+  font-size: 15px;
+}
+.prior-work-check p {
+  font-size: 12px;
+  line-height: 1.75;
+  margin: 9px 0;
+}
+.prior-work-check form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.prior-work-check label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  flex: 1 1 250px;
+  min-width: 0;
+}
+.prior-work-check input {
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  font-weight: 400;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.manual-prior-result {
+  padding-top: 16px;
+}
+.manual-prior-result > strong {
+  display: block;
+  padding: 10px;
+  background: #f0effc;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.manual-prior-result h4 {
+  margin: 15px 0 8px;
+  font-size: 12px;
+}
+.manual-prior-queries {
+  padding-left: 18px;
+  font-size: 12px;
+}
+.manual-prior-queries li {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.manual-prior-queries span {
+  display: block;
+  color: #8c4a35;
+  margin-top: 4px;
+}
+.manual-prior-papers {
+  display: grid;
+  gap: 12px;
+}
+.manual-prior-papers article {
+  padding: 13px;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.manual-prior-papers summary {
+  font-size: 12px;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .prior-work-check form > button {
+    width: 100%;
+  }
+}

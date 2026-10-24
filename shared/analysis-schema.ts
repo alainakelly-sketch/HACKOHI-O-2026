@@ -25,10 +25,26 @@ export const hypothesisSchema = z.object({
     baseline: text,
     measure: text,
     against: text,
+    independent: z.string().max(4000).optional(),
+    dependent: z.string().max(4000).optional(),
+    confounders: z.string().max(4000).optional(),
+    supports: z.string().max(4000).optional(),
   }),
 });
 export const modelOutputSchema = z.object({
   status: z.enum(['connections', 'insufficient']),
   summary: text,
   hypotheses: z.array(hypothesisSchema).max(2),
+});
+
+// Live structured output includes all planning keys; blank means unknown. Stored
+// older examples can omit the new keys and are validated by modelOutputSchema.
+export const modelResponseSchema = modelOutputSchema.extend({
+  hypotheses: z
+    .array(
+      hypothesisSchema.extend({
+        experiment: hypothesisSchema.shape.experiment.required(),
+      }),
+    )
+    .max(2),
 });

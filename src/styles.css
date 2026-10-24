@@ -2244,3 +2244,21 @@ button:focus-visible,
   line-height: 1.7;
   margin: 7px 0;
 }
+.author-lead-scan {
+  margin-top: 20px;
+}
+.author-lead-scan > summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 12px;
+}
+.selected-discovery-lead {
+  margin-bottom: 16px;
+}
+.selected-discovery-lead p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 10px 0;
+}

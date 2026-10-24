@@ -8,7 +8,8 @@ import { createFullTextRetriever } from './sources/fulltext';
 import { analyze, analysisAvailability } from './analysis';
 import { AppError } from './errors';
 import { codespaceHost } from './config';
-import { checkPriorWork } from './prior-work';
+import { resolveCitation } from '../shared/evidence';
+import { checkPriorWork, checkManualPriorWork } from './prior-work';
 import {
   exampleAnalysis,
   exampleBrief,
@@ -20,6 +21,7 @@ import type {
   Hypothesis,
   Paper,
   SearchResult,
+  ResearchLeadContext,
 } from '../shared/types';
 const short = z.string().trim().max(1200);
 const briefSchema = z.object({
@@ -35,6 +37,21 @@ const briefSchema = z.object({
 const selectionSchema = z
   .object({
     brief: briefSchema,
+    lead: z
+      .object({
+        question: short.min(5),
+        reason: z.string().max(4000),
+        evidence: z
+          .array(
+            z.object({
+              paperId: z.string().min(1).max(120),
+              passageId: z.string().min(1).max(250),
+            }),
+          )
+          .min(1)
+          .max(12),
+      })
+      .optional(),
     paperIds: z
       .array(z.string().regex(/^[A-Za-z0-9_.:-]{1,120}$/))
       .min(4)
@@ -47,7 +64,11 @@ const selectionSchema = z
 export function createApp(
   deps: {
     search?: (q: string) => Promise<SearchResult>;
-    analyze?: (brief: Brief, papers: Paper[]) => Promise<Analysis>;
+    analyze?: (
+      brief: Brief,
+      papers: Paper[],
+      lead?: ResearchLeadContext,
+    ) => Promise<Analysis>;
     retrieveFullText?: (paper: Paper) => Promise<Paper>;
     development?: boolean;
   } = {},
@@ -161,13 +182,43 @@ export function createApp(
     }
   });
   app.post('/api/analyze', async (req, res) => {
-    const { brief, paperIds } = selectionSchema.parse(req.body);
+    const { brief, paperIds, lead } = selectionSchema.parse(req.body);
     const papers = paperStore.get(paperIds);
-    const result = await (deps.analyze ?? analyze)(brief, papers);
+    if (lead) {
+      try {
+        for (const reference of lead.evidence) {
+          const { passage } = resolveCitation(reference, papers);
+          if (!passage.text.trim()) throw new Error('Empty source text');
+        }
+      } catch {
+        throw new AppError(
+          400,
+          'The research lead references unavailable or unselected source text. Select its source papers again before developing a hypothesis.',
+        );
+      }
+    }
+    const result = await (deps.analyze ?? analyze)(brief, papers, lead);
     const analysisId = crypto.randomUUID();
     if (analyses.size >= 100) analyses.delete(analyses.keys().next().value!);
     analyses.set(analysisId, { result, brief, expires: Date.now() + 3600000 });
     res.json({ analysisId, result, sources: papers });
+  });
+  app.post('/api/prior-work/search', async (req, res) => {
+    const input = z
+      .object({
+        question: z.string().trim().min(2).max(400),
+        field: z.string().trim().max(100).optional().default(''),
+      })
+      .strict()
+      .safeParse(req.body);
+    if (!input.success)
+      throw new AppError(
+        400,
+        'Enter a prior-work question or search phrase between 2 and 400 characters, and a field of at most 100 characters.',
+      );
+    res.json(
+      await checkManualPriorWork(input.data.question, input.data.field, search),
+    );
   });
   app.post('/api/prior-work', async (req, res) => {
     const { analysisId, hypothesisId } = z

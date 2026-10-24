@@ -19,6 +19,32 @@ export async function checkPriorWork(
   search: (q: string) => Promise<SearchResult>,
 ): Promise<PriorWork> {
   const queries = priorQueries(brief, hypothesis);
+  return searchPriorQueries(queries, search);
+}
+
+/** Search a user-created question directly; no model result or paid call required. */
+export async function checkManualPriorWork(
+  question: string,
+  field: string,
+  search: (q: string) => Promise<SearchResult>,
+): Promise<PriorWork> {
+  return searchPriorQueries(manualPriorQueries(question, field), search);
+}
+
+export function manualPriorQueries(question: string, field = ''): string[] {
+  const query = question.trim().slice(0, 400);
+  return [
+    ...new Set([
+      query,
+      ...(field.trim() ? [`${field.trim()} ${query}`.slice(0, 400)] : []),
+    ]),
+  ].filter(Boolean);
+}
+
+async function searchPriorQueries(
+  queries: string[],
+  search: (q: string) => Promise<SearchResult>,
+): Promise<PriorWork> {
   const outcomes = await Promise.allSettled(queries.map(search));
   const searches: PriorWork['searches'] = [];
   const matches = new Map<string, PriorWork['matches'][number]>();
