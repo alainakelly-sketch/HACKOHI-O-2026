@@ -602,6 +602,8 @@ export default function App() {
     choose(id);
     const draft = createHypothesisPlan(h, brief, selected, analysis.origin);
     draft.id = `${analysisId}:${draft.id}`;
+    if (analysisResourceRevision !== resourceRevision)
+      draft.contextKey = `review:older-analysis-resources:${analysisId}:${analysisResourceRevision}`;
     editPlan(drafts.current.get(draft.id) ?? draft);
     retainPlanSources();
     setActiveNav('experiment');

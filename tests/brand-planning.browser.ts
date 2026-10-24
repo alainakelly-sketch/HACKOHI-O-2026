@@ -66,6 +66,11 @@ const result: Analysis = {
     },
   ],
 };
+result.hypotheses.push({
+  ...structuredClone(result.hypotheses[0]),
+  id: 'test-h2',
+  title: 'SYNTHETIC second original proposal',
+});
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
   args: ['--no-sandbox'],
@@ -176,6 +181,7 @@ try {
     .waitFor();
   await page
     .getByRole('button', { name: 'Plan an experiment', exact: true })
+    .first()
     .click();
   assert.match(
     await page
@@ -233,6 +239,18 @@ try {
   const exported = JSON.parse(await readFile((await saved.path())!, 'utf8'));
   assert.match(exported.fields.constraints, /Project deadline: one day/);
   assert.equal(exported.fields.method, 'Keep my edited method');
+  await tab('AI hypotheses').click();
+  await page
+    .getByRole('button', { name: 'Plan an experiment', exact: true })
+    .nth(1)
+    .click();
+  await page
+    .getByText(
+      'Your research focus, selected source text, or resources changed.',
+      { exact: false },
+    )
+    .waitFor();
+  assert.equal(calls, 1);
   await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({
     path: '/tmp/paperbridge-brand/experiment-desktop.png',
