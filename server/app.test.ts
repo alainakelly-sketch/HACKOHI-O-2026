@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import request from 'supertest';
+import { AppError } from './errors';
+import { noRequestCost } from './analysis-cost';
 import { createApp } from './app';
 import { normalizeWork } from './openalex';
 import { analysisAvailability } from './analysis';
@@ -17,6 +19,22 @@ const brief = {
 };
 afterEach(() => vi.unstubAllEnvs());
 describe('API boundaries and credentials', () => {
+  it('returns safe cost metadata on a failed analysis', async () => {
+    const app = createApp({
+      search: async () => ({ papers, query: 'test', retrievedAt: 'test' }),
+      analyze: async () => {
+        throw new AppError(503, 'Synthetic disabled request', noRequestCost());
+      },
+    });
+    await request(app).get('/api/search?q=test');
+    const response = await request(app)
+      .post('/api/analyze')
+      .send({ brief, paperIds: papers.map((p) => p.id) });
+    expect(response.status).toBe(503);
+    expect(response.body.cost.estimatedUsd).toBe(0);
+    expect(response.body.cost.note).toContain('No model provider request');
+  });
+
   it('starts with live analysis disabled and health never exposes keys', async () => {
     vi.stubEnv('PAPERBRIDGE_MODEL_KEY', 'synthetic-secret-test-only');
     vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'false');

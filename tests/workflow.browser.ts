@@ -2,6 +2,7 @@
  * No external literature or model provider is contacted. Start npm run dev first.
  * Run: npx tsx tests/workflow.browser.ts
  */
+import { estimateAnalysisCost } from '../server/analysis-cost';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { readFile, mkdir } from 'node:fs/promises';
@@ -41,6 +42,11 @@ const papers: Paper[] = Array.from({ length: 4 }, (_, i) => ({
   },
 }));
 const analysis: Analysis = {
+  cost: estimateAnalysisCost('gpt-4.1-mini', {
+    input_tokens: 10000,
+    input_tokens_details: { cached_tokens: 0 },
+    output_tokens: 2000,
+  }),
   origin: 'live',
   status: 'connections',
   summary: 'SYNTHETIC MOCK RESPONSE — not live AI.',
@@ -207,6 +213,33 @@ try {
   mode = 'success';
   await page.getByRole('button', { name: 'Analyze again' }).click();
   await page.getByText('Synthetic test hypothesis', { exact: true }).waitFor();
+  await page.getByText('Cost of each AI run (3)', { exact: true }).click();
+  await page
+    .getByText('Estimated $0.0072 USD', { exact: true })
+    .first()
+    .waitFor();
+  await page
+    .getByText(
+      'Cost unknown — this does not mean the request was free. Check OpenAI Usage.',
+      { exact: true },
+    )
+    .waitFor();
+  assert.match(
+    await page.locator('.cost-total').innerText(),
+    /0.0144.*unknown cost/,
+  );
+  await page.locator('.cost-panel').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: '/tmp/paperbridge-cost-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.cost-panel').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: '/tmp/paperbridge-cost-mobile.png' });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+    false,
+  );
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .getByRole('button', { name: 'Plan an experiment', exact: true })
     .click();

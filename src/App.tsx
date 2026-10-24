@@ -25,7 +25,9 @@ import {
   assessmentIsCurrent,
   emptyResources,
 } from '../shared/resources';
-import { api } from './lib/api';
+import { CostPanel } from './components/CostPanel';
+import type { UsageEntry } from './components/CostPanel';
+import { api, ApiError } from './lib/api';
 import { BridgeMark, Notice } from './components/Primitives';
 import { BriefForm } from './components/BriefForm';
 import { PaperPanel } from './components/PaperPanel';
@@ -64,6 +66,7 @@ export default function App() {
       new URLSearchParams(window.location.search).get('example') ===
       'network-ecology',
   );
+  const [usageEntries, setUsageEntries] = useState<UsageEntry[]>([]);
   const [plan, setPlan] = useState<ExperimentDraft | null>(null);
   const drafts = useRef(new Map<string, ExperimentDraft>());
   const [planSources, setPlanSources] = useState<Paper[]>([]);
@@ -430,6 +433,23 @@ export default function App() {
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   async function runAnalysis() {
+    const runId = crypto.randomUUID();
+    setUsageEntries((items) => [
+      ...items,
+      {
+        id: runId,
+        time: new Date().toISOString(),
+        status: 'running',
+        cost: null,
+      },
+    ]);
+    function record(status: UsageEntry['status'], cost: UsageEntry['cost']) {
+      setUsageEntries((items) =>
+        items.map((entry) =>
+          entry.id === runId ? { ...entry, status, cost } : entry,
+        ),
+      );
+    }
     setInspection(null);
     priorController.current?.abort();
     setPriorBusy(false);
@@ -454,6 +474,7 @@ export default function App() {
         { brief, paperIds: selected.map((p) => p.id) },
         controller.signal,
       );
+      record('complete', result.result.cost ?? null);
       if (!controller.signal.aborted && version === generation.current) {
         setSelected(result.sources);
         setAnalysis(result.result);
@@ -461,6 +482,10 @@ export default function App() {
         setActiveId(result.result.hypotheses[0]?.id ?? null);
       }
     } catch (e) {
+      record(
+        controller.signal.aborted ? 'interrupted' : 'error',
+        e instanceof ApiError ? (e.cost ?? null) : null,
+      );
       if (!controller.signal.aborted)
         setAnalysisError(e instanceof Error ? e.message : 'Analysis failed.');
     } finally {
@@ -523,6 +548,7 @@ export default function App() {
             papers: selected,
             analysis,
             experimentPlan: plan,
+            aiUsage: usageEntries,
             priorWork: prior,
             resourceAssessment: fitCurrent ? assessment?.value : null,
             limitations:
@@ -818,6 +844,7 @@ export default function App() {
             hidden={activeNav !== 'connections'}
             tabIndex={0}
           >
+            <CostPanel entries={usageEntries} />
             <ConnectionPanel
               brief={brief}
               analysis={analysis}

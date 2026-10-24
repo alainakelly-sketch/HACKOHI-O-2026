@@ -1,3 +1,12 @@
+import type { AnalysisCost } from '../../shared/analysis-cost';
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public cost?: AnalysisCost,
+  ) {
+    super(message);
+  }
+}
 export async function api<T>(
   path: string,
   body?: unknown,
@@ -10,7 +19,7 @@ export async function api<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
-  let data: T & { error?: string };
+  let data: T & { error?: string; cost?: AnalysisCost };
   try {
     data = (await response.json()) as typeof data;
   } catch {
@@ -19,6 +28,9 @@ export async function api<T>(
     );
   }
   if (!response.ok)
-    throw new Error(data.error || 'Request failed. Please retry.');
+    throw new ApiError(
+      data.error || 'Request failed. Please retry.',
+      data.cost,
+    );
   return data;
 }

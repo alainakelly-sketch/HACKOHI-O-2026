@@ -4,6 +4,7 @@ import { modelOutputSchema } from '../shared/analysis-schema';
 import { validateAnalysis } from './evidence-validation';
 import type { Analysis, Brief, Paper } from '../shared/types';
 import { AppError } from './errors';
+import { estimateAnalysisCost, noRequestCost } from './analysis-cost';
 import { networkFetch } from './http';
 export function analysisAvailability() {
   if (process.env.ENABLE_LIVE_ANALYSIS !== 'true')
@@ -39,7 +40,8 @@ export async function analyze(
   papers: Paper[],
 ): Promise<Analysis> {
   const availability = analysisAvailability();
-  if (!availability.available) throw new AppError(503, availability.reason);
+  if (!availability.available)
+    throw new AppError(503, availability.reason, noRequestCost());
   const modelSources = papers.map((p) => ({
     ...p,
     passages: modelPassages(p),
@@ -55,6 +57,7 @@ export async function analyze(
       summary:
         'Insufficient evidence: at least two selected papers need available source text. Metadata alone cannot support a possible research-gap hypothesis.',
       hypotheses: [],
+      cost: noRequestCost(),
     };
   const client = new OpenAI({
     apiKey: process.env.PAPERBRIDGE_MODEL_KEY || process.env.OPENAI_API_KEY,
@@ -88,20 +91,24 @@ Experiment plan is a PROPOSAL, never an established protocol. Include question, 
         format: zodTextFormat(modelOutputSchema, 'paperbridge_analysis'),
       },
     });
+    const cost = estimateAnalysisCost(response.model, response.usage);
     if (!response.output_parsed)
       throw new AppError(
         502,
         'The model did not return a complete analysis. No result was accepted.',
+        cost,
       );
     try {
       return {
         ...validateAnalysis(response.output_parsed, modelSources),
         origin: 'live',
+        cost,
       };
     } catch {
       throw new AppError(
         502,
         'The model response failed evidence validation. No result was accepted. Try different source material.',
+        cost,
       );
     }
   } catch (error) {

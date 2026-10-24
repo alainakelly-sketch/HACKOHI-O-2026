@@ -218,7 +218,10 @@ export function createApp(
         return;
       }
       if (err instanceof AppError) {
-        res.status(err.status).json({ error: err.message });
+        res.status(err.status).json({
+          error: err.message,
+          ...(err.cost ? { cost: err.cost } : {}),
+        });
         return;
       }
       if (

@@ -1,3 +1,4 @@
+import type { AnalysisCost } from './analysis-cost';
 export type Resources = {
   data: string;
   equipment: string;
@@ -89,6 +90,7 @@ export type Hypothesis = {
   };
 };
 export type Analysis = {
+  cost?: AnalysisCost;
   origin: 'live' | 'saved-example';
   status: 'connections' | 'insufficient';
   summary: string;

@@ -185,6 +185,14 @@ For local development, copy `.env.example` to `.env` **only if `.env` does not a
 
 The official OpenAI SDK uses structured output, a timeout, no automatic retries, and `store:false`. Provider retention policies still apply. Each paper's model input is bounded and labelled as an excerpt; do not assume all retrieved text was analyzed. Evidence references are validated against the passages actually submitted in that excerpt, not merely against every stored passage. Unknown or unsubmitted IDs, incomplete responses, refusals and provider failures are rejected explicitly. Possible gap hypotheses distinguish what the sources support, a cautious gap rationale, a proposed approach, assumptions, and what remains unknown. The absence of discussion in selected papers is not evidence that the field lacks an answer. Quotes are rendered from stored text, never invented model quotation strings. Valid references do not prove the model's interpretation is correct.
 
+### Cost of each OpenAI run
+
+The **AI hypotheses** tab shows **OpenAI usage & estimated cost**: the latest run, per-run token counts and an estimated subtotal for the current browser session. Search, resource screening, comparison, local gap scanning, source inspection and manual planning make no OpenAI requests. Each explicit AI generation can incur a new charge.
+
+The backend uses returned input, cached-input and output tokens. GPT-4.1 mini estimates currently use reference standard text rates of $0.40 / $0.10 cached / $1.60 output per million tokens. Official pricing pages were inaccessible from this environment, so these are **unverified reference estimates, not actual billed charges**. Check current [model pricing](https://platform.openai.com/docs/models/gpt-4.1-mini) and [OpenAI Usage](https://platform.openai.com/usage). Unknown models or missing/malformed usage produce **Cost unknown**, never an assumed zero. A no-provider operation can explicitly report zero.
+
+A response rejected by evidence validation still retains its returned usage/cost. Failed or interrupted calls without usage remain unknown and may still incur charges. Session estimates exclude other apps, account credits, discounts and unseen requests. They reset on reload; workspace JSON export includes the session ledger. No provider keys or response bodies are included in cost metadata. No paid requests were made to test this feature.
+
 ## Network access and source documentation
 
 Search requires `api.openalex.org`, `www.ebi.ac.uk` and `export.arxiv.org`. Supported in-app text retrieval also uses `www.ebi.ac.uk` and `arxiv.org`. Browser source links may point to `europepmc.org`, `pmc.ncbi.nlm.nih.gov`, DOI pages or individual university repositories.

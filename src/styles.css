@@ -2207,3 +2207,40 @@ button:focus-visible,
   color: var(--accent);
   margin-bottom: 16px;
 }
+.cost-panel {
+  margin-bottom: 16px;
+}
+.cost-panel .panel-heading {
+  flex-wrap: wrap;
+}
+.cost-panel .panel-heading a {
+  font-size: 12px;
+}
+.cost-panel > p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 12px 0;
+}
+.cost-total {
+  padding: 12px;
+  border-radius: 6px;
+  background: #f1efff;
+}
+.cost-runs {
+  padding-left: 22px;
+}
+.cost-runs li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.cost-runs li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cost-runs p {
+  line-height: 1.7;
+  margin: 7px 0;
+}

@@ -8,6 +8,7 @@ vi.mock('openai', () => ({
     }
   },
 }));
+import { AppError } from './errors';
 import { analyze, analysisAvailability } from './analysis';
 import {
   exampleAnalysis,
@@ -20,6 +21,32 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 describe('model integration without paid calls (SDK mocked)', () => {
+  it('records actual returned token usage and keeps cost when citation validation fails', async () => {
+    const response = {
+      model: 'gpt-4.1-mini-2025-04-14',
+      usage: {
+        input_tokens: 10000,
+        input_tokens_details: { cached_tokens: 0 },
+        output_tokens: 2000,
+      },
+      output_parsed: exampleAnalysis,
+    };
+    mocked.parse.mockResolvedValue(response);
+    const result = await analyze(exampleBrief, examplePapers);
+    expect(result.cost?.estimatedUsd).toBeCloseTo(0.0072);
+    expect(result.cost?.inputTokens).toBe(10000);
+    const invalid = structuredClone(exampleAnalysis);
+    invalid.hypotheses[0].evidence[0].paperId = 'UNKNOWN_TEST_PAPER';
+    mocked.parse.mockResolvedValue({ ...response, output_parsed: invalid });
+    try {
+      await analyze(exampleBrief, examplePapers);
+      throw new Error('Expected validation error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).cost?.estimatedUsd).toBeCloseTo(0.0072);
+    }
+  });
+
   it('never calls the SDK without spending enablement', async () => {
     vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'false');
     await expect(analyze(exampleBrief, examplePapers)).rejects.toThrow('off');
