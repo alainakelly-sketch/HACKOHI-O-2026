@@ -257,4 +257,4 @@ Coordinate before editing `shared/types.ts`, `server/app.ts` or `src/App.tsx`, w
 
 ## Brand assets
 
-`public/paperbridge-logo.png` and `public/paperbridge-icon.png` are prepared PNG variants based on the supplied PaperBridge logo reference: filled lavender/blue documents, a violet-to-blue bridge, and the navy/violet wordmark. The header and browser favicon use these assets. Navy text, violet/blue actions and pale lavender/sky evidence surfaces carry the palette through the existing workspace. No external font or asset service is required.
+`public/paperbridge-logo.png` and `public/paperbridge-icon.png` are prepared PNG variants based on the supplied PaperBridge logo reference: filled lavender/blue documents, a violet-to-blue bridge, and the navy/violet wordmark. The header uses the compact symbol with a live PaperBridge wordmark in the same font family and weight as the page title; the browser favicon uses the compact symbol. Navy text, violet/blue actions and pale lavender/sky evidence surfaces carry the palette through the existing workspace. No external font or asset service is required.

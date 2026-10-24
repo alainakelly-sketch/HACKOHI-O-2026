@@ -4,10 +4,10 @@ export function BridgeMark({ small = false }: { small?: boolean }) {
   return (
     <img
       className={small ? 'bridge-mark small' : 'bridge-mark'}
-      src={small ? '/paperbridge-icon.png' : '/paperbridge-logo.png'}
-      width={small ? 42 : 150}
-      height={small ? 42 : 70}
-      alt={small ? '' : 'PaperBridge'}
+      src="/paperbridge-icon.png"
+      width={small ? 42 : 72}
+      height={small ? 42 : 72}
+      alt={small ? '' : 'PaperBridge logo'}
       aria-hidden={small ? true : undefined}
     />
   );

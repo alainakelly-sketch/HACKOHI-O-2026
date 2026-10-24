@@ -660,14 +660,22 @@ export default function App() {
       <header className="app-header">
         <a
           className="brand"
+          aria-label="PaperBridge research workspace"
           href="#question"
           onClick={(e) => {
             e.preventDefault();
             setActiveNav('question');
           }}
         >
-          <BridgeMark />
-          <span className="brand-tagline">Research workspace</span>
+          <span className="brand-icon-frame">
+            <BridgeMark />
+          </span>
+          <div className="brand-type">
+            <strong className="brand-name">
+              Paper<span className="brand-word-bridge">Bridge</span>
+            </strong>
+            <span className="brand-tagline">Research workspace</span>
+          </div>
         </a>
         <nav className="steps" role="tablist" aria-label="Research workflow">
           {nav.map((item, i) => (

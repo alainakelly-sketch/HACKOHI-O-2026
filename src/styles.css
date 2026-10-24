@@ -2438,3 +2438,58 @@ button.primary:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
+
+/* The supplied symbol and live wordmark share the title's typeface. */
+.app-header .brand {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 215px;
+  gap: 8px;
+}
+.brand .brand-icon-frame {
+  display: block;
+  width: 64px;
+  height: 44px;
+  overflow: hidden;
+  margin: 0;
+  flex-shrink: 0;
+}
+.brand .brand-icon-frame .bridge-mark {
+  width: 72px;
+  height: 72px;
+  max-width: none;
+  margin: -14px 0 0 -4px;
+  object-fit: contain;
+}
+.brand .brand-type {
+  min-width: 0;
+}
+.brand .brand-name {
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+  color: var(--ink);
+}
+.brand .brand-name .brand-word-bridge {
+  display: inline;
+  font: inherit;
+  letter-spacing: inherit;
+  margin: 0;
+  color: var(--accent);
+}
+.brand .brand-tagline {
+  margin-top: 3px;
+  font-size: 10px;
+}
+@media (max-width: 760px) {
+  .app-header .brand {
+    min-width: 0;
+    gap: 6px;
+  }
+  .brand .brand-name {
+    font-size: 23px;
+  }
+}

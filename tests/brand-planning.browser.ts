@@ -122,14 +122,32 @@ await page.route('**/api/**', async (route) => {
 const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
-  await page.getByRole('img', { name: 'PaperBridge', exact: true }).waitFor();
+  await page
+    .getByRole('img', { name: 'PaperBridge logo', exact: true })
+    .waitFor();
   assert.ok(
     await page
-      .getByRole('img', { name: 'PaperBridge', exact: true })
+      .getByRole('img', { name: 'PaperBridge logo', exact: true })
       .evaluate(
         (img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
       ),
   );
+  const fonts = await page.evaluate(() => {
+    const brand = getComputedStyle(document.querySelector('.brand-name')!);
+    const title = getComputedStyle(document.querySelector('h1')!);
+    const box = document.querySelector('.brand')!.getBoundingClientRect();
+    return {
+      brandFamily: brand.fontFamily,
+      titleFamily: title.fontFamily,
+      brandWeight: brand.fontWeight,
+      titleWeight: title.fontWeight,
+      left: box.left,
+      top: box.top,
+    };
+  });
+  assert.equal(fonts.brandFamily, fonts.titleFamily);
+  assert.equal(fonts.brandWeight, fonts.titleWeight);
+  assert.ok(fonts.left < 40 && fonts.top < 40);
   assert.equal(
     await page.locator('link[rel=icon]').getAttribute('href'),
     '/paperbridge-icon.png',
