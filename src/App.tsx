@@ -6,6 +6,7 @@ import {
   FlaskConical,
   Info,
   ArrowUpRight,
+  Columns2,
 } from 'lucide-react';
 import type {
   Analysis,
@@ -16,6 +17,7 @@ import type {
   PriorWork,
   Resources,
   SearchResult,
+  SearchSourceStatus,
 } from '../shared/types';
 import {
   assessResources,
@@ -28,11 +30,13 @@ import { BriefForm } from './components/BriefForm';
 import { PaperPanel } from './components/PaperPanel';
 import { ConnectionPanel } from './components/ConnectionPanel';
 import { EvidencePanel } from './components/EvidencePanel';
+import { ComparisonPanel } from './components/ComparisonPanel';
 import { ExperimentPanel } from './components/ExperimentPanel';
 const nav = [
   { id: 'question', label: 'Question', icon: CircleHelp },
   { id: 'papers', label: 'Papers', icon: FileText },
-  { id: 'connections', label: 'Connections', icon: GitBranch },
+  { id: 'comparison', label: 'Compare', icon: Columns2 },
+  { id: 'connections', label: 'AI connections', icon: GitBranch },
   { id: 'experiment', label: 'Experiment', icon: FlaskConical },
 ];
 export default function App() {
@@ -50,6 +54,12 @@ export default function App() {
   });
   const [papers, setPapers] = useState<Paper[]>([]),
     [selected, setSelected] = useState<Paper[]>([]);
+  const [sourceStatuses, setSourceStatuses] = useState<SearchSourceStatus[]>(
+    [],
+  );
+  const [textBusy, setTextBusy] = useState<Set<string>>(new Set());
+  const [textErrors, setTextErrors] = useState<Record<string, string>>({});
+  const textControllers = useRef(new Map<string, AbortController>());
   const [health, setHealth] = useState<Health | null>(null);
   const [searchBusy, setSearchBusy] = useState(false),
     [searchError, setSearchError] = useState(''),
@@ -89,6 +99,7 @@ export default function App() {
       });
     return () => {
       controller.abort();
+      textControllers.current.forEach((c) => c.abort());
       searchController.current?.abort();
       analysisController.current?.abort();
       priorController.current?.abort();
@@ -168,6 +179,7 @@ export default function App() {
     setLastQuery(query);
     setSearchBusy(true);
     setSearchError('');
+    setSourceStatuses([]);
     setPapers([]);
     setSearched(true);
     setActiveNav('papers');
@@ -177,12 +189,53 @@ export default function App() {
         undefined,
         controller.signal,
       );
-      if (!controller.signal.aborted) setPapers(result.papers);
+      if (!controller.signal.aborted) {
+        setPapers(result.papers);
+        setSourceStatuses(result.sourceStatuses ?? []);
+      }
     } catch (e) {
       if (!controller.signal.aborted)
         setSearchError(e instanceof Error ? e.message : 'Search failed.');
     } finally {
       if (!controller.signal.aborted) setSearchBusy(false);
+    }
+  }
+  async function loadFullText(paper: Paper) {
+    if (textControllers.current.has(paper.id)) return;
+    const controller = new AbortController();
+    textControllers.current.set(paper.id, controller);
+    setTextBusy((ids) => new Set(ids).add(paper.id));
+    setTextErrors((errors) => ({ ...errors, [paper.id]: '' }));
+    try {
+      const updated = await api<Paper>(
+        `/api/papers/${encodeURIComponent(paper.id)}/fulltext`,
+        {},
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      clearAnalysis();
+      setSelected((items) =>
+        items.map((p) => (p.id === updated.id ? updated : p)),
+      );
+      setPapers((items) =>
+        items.map((p) => (p.id === updated.id ? updated : p)),
+      );
+    } catch (error) {
+      if (!controller.signal.aborted)
+        setTextErrors((errors) => ({
+          ...errors,
+          [paper.id]:
+            error instanceof Error ? error.message : 'Text retrieval failed.',
+        }));
+    } finally {
+      if (textControllers.current.get(paper.id) === controller)
+        textControllers.current.delete(paper.id);
+      if (!controller.signal.aborted)
+        setTextBusy((ids) => {
+          const next = new Set(ids);
+          next.delete(paper.id);
+          return next;
+        });
     }
   }
   async function runAnalysis() {
@@ -281,7 +334,7 @@ export default function App() {
             priorWork: prior,
             resourceAssessment: fitCurrent ? assessment?.value : null,
             limitations:
-              'Abstract-only evidence. Hypotheses and experiment plans are untested proposals.',
+              'Coverage is labelled per source. Retrieved body text excludes figures, tables and supplements. Hypotheses and experiment plans are untested proposals.',
           },
           null,
           2,
@@ -296,7 +349,7 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  const stage = hypothesis ? 3 : selected.length >= 4 ? 2 : searched ? 1 : 0;
+  const stage = hypothesis ? 4 : selected.length >= 2 ? 2 : searched ? 1 : 0;
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -311,7 +364,8 @@ export default function App() {
           {[
             'Frame question',
             'Select papers',
-            'Inspect connections',
+            'Compare text',
+            'AI connections',
             'Plan experiment',
           ].map((label, i) => (
             <a
@@ -394,7 +448,7 @@ export default function App() {
               Four real OpenAlex records, retrieved October 24, 2026. This
               example opened in its own tab. Edit resources, inspect the
               passages, or check prior work. Paper search and prior-work checks
-              still use live OpenAlex requests.
+              still use live free-paper search services.
             </p>
           </div>
         ) : null}
@@ -410,6 +464,17 @@ export default function App() {
             lastQuery={lastQuery}
             onSearch={search}
             onToggle={toggle}
+            sourceStatuses={sourceStatuses}
+            onLoad={loadFullText}
+            textBusy={textBusy}
+            textErrors={textErrors}
+          />
+          <ComparisonPanel
+            papers={selected}
+            onLoad={loadFullText}
+            busy={textBusy}
+            errors={textErrors}
+            onExport={onExport}
           />
           <EvidencePanel
             hypothesis={hypothesis}
@@ -443,8 +508,8 @@ export default function App() {
       </main>
       <footer className="app-footer">
         <span>
-          Abstracts are partial evidence. Connections are hypotheses, not
-          findings.
+          Evidence coverage is labelled per source. Connections are hypotheses,
+          not findings.
         </span>
         <span>PaperBridge · No workspace is saved on reload</span>
       </footer>

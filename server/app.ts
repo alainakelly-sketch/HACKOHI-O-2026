@@ -2,9 +2,12 @@ import express from 'express';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
-import { createOpenAlex, createPaperStore } from './openalex';
+import { createPaperStore } from './openalex';
+import { createCombinedSearch } from './sources/combined';
+import { createFullTextRetriever } from './sources/fulltext';
 import { analyze, analysisAvailability } from './analysis';
 import { AppError } from './errors';
+import { codespaceHost } from './config';
 import { checkPriorWork } from './prior-work';
 import {
   exampleAnalysis,
@@ -34,7 +37,7 @@ const selectionSchema = z
   .object({
     brief: briefSchema,
     paperIds: z
-      .array(z.string().regex(/^W\d+$/))
+      .array(z.string().regex(/^[A-Za-z0-9_.:-]{1,120}$/))
       .min(4)
       .max(6),
   })
@@ -46,10 +49,13 @@ export function createApp(
   deps: {
     search?: (q: string) => Promise<SearchResult>;
     analyze?: (brief: Brief, papers: Paper[]) => Promise<Analysis>;
+    retrieveFullText?: (paper: Paper) => Promise<Paper>;
+    development?: boolean;
   } = {},
 ) {
   const app = express();
-  const search = deps.search ?? createOpenAlex();
+  const search = deps.search ?? createCombinedSearch();
+  const retrieveFullText = deps.retrieveFullText ?? createFullTextRetriever();
   const paperStore = createPaperStore();
   const analyses = new Map<
     string,
@@ -64,7 +70,21 @@ export function createApp(
     const origin = req.headers.origin;
     if (origin) {
       try {
-        if (new URL(origin).host !== req.headers.host) throw new Error();
+        const parsed = new URL(origin);
+        const forwardedWebsites = [
+          codespaceHost(5173),
+          ...(!deps.development
+            ? [codespaceHost(Number(process.env.PORT || 3001))]
+            : []),
+        ].filter(Boolean);
+        if (
+          parsed.host !== req.headers.host &&
+          !(
+            parsed.protocol === 'https:' &&
+            forwardedWebsites.includes(parsed.host)
+          )
+        )
+          throw new Error();
       } catch {
         res
           .status(403)
@@ -115,7 +135,30 @@ export function createApp(
     const query = z.string().trim().min(2).max(400).parse(req.query.q);
     const result = await search(query);
     paperStore.put(result.papers);
-    res.json(result);
+    res.json({
+      ...result,
+      papers: paperStore.get(result.papers.map((p) => p.id)),
+    });
+  });
+  const fullTextRequests = new Map<string, Promise<Paper>>();
+  app.post('/api/papers/:paperId/fulltext', async (req, res) => {
+    const id = z
+      .string()
+      .regex(/^[A-Za-z0-9_.:-]{1,120}$/)
+      .parse(req.params.paperId);
+    const [paper] = paperStore.get([id]);
+    let pending = fullTextRequests.get(id);
+    if (!pending) {
+      pending = retrieveFullText(paper);
+      fullTextRequests.set(id, pending);
+    }
+    try {
+      const result = await pending;
+      paperStore.put([result]);
+      res.json(result);
+    } finally {
+      if (fullTextRequests.get(id) === pending) fullTextRequests.delete(id);
+    }
   });
   app.post('/api/analyze', async (req, res) => {
     const { brief, paperIds } = selectionSchema.parse(req.body);
@@ -146,7 +189,20 @@ export function createApp(
     res.json(await checkPriorWork(analysis.brief, hypothesis, search));
   });
   const dist = path.resolve('dist');
-  if (existsSync(dist)) app.use(express.static(dist));
+  if (deps.development || !existsSync(dist))
+    app.get('/', (_req, res) => {
+      const website = codespaceHost(5173);
+      if (website) {
+        res.redirect(302, `https://${website}/`);
+        return;
+      }
+      res
+        .type('html')
+        .send(
+          '<!doctype html><html lang="en"><meta charset="utf-8"><title>PaperBridge backend</title><main style="font:18px system-ui;padding:40px;line-height:1.7"><h1>Open the PaperBridge website on port 5173</h1><p>This is the backend on port 3001. Return to your editor, open the Ports tab, and open port 5173.</p><p>Start both services with <code>npm run dev</code>.</p></main></html>',
+        );
+    });
+  if (!deps.development && existsSync(dist)) app.use(express.static(dist));
   app.use(
     (
       err: unknown,

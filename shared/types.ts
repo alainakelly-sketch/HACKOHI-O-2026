@@ -10,7 +10,26 @@ export type Brief = {
   fieldB: string;
   resources: Resources;
 };
-export type Passage = { id: string; text: string };
+export type Passage = {
+  id: string;
+  text: string;
+  kind?: 'abstract' | 'full-text';
+  section?: string;
+};
+export type SourceName = 'OpenAlex' | 'Europe PMC' | 'arXiv';
+export type PaperSource = { provider: SourceName; id: string; url: string };
+export type FreeCopy = {
+  url: string;
+  via: string;
+  format: 'HTML' | 'PDF' | 'Repository';
+  license?: string | null;
+};
+export type SearchSourceStatus = {
+  source: SourceName;
+  status: 'ok' | 'error';
+  count: number;
+  message: string | null;
+};
 export type Paper = {
   id: string;
   title: string;
@@ -21,7 +40,27 @@ export type Paper = {
   abstract: string | null;
   passages: Passage[];
   retrievedAt: string;
-  coverage: 'Abstract only' | 'Metadata only';
+  coverage:
+    | 'Abstract only'
+    | 'Metadata only'
+    | 'Full text retrieved'
+    | 'Full text excerpt';
+  sources?: PaperSource[];
+  identifiers?: { pmcid?: string; arxiv?: string };
+  freeCopies?: FreeCopy[];
+  publicationType?:
+    | 'Preprint'
+    | 'Includes preprint version'
+    | 'Repository record'
+    | 'Journal / other work';
+  fullText?: {
+    provider: 'Europe PMC' | 'arXiv';
+    url: string;
+    license: string | null;
+    retrievedAt: string;
+    note: string;
+    truncated: boolean;
+  };
 };
 export type Citation = { paperId: string; passageId: string };
 export type Requirement = {
@@ -60,6 +99,7 @@ export type SearchResult = {
   papers: Paper[];
   query: string;
   retrievedAt: string;
+  sourceStatuses?: SearchSourceStatus[];
 };
 export type PriorWork = {
   status:

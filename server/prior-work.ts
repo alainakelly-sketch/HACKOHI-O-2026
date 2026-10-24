@@ -29,16 +29,24 @@ export async function checkPriorWork(
       searches.push({
         query: queries[i],
         error:
-          'This search could not be completed. Retry when OpenAlex is available.',
+          'This search could not be completed. Retry when the paper sources are available.',
       });
       return;
     }
-    searches.push({ query: queries[i], error: null });
+    const partial = outcome.value.sourceStatuses?.some(
+      (s) => s.status === 'error',
+    );
+    searches.push({
+      query: queries[i],
+      error: partial
+        ? 'Some free-paper collections were unavailable; this search is incomplete.'
+        : null,
+    });
     for (const paper of outcome.value.papers.slice(0, 5))
       if (!matches.has(paper.id))
         matches.set(paper.id, {
           paper,
-          overlap: `Returned by OpenAlex for “${queries[i]}”. Possible topical overlap; read the abstract and source to assess whether the method or combination is the same.`,
+          overlap: `Returned by the combined free-paper search for “${queries[i]}”. Possible topical overlap; read the abstract and source to assess whether the method or combination is the same.`,
         });
   });
   return {

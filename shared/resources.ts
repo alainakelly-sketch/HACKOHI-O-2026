@@ -45,7 +45,7 @@ export function assessResources(
         ? 'Appears compatible'
         : 'Unknown',
     rows,
-    note: 'Only explicitly cited method terms are compared. Quantity, quality, training, safety, and timing may remain unknown. Abstracts often omit requirements.',
+    note: 'Only explicitly cited method terms are compared. Quantity, quality, training, safety, and timing may remain unknown. Source excerpts can omit important requirements.',
   };
 }
 // A revision, rather than a value comparison, also invalidates after edits are undone.

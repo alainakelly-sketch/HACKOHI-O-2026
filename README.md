@@ -1,106 +1,162 @@
 # PaperBridge
 
-A first working research workspace for a one-day hackathon. Enter a question and two fields, search real scientific records, select 4–6 papers, inspect a proposed connection, check related prior work, and plan a small experiment.
+A research workspace for a one-day hackathon. Search several free-paper collections together, select papers from different fields, and read their source text side by side. Optional AI connections can help develop an experiment proposal, but **paper search and source comparison do not require a paid AI key**.
 
-**Abstracts are partial evidence. Connections and experiment plans are untested proposals.** Finding a passage does not establish that an interpretation is correct.
+PaperBridge does not buy papers or bypass paywalls. It uses source-reported open-access copies. No search covers every free paper, and a free link does not guarantee that its text can be imported into this app.
 
-## Start here
+## Open the app in GitHub Codespaces
 
-You need **Node.js 22.12 or newer** (Node 24 is installed in the prepared cloud environment).
+Use the **`paperbridge-first-version`** branch, not `main`.
 
-In a terminal:
+1. Open [the PaperBridge branch on GitHub](https://github.com/alainakelly-sketch/HACKOHI-O-2026/tree/paperbridge-first-version).
+2. Click the green **Code** button, then **Codespaces**. Open your existing Codespace for this branch, or create one if needed. GitHub may charge beyond your included Codespaces allowance; creating one is not required if you already have a working editor.
+3. In the browser editor, choose **Terminal → New Terminal**. The terminal is the panel where you type commands.
+4. From the project folder, run:
+
+   ```bash
+   npm ci
+   npm run dev
+   ```
+
+5. Leave that terminal running. Open **Ports** beside the terminal, find **5173**, and click its globe/**Open in Browser** action. If it is missing, choose **Add Port** and enter `5173`.
+
+**5173 is the website. 3001 is its backend.** You do not need to open the backend separately. In development, opening the backend root redirects to the website when Codespaces supplies its hostname; otherwise it displays a page explaining which port to open.
+
+### Update an existing Codespace
+
+In the terminal running the app, press **Ctrl+C** first. If this Codespace is already on `paperbridge-first-version` and has no changes of your own, run:
 
 ```bash
-cd /workspace/HACKOHI-O-2026
+git pull --ff-only
 npm ci
 npm run dev
 ```
 
-`npm ci` installs the exact dependencies in the lockfile. `npm run dev` starts both the website on **port 5173** and the Node API on **port 3001**. Leave that terminal running. Press **Ctrl+C** to stop both.
+If Git reports uncommitted changes, a conflict, or a different branch, preserve that work and ask your teammate before proceeding. Do not use `git reset --hard` or overwrite another teammate's files to update the app.
 
-### View it in this cloud environment
+### Other environments
 
-The cloud onboarding chat does **not** provide an interactive website preview. A localhost address printed in the remote terminal refers to the remote machine, not your computer.
+You need **Node.js 22.12 or newer**. Run `npm ci` and `npm run dev` from the folder containing `package.json`. The prepared onboarding checkout is `/workspace/HACKOHI-O-2026`; Codespaces uses its own project path, so do not copy that cloud-only path into a Codespaces terminal.
 
-If you open the project in a remote editor that supports forwarded ports, forward **5173**, then use that editor's **Open in browser** action. Only forward the website port; its `/api` requests are already forwarded internally to port 3001. Use the forwarded URL supplied by the editor. Do not type a remote machine's localhost address into your laptop browser.
+For a remote editor, forward **5173** and use the editor's supplied browser URL. A localhost address printed inside a remote terminal refers to that remote machine, not your laptop. The onboarding chat itself does not provide an interactive preview.
 
-Vite accepts `terminal.local` and localhost by default. If your editor's preview uses another hostname and Vite displays “Blocked request,” add the **specific trusted preview hostname** to `server.allowedHosts` in `vite.config.ts`, then restart. Do not disable host checks for all hosts.
+If running on your own computer, use the Local address printed by Vite on that same computer. Vite accepts localhost, `terminal.local`, and the exact Codespaces website hostname supplied by its environment. For another editor, add only its specific trusted preview hostname to `server.allowedHosts` in `vite.config.ts` if needed; do not disable host checks for all hosts.
 
-If your environment has no forwarded-port feature, run it on your own computer:
+## Search several free-paper sources
 
-1. Copy/download this working branch's project files. These changes have not been pushed to GitHub.
-2. Install Node.js 22.12+ if needed.
-3. Open a terminal in the copied folder and run `npm ci`, then `npm run dev`.
-4. On that same computer, open **http://localhost:5173**.
+One search runs these three routes:
 
-The backend runs on loopback by default. Do not expose it directly or deploy this hackathon prototype as a public multi-user service without an authentication, abuse prevention, and privacy review.
+| Search route   | What it contributes                                                                                                         |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **OpenAlex**   | Open-access scholarly records and free-copy links, including links to university and other repositories.                    |
+| **Europe PMC** | Its open-access subset, including PubMed Central articles with available PMC identifiers.                                   |
+| **arXiv**      | Freely readable manuscripts and preprints. An arXiv record is not proof of peer review; a published version may also exist. |
 
-## Try the complete workflow without a paid model
+Titles, years, identifiers, abstracts and links come from retrieved records, not from AI-generated references. Search each field or a method separately if a combined phrase is too restrictive. Your selection stays while you search.
 
-Click **Explore saved example**. It opens a separate tab and leaves your live workspace alone.
+Results interleave each service's relevance-ranked list. Scores from different services are not treated as directly comparable. Records sharing a DOI, PMC identifier or arXiv identifier are grouped; title similarity alone is not used to declare two papers identical. **Grouped records / versions** retains their source links. Manuscripts and published versions can differ, so inspect the original version you use.
 
-This example includes four **real OpenAlex records** and an explicitly **manually prepared analysis**. It is not an AI response. The checked titles, years, identifiers, links, abstracts, and retrieval dates are stored in `server/examples/network-ecology-papers.json`. No full text has been retrieved.
+Each service has a visible status. If one is unavailable, the successful services' results remain visible and the search is labelled incomplete. An empty successful result is different from a failed request. No saved paper list is substituted for a failed live search.
 
-1. Click the proposed connection to inspect its source passages and limitations.
-2. Click **Assess resources**. The initial result is honestly **Unknown**.
-3. Add `tripartite ecological networks` to **Available data**, then click **Reassess resources**. The phrase comparison becomes **Appears compatible**, with the source passage and a warning that this is not a feasibility review.
-4. Change that field to `No tripartite ecological networks`. The old assessment disappears immediately; reassessing shows **Potential mismatch**.
-5. Click **Check related prior work** for a real OpenAlex search. Read the search terms and candidate overlaps; none of the outcomes establish novelty.
-6. Review the first-experiment proposal. **Export workspace** downloads your sources, current notes, analysis origin, and any current assessment as JSON.
+**Free-copy links are reported by the source and may change.** A publisher-record link is a reference page and may not itself contain the free copy. Use the separately marked free-copy link. Free to read does not necessarily mean unrestricted reuse; check the source's license and terms.
 
-Reloading clears your workspace. The backend retains a bounded, temporary source/analysis cache for one hour; restarting it clears live selections. If sources expire, search and select them again. Example loading is explicit and never replaces a failed live request.
+## Compare papers for free
 
-## Live paper search
+1. Search a topic and select **2–6 papers** using the checkboxes.
+2. In **Compare source text**, click **Compare selected papers**.
+3. Read the cards side by side. With more papers or a narrow screen, scroll horizontally within the comparison.
+4. Use **Show** to choose abstracts, methods sections, findings/limitations sections, or all retrieved passages. **Find a phrase** filters the actual source text.
+5. Click **Retrieve free full text** for a supported PMC or arXiv record. If it succeeds, choose **All retrieved passages** or a section view to read its article-body paragraphs.
 
-Paper search works without model configuration. Search each field or a method separately; selected papers stay selected across searches. OpenAlex orders retrieved candidates by relevance. Titles, years, IDs and links come directly from retrieved records. Missing abstracts are labelled **Metadata only**; available abstracts are labelled **Abstract only**.
+**Export sources (JSON)** saves your selected metadata and retrieved text without requiring AI analysis.
 
-OpenAlex access can vary with its current API rules and your access tier. The backend supports optional server-side `OPENALEX_API_KEY` and `OPENALEX_EMAIL`. The tested environment successfully retrieved records without a key. A 401/403 or rate limit is reported; no records are invented as a fallback. Never paste a key into chat or put it in a `VITE_` variable.
+This comparison shows stored passages, **not AI summaries**. You can inspect the source link and passage ID. Missing methods or findings are not invented: section headings vary, and abstract-only records cannot provide sections that were never retrieved.
 
-Required network destination: `api.openalex.org`. Official documentation: [OpenAlex API documentation](https://developers.openalex.org/), [official documentation source](https://github.com/ourresearch/openalex-docs/blob/main/api-entities/works/search-works.md), and [abstract format](https://github.com/ourresearch/openalex-docs/blob/main/api-entities/works/work-object/README.md). Implementation uses `GET /works` with `search`, `per-page`, and `select`; the actual endpoint was tested. The current documentation website was inaccessible from this onboarding machine; the official source repository was consulted. API access and credentials may change independently of that source documentation.
+### What “full text” means here
 
-## Optional live model analysis — spending approval required
+| Label                   | Meaning                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Metadata only**       | No readable abstract or article-body text has been retrieved.                                                                         |
+| **Abstract only**       | The available abstract is stored; the complete paper has not been imported.                                                           |
+| **Full text retrieved** | Supported article-body prose has been retrieved from PMC XML or arXiv HTML. Figures, tables, references and supplements are excluded. |
+| **Full text excerpt**   | Only part of the article-body prose fit the app's reading limit.                                                                      |
 
-**No paid model requests were made while building or testing this app.** Live model calls are disabled by default. A ChatGPT subscription does not pay for API calls.
+The original publication may contain important material missing from the extracted prose. Always use **Read at source** when figures, tables, formulas or supplements matter. Formatting and mathematical notation may not survive text extraction intact.
+
+Some arXiv papers have a free PDF but no readable HTML version. Other repositories may offer only a PDF or an unsupported page format. Those free links remain usable, but **PDF extraction and arbitrary repository crawling are not implemented**. The app reports retrieval failure and preserves any available abstract; it does not pretend that a linked PDF has been read.
+
+No model configuration, account, database, or payment is needed for this reading workflow. The external services still set their own rate limits and access rules.
+
+## Try the saved research example
+
+**Explore saved example** opens a separate tab and leaves your live workspace alone. It includes four real OpenAlex records and an explicitly **manually prepared analysis**, not a live AI response. Its original stored evidence is abstract-only, even though live search can now retrieve more kinds of text.
+
+Click its connection to inspect source passages, assumptions and unknowns. **Assess resources** initially returns **Unknown**. Adding `tripartite ecological networks` to **Available data** and reassessing demonstrates the conservative phrase match; writing `No tripartite ecological networks` instead demonstrates **Potential mismatch**. Edits immediately invalidate the previous assessment.
+
+**Check related prior work** uses the live combined free-paper search. The visible queries and candidate overlaps do not establish novelty. A failed provider makes the search incomplete. The experiment section is a proposal, not an established protocol. **Export workspace**, when a connection is present, downloads sources, notes, analysis origin and the current assessment as JSON.
+
+Reloading clears the browser workspace. The backend keeps bounded, temporary source and analysis caches for one hour; restarting it clears live cache entries. Search and reselect if sources expire. Saved-example loading is explicit and never replaces a failed live request.
+
+## Optional AI connections — spending approval required
+
+Select **4–6 papers**, enter a research question and two fields, then use **Generate AI connections** only if an owner has configured and approved it. **No paid model requests were made while building this app.** Live AI calls remain disabled by default. A ChatGPT subscription does not pay for API calls.
 
 Only after the project owner approves API spending:
 
 1. Use an existing approved OpenAI API account/key. PaperBridge does not create accounts, buy credits or configure billing.
 2. Store the key securely as a **server-side** `PAPERBRIDGE_MODEL_KEY`, or an existing `OPENAI_API_KEY` binding. Never put secrets in frontend files, `VITE_` variables, Git, screenshots, logs or chat.
-3. Set server-side `ENABLE_LIVE_ANALYSIS=true` and optionally `PAPERBRIDGE_MODEL` (default `gpt-4.1-mini`). Ensure outbound HTTPS to `api.openai.com` is allowed.
-4. Restart `npm run dev` and reload the website. A selected-paper analysis now sends your question, resource notes and selected abstracts to OpenAI. Clicking **Analyze selected papers** may incur API charges.
+3. Set server-side `ENABLE_LIVE_ANALYSIS=true` and optionally `PAPERBRIDGE_MODEL` (default `gpt-4.1-mini`). Allow outbound HTTPS to `api.openai.com`.
+4. Restart `npm run dev` and reload the site. Generating connections sends the question, resource notes and a bounded excerpt of selected source passages to OpenAI and may incur API charges.
 
-For local development, copy `.env.example` to `.env` **only if `.env` does not already exist**, edit it in your private editor, and leave `ENABLE_LIVE_ANALYSIS=false` until spending is approved. `.env` files are ignored by Git. The frontend uses same-origin `/api` calls and receives no provider key. Changing server environment settings requires a restart.
+For local development, copy `.env.example` to `.env` **only if `.env` does not already exist**, edit it privately, and leave the spending flag false until approved. `.env` files are ignored by Git. The frontend never receives the provider key.
 
-The server uses the official OpenAI Node SDK, the Responses API and structured output. Calls have no automatic retries, a timeout, and `store:false`. Other provider retention policies still apply. Upstream error bodies and credentials are not returned to the browser. Missing keys, refusals, invalid references and provider failures are explicit errors; no saved example is silently substituted.
+The official OpenAI SDK uses structured output, a timeout, no automatic retries, and `store:false`. Provider retention policies still apply. Each paper's model input is bounded and labelled as an excerpt; do not assume all retrieved text was analyzed. Unknown source IDs, incomplete responses, refusals and provider failures are rejected explicitly. Quotes are rendered from stored text, never invented model quotation strings. Valid references do not prove the model's interpretation is correct.
 
-## Checks
+## Network access and source documentation
+
+Search requires `api.openalex.org`, `www.ebi.ac.uk` and `export.arxiv.org`. Supported in-app text retrieval also uses `www.ebi.ac.uk` and `arxiv.org`. Browser source links may point to `europepmc.org`, `pmc.ncbi.nlm.nih.gov`, DOI pages or individual university repositories.
+
+For restricted cloud environments, allow the required destinations in environment settings; keep the existing proxy, TLS and CA configuration. Do not bypass the proxy to work around a blocked service. A provider error in the app is not evidence that an API key or payment is needed.
+
+OpenAlex supports optional server-side `OPENALEX_API_KEY` and `OPENALEX_EMAIL`. The earlier single-source workflow retrieved records without a key. Current API access rules may change; authorization and rate-limit errors are reported rather than hidden.
+
+Official references:
+
+- [OpenAlex API documentation](https://developers.openalex.org/) and [official source documentation](https://github.com/ourresearch/openalex-docs/blob/main/api-entities/works/search-works.md).
+- [Europe PMC RESTful web service](https://europepmc.org/RestfulWebService). Search uses the core JSON response with `OPEN_ACCESS:Y`; readable PMC text uses `/{PMCID}/fullTextXML`.
+- [arXiv API manual](https://info.arxiv.org/help/api/user-manual.html) and [official documentation source](https://github.com/arXiv/arxiv-docs/blob/develop/source/help/api/user-manual.md). Searches use Atom responses and a shared request queue spaced according to arXiv's guidance.
+
+The official arXiv source repository and OpenAlex source documentation were consulted. Live combined search was checked through the app backend and returned successful responses from all three services. Direct documentation-site access was restricted during initial setup; see the validation report for the full-text paths, mocked checks and remaining limitations actually verified. Parsing a test response alone is not a live-provider check.
+
+## Check the project
 
 ```bash
-npm test             # Important logic/API tests; no paid calls
-npm run typecheck    # Check TypeScript without generating files
+npm test             # Logic/API tests; no paid model requests
+npm run typecheck    # Check TypeScript
 npm run build        # Type check and build the website into dist/
+npm run format:check # Check formatting
 npm start            # Serve the built website and API on port 3001
 ```
 
-For development, prefer `npm run dev` with port 5173. For the built server in a remote editor, forward 3001 instead; it serves the compiled website and API together. Keep `HOST=127.0.0.1` unless your environment explicitly requires another binding.
+For development, use `npm run dev` and open **5173**. For the built server, run a successful build first, use `npm start`, and forward **3001** instead. Keep `HOST=127.0.0.1` unless your environment explicitly needs another binding.
 
-Tests cover missing abstracts, empty searches, deduplication, rate limits, network failures, stable passage IDs, unknown IDs, model spending gates, mocked model errors, prior-work outcomes, secret boundaries, example labelling, and resource-assessment invalidation. Synthetic paper records occur only in automated test files. Browser QA details and remaining limits are in [docs/VALIDATION.md](docs/VALIDATION.md).
+Tests cover source parsing, free access, duplicate grouping, source IDs, failures, evidence validation, model spending gates, prior-work outcomes and resource invalidation. Synthetic papers belong only in labelled automated tests. Check [docs/VALIDATION.md](docs/VALIDATION.md) for current results and untested cases; a mocked test is not a live-provider verification.
 
 ## Work as four teammates
 
-| Teammate                         | Work independently in                                                                                         | Responsibility                                                                                    |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 1 — workspace/interface          | `src/components/`, `src/styles.css`                                                                           | Question form, papers list, evidence readability, responsive layout.                              |
-| 2 — paper retrieval              | `server/openalex.ts`, `server/openalex.test.ts`                                                               | OpenAlex queries, metadata, abstracts, source cache and IDs.                                      |
-| 3 — analysis/evidence            | `server/analysis.ts`, `server/evidence-validation.ts`, `shared/analysis-schema.ts`, `server/analysis.test.ts` | Model prompt/SDK, structured output and citation checks. Do not enable spending without approval. |
-| 4 — prior work/resources/testing | `server/prior-work.ts`, `shared/resources.ts`, related tests                                                  | Prior-work outcomes, conservative resource checks, integration QA.                                |
+| Teammate              | Work independently in                                                                | Responsibility                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| 1 — interface         | `src/components/`, `src/styles.css`                                                  | Search panels, side-by-side reading, evidence readability and mobile layout.            |
+| 2 — retrieval         | `server/openalex.ts`, `server/sources/`, related tests                               | Collection adapters, grouping, free copies, text extraction and provenance.             |
+| 3 — analysis/evidence | `server/analysis.ts`, `server/evidence-validation.ts`, `shared/analysis-schema.ts`   | Optional model integration and evidence checks; never enable spending without approval. |
+| 4 — resources/testing | `server/prior-work.ts`, `shared/resources.ts`, `shared/comparison.ts`, related tests | Prior-work outcomes, conservative resource checks, passage filtering and QA.            |
 
-Agree together before editing `shared/types.ts`, `server/app.ts`, or `src/App.tsx`: these connect everyone's modules. Give each person their own branch. The implementation branch is `paperbridge-first-version`; nothing was merged, pushed, or deployed.
+Coordinate before editing `shared/types.ts`, `server/app.ts` or `src/App.tsx`, which connect these modules. Give teammates separate branches. The implementation branch is `paperbridge-first-version`; changes are reviewed there without merging into `main` or deploying automatically.
 
-## What this version does not establish
+## Remaining limits
 
-- No scientific verification, novelty score, infection/clinical claims, or guaranteed feasibility.
-- No full-text retrieval, accounts, database, uploads, custom training or automatic experiment execution.
-- Matching IDs checks source existence, not truth or entailment. Model interpretations still need human review.
-- Resource fit compares explicitly cited method phrases with resource notes. It cannot reason reliably about quantities, budgets, training, negation, equivalent terms or deadlines. Unmentioned resources stay **Unknown**.
-- Prior-work checking runs two visible combination searches and lists the closest retrieved candidates. It is not a systematic review and can miss synonyms or related work.
+- Searching several collections is not a search of every free paper or a systematic review. Synonyms, coverage gaps and source failures can hide relevant work.
+- Free access and preprint labels come from retrieved records, not a scientific or legal verification. Grouped versions can differ.
+- Article-body prose is partial evidence. Missing images, tables, supplements, formulas and methods can change an interpretation.
+- No scientific verification, numerical novelty score, guaranteed feasibility, accounts, database, uploads, custom training or automatic experiment execution.
+- Resource fit is a conservative comparison of cited terms with user notes. Quantities, quality, equivalent terms, budgets, deadlines and ambiguous negation often remain **Unknown**.

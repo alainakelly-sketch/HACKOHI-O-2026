@@ -40,7 +40,7 @@ export function ConnectionPanel({
       aria-labelledby="connections-title"
     >
       <div className="panel-heading">
-        <h2 id="connections-title">Connection view</h2>
+        <h2 id="connections-title">Optional AI connections</h2>
         <button
           className="primary"
           disabled={!complete || !health?.analysisAvailable || busy}
@@ -51,7 +51,7 @@ export function ConnectionPanel({
           ) : (
             <>
               <GitBranch size={15} />
-              {analysis ? 'Analyze again' : 'Analyze selected papers'}
+              {analysis ? 'Analyze again' : 'Generate AI connections'}
             </>
           )}
         </button>
@@ -82,7 +82,7 @@ export function ConnectionPanel({
           {analysis.status === 'insufficient' ? (
             <Notice>
               Insufficient evidence. No connection or experiment was generated.
-              Try selecting more relevant papers with abstracts.
+              Try selecting more relevant papers with readable source text.
             </Notice>
           ) : (
             <div className="connection-cards">
@@ -112,8 +112,9 @@ export function ConnectionPanel({
         <Notice>Checking server configuration…</Notice>
       ) : !health.analysisAvailable ? (
         <Notice>
-          <strong>Live analysis unavailable.</strong> {health.reason} Live
-          requests never fall back to saved examples.
+          <strong>AI connections are optional.</strong> Compare source text
+          above for free. {health.reason} Live requests never fall back to saved
+          examples.
         </Notice>
       ) : (
         <p className="panel-footnote">{health.reason}</p>

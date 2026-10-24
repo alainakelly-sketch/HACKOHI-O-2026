@@ -2,8 +2,27 @@ import { createHash } from 'node:crypto';
 import type { Paper, SearchResult } from '../shared/types';
 import { AppError } from './errors';
 import { networkFetch } from './http';
+import { safeSourceUrl } from './sources/common';
+import { arxivIdentifier } from './sources/arxiv';
 type RawWork = {
   id?: string;
+  type?: string;
+  ids?: { pmcid?: string };
+  open_access?: { is_oa?: boolean; oa_url?: string | null };
+  best_oa_location?: {
+    is_oa?: boolean;
+    landing_page_url?: string | null;
+    pdf_url?: string | null;
+    license?: string | null;
+    source?: { display_name?: string };
+  } | null;
+  locations?: {
+    is_oa?: boolean;
+    landing_page_url?: string | null;
+    pdf_url?: string | null;
+    license?: string | null;
+    source?: { display_name?: string };
+  }[];
   display_name?: string;
   publication_year?: number;
   doi?: string | null;
@@ -54,6 +73,37 @@ export function normalizeWork(
     : [];
   const doi =
     raw.doi && /^https:\/\/doi.org\/10\./i.test(raw.doi) ? raw.doi : null;
+  const freeCopies: NonNullable<Paper['freeCopies']> = [];
+  const locations = [raw.best_oa_location, ...(raw.locations ?? [])];
+  for (const location of locations) {
+    if (!location?.is_oa) continue;
+    for (const [value, format] of [
+      [location.landing_page_url, 'Repository'],
+      [location.pdf_url, 'PDF'],
+    ] as const) {
+      const link = safeSourceUrl(value);
+      if (link && !freeCopies.some((c) => c.url === link))
+        freeCopies.push({
+          url: link,
+          format,
+          via: location.source?.display_name || 'OpenAlex open-access location',
+          license: location.license ?? null,
+        });
+    }
+  }
+  const oaLink = raw.open_access?.is_oa
+    ? safeSourceUrl(raw.open_access.oa_url)
+    : null;
+  if (oaLink && !freeCopies.some((c) => c.url === oaLink))
+    freeCopies.push({
+      url: oaLink,
+      format: 'Repository',
+      via: 'OpenAlex open-access location',
+    });
+  const pmcid = raw.ids?.pmcid?.match(/PMC\d+/i)?.[0].toUpperCase();
+  const arxiv = freeCopies
+    .map((c) => arxivIdentifier(c.url))
+    .find((s): s is string => !!s);
   return {
     id,
     title: raw.display_name,
@@ -68,6 +118,11 @@ export function normalizeWork(
     passages,
     retrievedAt: at,
     coverage: abstract ? 'Abstract only' : 'Metadata only',
+    sources: [{ provider: 'OpenAlex', id, url: raw.id }],
+    freeCopies: freeCopies.slice(0, 6),
+    identifiers: { ...(pmcid ? { pmcid } : {}), ...(arxiv ? { arxiv } : {}) },
+    publicationType:
+      raw.type === 'preprint' ? 'Preprint' : 'Journal / other work',
   };
 }
 export function deduplicate(papers: Paper[]) {
@@ -87,7 +142,15 @@ export function createPaperStore() {
     put(papers: Paper[]) {
       for (const paper of papers) {
         if (cache.size >= 1000) cache.delete(cache.keys().next().value!);
-        cache.set(paper.id, { paper, expires: Date.now() + 3600000 });
+        const existing = cache.get(paper.id);
+        const retained =
+          existing &&
+          existing.expires > Date.now() &&
+          existing.paper.fullText &&
+          !paper.fullText
+            ? existing.paper
+            : paper;
+        cache.set(paper.id, { paper: retained, expires: Date.now() + 3600000 });
       }
     },
     get(ids: string[]) {
@@ -103,14 +166,19 @@ export function createPaperStore() {
     },
   };
 }
-export function createOpenAlex(fetcher: typeof fetch = networkFetch) {
+export function createOpenAlex(
+  fetcher: typeof fetch = networkFetch,
+  options: { freeOnly?: boolean } = {},
+) {
   return async (query: string): Promise<SearchResult> => {
     const url = new URL('https://api.openalex.org/works');
     url.searchParams.set('search', query);
     url.searchParams.set('per-page', '16');
+    if (options.freeOnly)
+      url.searchParams.set('filter', 'open_access.is_oa:true');
     url.searchParams.set(
       'select',
-      'id,display_name,publication_year,doi,abstract_inverted_index,authorships',
+      'id,display_name,publication_year,doi,abstract_inverted_index,authorships,ids,open_access,best_oa_location,locations,type',
     );
     if (process.env.OPENALEX_API_KEY)
       url.searchParams.set('api_key', process.env.OPENALEX_API_KEY);

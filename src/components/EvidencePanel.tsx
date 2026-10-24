@@ -20,9 +20,22 @@ function SourceQuote({
     const { paper, passage } = resolveCitation(reference, papers);
     return (
       <div className="source-quote">
-        <div className="source-label">SOURCE STATES · ABSTRACT ONLY</div>
+        <div className="source-label">
+          SOURCE STATES ·{' '}
+          {passage.kind === 'full-text'
+            ? passage.section || 'ARTICLE BODY'
+            : 'ABSTRACT ONLY'}
+        </div>
         <blockquote>{passage.text}</blockquote>
-        <a href={paper.doi || paper.url} target="_blank" rel="noreferrer">
+        <a
+          href={
+            passage.kind === 'full-text'
+              ? paper.fullText?.url || paper.url
+              : paper.doi || paper.url
+          }
+          target="_blank"
+          rel="noreferrer"
+        >
           {paper.title} <ArrowUpRight size={12} />
         </a>
         <code>{passage.id}</code>
@@ -79,8 +92,8 @@ export function EvidencePanel({
           title="Choose a connection to inspect"
           icon={<FileText size={30} />}
         >
-          View supporting passages, source links, assumptions, and unknowns
-          here.
+          Use “Compare source text” to read papers for free. Optional AI
+          connection passages, assumptions and unknowns appear here.
         </Empty>
       ) : (
         <div className="evidence-content">
@@ -165,8 +178,8 @@ export function EvidencePanel({
           <section className="evidence-section prior-work">
             <h3>Check related prior work</h3>
             <p className="muted">
-              Searches the proposed combination in OpenAlex. Retrieval is not
-              proof of novelty or equivalence.
+              Searches the proposed combination across free-paper collections.
+              Retrieval is not proof of novelty or equivalence.
             </p>
             <button
               className="secondary"
@@ -195,8 +208,8 @@ export function EvidencePanel({
                   ))}
                 </ul>
                 <p className="muted">
-                  Closest retrieved candidates in OpenAlex relevance order;
-                  overlap needs human review.
+                  Closest retrieved candidates in interleaved source relevance
+                  order; overlap needs human review.
                 </p>
                 {prior.matches.map((m) => (
                   <article className="prior-match" key={m.paper.id}>
