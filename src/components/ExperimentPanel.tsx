@@ -168,8 +168,8 @@ export function ExperimentPanel({
         ) : (
           <p className="panel-footnote">
             No resource limits provided. The app will not assume equipment, data
-            access, skills, or a deadline. Add optional notes in Focus when you
-            want to tailor the plan.
+            access, skills, or a deadline. Add optional notes in Resources when
+            you want to tailor the plan.
           </p>
         )}
         {plan && needsReview ? (

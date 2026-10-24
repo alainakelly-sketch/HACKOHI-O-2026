@@ -156,6 +156,22 @@ try {
     .getByLabel('Research question', { exact: true })
     .fill('What improves network evaluation?');
   await page.getByLabel('Your field of interest').fill('Network science');
+  assert.equal(await page.getByRole('tab').count(), 7);
+  assert.equal(await page.locator('.sidebar img').count(), 0);
+  assert.equal(
+    await page
+      .locator('#step-question')
+      .getByLabel('Available data', { exact: true })
+      .count(),
+    0,
+  );
+  await tab('Resources').click();
+  await page
+    .getByRole('heading', {
+      name: 'Resources for your hypothesis',
+      exact: true,
+    })
+    .waitFor();
   await page
     .getByLabel('Available data', { exact: true })
     .fill('Public network data');
@@ -164,6 +180,39 @@ try {
     .fill('Laptop, no GPU');
   await page.getByLabel('Available skills', { exact: true }).fill('Python');
   await page.getByLabel('Project deadline', { exact: true }).fill('one week');
+  await mkdir('/tmp/paperbridge-minimal', { recursive: true });
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({
+    path: '/tmp/paperbridge-minimal/resources-desktop.png',
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.screenshot({
+    path: '/tmp/paperbridge-minimal/resources-mobile.png',
+  });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+    false,
+  );
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page
+    .getByRole('button', { name: 'Continue to hypotheses', exact: true })
+    .click();
+  assert.equal(
+    await tab('AI hypotheses').getAttribute('aria-selected'),
+    'true',
+  );
+  assert.equal(calls, 0);
+  assert.equal(searches, 0);
+  await tab('Focus').click();
+  await tab('Resources').click();
+  assert.equal(
+    await page.getByLabel('Project deadline', { exact: true }).inputValue(),
+    'one week',
+  );
+  await tab('Focus').click();
   await mkdir('/tmp/paperbridge-brand', { recursive: true });
   await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({ path: '/tmp/paperbridge-brand/focus-desktop.png' });
@@ -185,7 +234,7 @@ try {
     .getByText('Resources guiding the next hypothesis and experiment', {
       exact: true,
     })
-    .waitFor();
+    .click();
   await page
     .locator('.hypothesis-resource-context')
     .getByText('Laptop, no GPU', { exact: true })
@@ -212,7 +261,7 @@ try {
   await page
     .getByLabel('Proposed method', { exact: true })
     .fill('Keep my edited method');
-  await tab('Focus').click();
+  await tab('Resources').click();
   await page.getByLabel('Project deadline', { exact: true }).fill('one day');
   await tab('Papers').click();
   assert.equal(await page.locator('.paper-row').count(), 4);

@@ -107,3 +107,10 @@ No Firefox, Safari, physical-device, or assistive-technology checks were perform
 
 - Replaced the header's failing full-wordmark image with the same compact logo asset that already loaded in the sidebar, plus a live navy/violet PaperBridge wordmark. The symbol and name sit together at the top left; the name uses the page title's inherited font family and 700 weight.
 - Browser regression verified the actual image loaded, brand position was within 40px of the top/left at desktop, font family and weight matched h1, and mobile layout had no horizontal overflow or page errors. Desktop/mobile screenshots inspected. TypeScript, production build and Git whitespace passed. No paid API calls made.
+
+## Minimal workspace and separate Resources tab
+
+- Removed the sidebar logo and slogan; kept the top-left brand. Simplified actions, descriptions and Focus, made sidebar navigation stable while scrolling, and moved cost history below hypothesis controls.
+- Added a dedicated optional Resources tab between Gap leads and AI hypotheses. Notes remain root-owned, survive all tab changes, still reach hypothesis requests, and do not change paper searches. Explicit Continue/Skip/Edit-resources actions only navigate. Focus no longer renders resource fields. Resource textareas have exact accessible names and separately described hints.
+- 330 tests in 26 files passed. Browser suites updated for seven tabs and verify no sidebar image, no resource inputs in Focus, notes retained, no request on navigation, same paper results, selected-lead hypothesis flow, stale resource warning, plan edits/export, and cost history. Four Chromium suites passed using explicitly synthetic fixtures/model responses; no paid API calls were made.
+- Desktop 1440×1000 and mobile 390×844 screenshots of Focus, Resources and Experiment were inspected; no page errors or horizontal overflow. Browser plugin unavailable, Playwright with installed Chromium used. Firefox, Safari, physical devices and assistive technology were not tested. TypeScript/production build passed; final formatting/whitespace checks recorded with the change.

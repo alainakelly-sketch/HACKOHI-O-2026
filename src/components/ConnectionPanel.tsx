@@ -22,6 +22,7 @@ export function ConnectionPanel({
   readinessBusy = false,
   onPlan,
   resourcesChanged = false,
+  onEditResources,
 }: {
   brief: Brief;
   analysis: Analysis | null;
@@ -33,6 +34,7 @@ export function ConnectionPanel({
   readinessBusy?: boolean;
   onPlan?: (id: string) => void;
   resourcesChanged?: boolean;
+  onEditResources?: () => void;
   busy: boolean;
   error: string;
   onAnalyze: () => void;
@@ -40,6 +42,7 @@ export function ConnectionPanel({
 }) {
   const readiness = analysisReadiness(brief, count, papers, health);
   const complete = readiness.every((item) => item.ready);
+  const missing = readiness.filter((item) => !item.ready);
   return (
     <section
       className="panel connection-panel"
@@ -63,10 +66,7 @@ export function ConnectionPanel({
           )}
         </button>
       </div>
-      <details
-        className="hypothesis-resource-context"
-        open={Object.values(brief.resources).some((value) => value.trim())}
-      >
+      <details className="hypothesis-resource-context">
         <summary>Resources guiding the next hypothesis and experiment</summary>
         <p>
           Your notes guide the proposed approach, data choices, equipment,
@@ -93,8 +93,8 @@ export function ConnectionPanel({
         </dl>
         {!Object.values(brief.resources).some((value) => value.trim()) ? (
           <p>
-            No resource constraints entered. Add them in Focus if you want to
-            tailor a proposal.
+            No resource constraints entered. Add them in Resources if you want
+            to tailor a proposal.
           </p>
         ) : null}
         <p>
@@ -102,6 +102,14 @@ export function ConnectionPanel({
           the generation button explicitly when you want a new AI proposal.
         </p>
       </details>
+      {onEditResources ? (
+        <button
+          className="text-button edit-planning-resources"
+          onClick={onEditResources}
+        >
+          Edit planning resources
+        </button>
+      ) : null}
       {analysis && resourcesChanged ? (
         <Notice>
           Resource notes changed after this analysis. These existing hypotheses
@@ -110,14 +118,20 @@ export function ConnectionPanel({
         </Notice>
       ) : null}
       <div className="analysis-readiness" aria-live="polite">
-        <h3>Before generating</h3>
+        <h3>{complete ? 'Ready to generate' : 'Before generating'}</h3>
         <ul>
-          {readiness.map((item) => (
+          {missing.map((item) => (
             <li key={item.key}>
               {item.ready ? '✓' : '○'} {item.message}
             </li>
           ))}
         </ul>
+        {complete ? (
+          <p>
+            Your focus and selected sources are ready. Resource notes will guide
+            the proposal.
+          </p>
+        ) : null}
         {onRecheck ? (
           <button
             className="secondary"

@@ -7,6 +7,7 @@ import {
   Info,
   ArrowUpRight,
   Columns2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import type {
   Analysis,
@@ -30,6 +31,7 @@ import { CostPanel } from './components/CostPanel';
 import type { UsageEntry } from './components/CostPanel';
 import { api, ApiError } from './lib/api';
 import { BridgeMark, Notice } from './components/Primitives';
+import { ResourcesPanel } from './components/ResourcesPanel';
 import { BriefForm } from './components/BriefForm';
 import { PaperPanel } from './components/PaperPanel';
 import { ConnectionPanel } from './components/ConnectionPanel';
@@ -61,9 +63,47 @@ const nav = [
   { id: 'papers', label: 'Papers', icon: FileText },
   { id: 'comparison', label: 'Compare', icon: Columns2 },
   { id: 'gaps', label: 'Gap leads', icon: CircleHelp },
+  { id: 'resources', label: 'Resources', icon: SlidersHorizontal },
   { id: 'connections', label: 'AI hypotheses', icon: GitBranch },
   { id: 'experiment', label: 'Experiment', icon: FlaskConical },
 ];
+const workflowHeadings: Record<string, { title: string; description: string }> =
+  {
+    question: {
+      title: 'Find the next question in your field',
+      description: 'Start with one field and a question.',
+    },
+    papers: {
+      title: 'Choose your sources',
+      description:
+        'Find relevant papers and select the evidence you want to explore.',
+    },
+    comparison: {
+      title: 'Compare your selected papers',
+      description:
+        'Read similarities, differences and the passages behind them.',
+    },
+    gaps: {
+      title: 'Explore research leads',
+      description:
+        'Inspect an author-stated limitation or possible disagreement before planning a test.',
+    },
+    resources: {
+      title: 'Make the hypothesis fit your resources',
+      description:
+        'Optional context for a realistic proposal. Your paper results stay unchanged.',
+    },
+    connections: {
+      title: 'Develop a hypothesis',
+      description:
+        'Use selected evidence and your resources to propose a testable question.',
+    },
+    experiment: {
+      title: 'Plan a small first test',
+      description:
+        'Refine the proposal, check related work and decide what result would count against it.',
+    },
+  };
 export default function App() {
   const [exampleMode] = useState(
     () =>
@@ -717,23 +757,12 @@ export default function App() {
             <span>{item.label}</span>
           </button>
         ))}
-        <div className="sidebar-bottom">
-          <BridgeMark small />
-          <p>
-            Follow the evidence.
-            <br />
-            Explore the possibility.
-          </p>
-        </div>
       </nav>
       <main className="workspace">
         <div className="page-heading">
           <div>
-            <h1>Find the next question in your field</h1>
-            <p>
-              Read source text, investigate limitations, and develop a possible
-              research gap.
-            </p>
+            <h1>{workflowHeadings[activeNav].title}</h1>
+            <p>{workflowHeadings[activeNav].description}</p>
           </div>
           {!exampleMode ? (
             <a
@@ -787,7 +816,6 @@ export default function App() {
             <BriefForm
               brief={brief}
               onCore={onCore}
-              onResources={onResources}
               onFindPapers={searchFocus}
               searching={searchBusy}
             />
@@ -916,12 +944,25 @@ export default function App() {
           <div
             className="workflow-panel"
             role="tabpanel"
+            id="step-resources"
+            aria-labelledby="tab-resources"
+            hidden={activeNav !== 'resources'}
+            tabIndex={0}
+          >
+            <ResourcesPanel
+              resources={brief.resources}
+              onChange={onResources}
+              onContinue={() => setActiveNav('connections')}
+            />
+          </div>
+          <div
+            className="workflow-panel"
+            role="tabpanel"
             id="step-connections"
             aria-labelledby="tab-connections"
             hidden={activeNav !== 'connections'}
             tabIndex={0}
           >
-            <CostPanel entries={usageEntries} />
             {researchLead ? (
               <section className="panel selected-discovery-lead">
                 <h3>Selected discovery lead</h3>
@@ -964,10 +1005,12 @@ export default function App() {
               onRecheck={recheckHealth}
               readinessBusy={readinessBusy}
               onPlan={startHypothesisPlan}
+              onEditResources={() => setActiveNav('resources')}
               resourcesChanged={
                 !!analysis && analysisResourceRevision !== resourceRevision
               }
             />
+            <CostPanel entries={usageEntries} />
           </div>
           <div
             className="workflow-panel"
@@ -1042,13 +1085,16 @@ export default function App() {
           <span>
             Step {activeIndex + 1} of {nav.length} · {nav[activeIndex].label}
           </span>
-          <button
-            className="primary"
-            disabled={activeIndex === nav.length - 1}
-            onClick={() => setActiveNav(nav[activeIndex + 1].id)}
-          >
-            Continue
-          </button>
+          {activeNav !== 'resources' && activeIndex < nav.length - 1 ? (
+            <button
+              className="primary"
+              onClick={() => setActiveNav(nav[activeIndex + 1].id)}
+            >
+              Continue
+            </button>
+          ) : (
+            <span className="workflow-next-spacer" aria-hidden="true" />
+          )}
         </div>
       </main>
       <footer className="app-footer">

@@ -87,8 +87,25 @@ try {
     .getByLabel('Research question', { exact: true })
     .fill('How can network analysis be improved?');
   await page.getByLabel('Your field of interest').fill('Network science');
+  assert.equal(
+    await page
+      .locator('#step-question')
+      .getByLabel('Available equipment', { exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(await page.locator('.sidebar img').count(), 0);
+  await tab('Resources').click();
   await page.getByLabel('Available equipment', { exact: true }).fill('laptop');
   await page.getByLabel('Available skills', { exact: true }).fill('Python');
+  await tab('Focus').click();
+  await tab('Resources').click();
+  assert.equal(
+    await page.getByLabel('Available skills', { exact: true }).inputValue(),
+    'Python',
+  );
+  assert.equal(searches, 0);
+  await tab('Focus').click();
   await page
     .getByRole('button', { name: 'Find papers for this focus' })
     .click();
@@ -105,7 +122,7 @@ try {
     0,
   );
   const originalTitles = await page.locator('.paper-row h3').allTextContents();
-  await tab('Focus').click();
+  await tab('Resources').click();
   await page.getByLabel('Available equipment', { exact: true }).fill('');
   await page.getByLabel('Available skills', { exact: true }).fill('');
   await tab('Papers').click();
@@ -114,7 +131,7 @@ try {
     await page.locator('.paper-row h3').allTextContents(),
     originalTitles,
   );
-  await tab('Focus').click();
+  await tab('Resources').click();
   await page.getByLabel('Available equipment', { exact: true }).fill('no GPU');
   await page.getByLabel('Project deadline', { exact: true }).fill('one day');
   await tab('Papers').click();

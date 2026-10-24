@@ -143,6 +143,17 @@ try {
     .getByLabel('Research question', { exact: true })
     .fill('Original question preserved until Apply');
   await page.getByLabel('Your field of interest').fill('Medical AI');
+  assert.equal(await page.locator('.sidebar img').count(), 0);
+  await tab('Resources').click();
+  await page
+    .getByRole('heading', {
+      name: 'Resources for your hypothesis',
+      exact: true,
+    })
+    .waitFor();
+  assert.equal(modelCalls, 0);
+  assert.equal(searches, 0);
+  await tab('Focus').click();
   await page.getByText('Help me shape a question', { exact: true }).click();
   await page
     .getByLabel('Topic, approach, or factor', { exact: true })

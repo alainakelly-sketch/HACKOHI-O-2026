@@ -142,11 +142,26 @@ await page.route('**/api/**', async (route) => {
 const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 async function open(name: string) {
   await tab(name).click();
+  assert.equal(
+    (
+      await page.locator('.sidebar button[aria-current=step]').innerText()
+    ).trim(),
+    name,
+  );
   assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
 }
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   assert.match(await page.title(), /PaperBridge/);
+  assert.equal(await page.getByRole('tab').count(), 7);
+  assert.equal(await page.locator('.sidebar img').count(), 0);
+  assert.equal(
+    await page
+      .locator('#step-question')
+      .getByLabel('Available data', { exact: true })
+      .count(),
+    0,
+  );
   await page
     .getByLabel('Research question', { exact: true })
     .fill('How do network samples affect evaluation?');
@@ -155,6 +170,7 @@ try {
     'Papers',
     'Compare',
     'Gap leads',
+    'Resources',
     'AI hypotheses',
     'Experiment',
     'Focus',
@@ -164,6 +180,8 @@ try {
     await page.getByLabel('Research question', { exact: true }).inputValue(),
     'How do network samples affect evaluation?',
   );
+  assert.equal(analysisCalls, 0);
+  assert.equal(searchCalls, 0);
   await tab('Focus').focus();
   await page.keyboard.press('ArrowRight');
   assert.equal(await tab('Papers').getAttribute('aria-selected'), 'true');
@@ -305,7 +323,7 @@ try {
   await page
     .getByLabel('Proposed method', { exact: true })
     .fill('Manual method remains mine');
-  await open('Focus');
+  await open('Resources');
   await page
     .getByLabel('Available data', { exact: true })
     .fill('Changed resources');

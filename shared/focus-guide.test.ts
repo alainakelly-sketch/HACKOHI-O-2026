@@ -75,7 +75,7 @@ describe('guided user-composed research questions', () => {
       );
     }
   });
-  it('renders the existing focus and resources without applying the guide', () => {
+  it('keeps focus separate from optional resources without applying the guide', () => {
     let updates = 0;
     const html = renderToStaticMarkup(
       createElement(BriefForm, {
@@ -90,14 +90,14 @@ describe('guided user-composed research questions', () => {
           },
         },
         onCore: () => updates++,
-        onResources: () => updates++,
         onFindPapers: () => updates++,
         searching: false,
       }),
     );
     expect(updates).toBe(0);
     expect(html).toContain('Keep my existing question');
-    expect(html).toContain('My data');
+    expect(html).not.toContain('My data');
+    expect(html).not.toContain('Available equipment');
     expect(html).toContain('Help me shape a question');
     expect(html).toContain('user-composed template');
     expect(html).toContain('Use this question');

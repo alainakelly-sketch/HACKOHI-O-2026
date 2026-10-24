@@ -6,39 +6,15 @@ import {
 } from '../../shared/focus-guide';
 import type { FocusGuide, FocusTemplate } from '../../shared/focus-guide';
 import './focus-guide.css';
-import type { Brief, Resources } from '../../shared/types';
-const fields: { key: keyof Resources; label: string; placeholder: string }[] = [
-  {
-    key: 'data',
-    label: 'Available data',
-    placeholder: 'Public datasets, measurements…',
-  },
-  {
-    key: 'equipment',
-    label: 'Available equipment',
-    placeholder: 'Laptop, GPU, lab instruments…',
-  },
-  {
-    key: 'skills',
-    label: 'Available skills',
-    placeholder: 'Python, microscopy, statistics…',
-  },
-  {
-    key: 'deadline',
-    label: 'Project deadline',
-    placeholder: 'One day, two weeks…',
-  },
-];
+import type { Brief } from '../../shared/types';
 export function BriefForm({
   brief,
   onCore,
-  onResources,
   onFindPapers,
   searching,
 }: {
   brief: Brief;
   onCore: (key: 'question' | 'field', value: string) => void;
-  onResources: (key: keyof Resources, value: string) => void;
   onFindPapers: () => void;
   searching: boolean;
 }) {
@@ -58,7 +34,7 @@ export function BriefForm({
       aria-labelledby="question-title"
     >
       <h2 id="question-title">Research focus</h2>
-      <label className="sr-only" htmlFor="question-input">
+      <label className="focus-field-label" htmlFor="question-input">
         Research question
       </label>
       <textarea
@@ -79,8 +55,8 @@ export function BriefForm({
         placeholder="e.g. Neuroscience, ecology, education"
       />
       <p className="focus-help">
-        Your field and question suggest editable search terms and help order the
-        gap leads. You do not need a second field.
+        Choose one field and a question you want to explore. You can refine them
+        later.
       </p>
       <details className="focus-guide">
         <summary>Help me shape a question</summary>
@@ -210,30 +186,6 @@ export function BriefForm({
       >
         {searching ? 'Finding papers…' : 'Find papers for this focus'}
       </button>
-      <details open className="resources">
-        <summary>
-          Resources <span>Optional</span>
-        </summary>
-        <p className="muted">
-          Optional: tell PaperBridge what data, equipment, skills, and time you
-          have. These notes shape hypothesis and experiment development while
-          paper search stays focused on your research question. Include limits
-          such as “no GPU” or “one week”; unknown feasibility stays labelled.
-        </p>
-        {fields.map((f) => (
-          <div key={f.key} className="resource-field">
-            <label htmlFor={f.key}>{f.label}</label>
-            <textarea
-              id={f.key}
-              rows={1}
-              maxLength={1200}
-              placeholder={f.placeholder}
-              value={brief.resources[f.key]}
-              onChange={(e) => onResources(f.key, e.target.value)}
-            />
-          </div>
-        ))}
-      </details>
     </section>
   );
 }
