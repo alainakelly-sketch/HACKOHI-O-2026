@@ -9,6 +9,7 @@ import {
   createManualPlan,
   exportPlan,
   planContextKey,
+  resourcePlanningNotes,
 } from './experiment-plan';
 import { ExperimentPanel } from '../src/components/ExperimentPanel';
 const brief: Brief = {
@@ -74,6 +75,71 @@ const hypothesis: Hypothesis = {
   },
 };
 describe('editable experiment drafts', () => {
+  it('seeds resource constraints into new drafts without inventing methods', () => {
+    const focused = {
+      ...brief,
+      resources: {
+        data: 'Public images',
+        equipment: 'Laptop; no GPU',
+        skills: 'Beginner Python',
+        deadline: 'One day',
+      },
+    };
+    for (const plan of [
+      createManualPlan(focused, [paper]),
+      createHypothesisPlan(hypothesis, focused, [paper]),
+    ]) {
+      expect(plan.fields.constraints).toContain(
+        'User-stated resources and limits',
+      );
+      expect(plan.fields.constraints).toContain('Laptop; no GPU');
+      expect(plan.fields.constraints).toContain('Beginner Python');
+      expect(plan.fields.constraints).toContain('One day');
+      expect(plan.resources).toEqual(focused.resources);
+    }
+    expect(createManualPlan(focused, [paper]).fields.method).toBe('');
+    expect(
+      resourcePlanningNotes({
+        data: '',
+        equipment: '',
+        skills: '',
+        deadline: '',
+      }),
+    ).toBe('');
+    expect(
+      createManualPlan(
+        {
+          ...brief,
+          resources: { data: '', equipment: '', skills: '', deadline: '' },
+        },
+        [paper],
+      ).fields.constraints,
+    ).toBe('');
+  });
+  it('shows current resource notes separately from an unchanged edited draft', () => {
+    const plan = createManualPlan(brief, [paper]);
+    plan.fields.method = 'Keep my edited method';
+    const html = renderToStaticMarkup(
+      createElement(ExperimentPanel, {
+        plan,
+        needsReview: true,
+        currentResources: {
+          ...brief.resources,
+          equipment: 'No GPU; laptop only',
+        },
+        onChange: () => {},
+        onStartManual: () => {},
+      }),
+    );
+    expect(html).toContain('Plan around your resources');
+    expect(html).toContain('No GPU; laptop only');
+    expect(html).toContain('not facts extracted from a paper');
+    expect(html).toContain('No automatic regeneration or paid request occurs');
+    expect(html).toContain('Keep my edited method');
+    expect(html).toContain('Add current resource notes to this plan');
+    expect(plan.resources.equipment).toBe('');
+  });
+
   it('copies an existing hypothesis plan without a provider request', () => {
     const plan = createHypothesisPlan(hypothesis, brief, [paper]);
     expect(plan.fields.method).toBe('Test method');

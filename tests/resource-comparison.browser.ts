@@ -93,49 +93,44 @@ try {
     .getByRole('button', { name: 'Find papers for this focus' })
     .click();
   await page.locator('.paper-row').first().waitFor();
-  assert.equal(await page.locator('.paper-row').count(), 1);
+  assert.equal(await page.locator('.paper-row').count(), 4);
   await page
-    .getByText('Review 3 hidden papers and why', { exact: true })
+    .getByText(
+      'Resource notes guide hypothesis and experiment planning. They do not hide papers.',
+      { exact: true },
+    )
     .waitFor();
-  await page.locator('.paper-list .resource-result summary').click();
-  await page.getByText(methods[0], { exact: true }).first().waitFor();
-  await mkdir('/tmp/paperbridge-resources', { recursive: true });
-  await page.locator('.resource-search-filter').scrollIntoViewIfNeeded();
-  await page.screenshot({
-    path: '/tmp/paperbridge-resources/filter-desktop.png',
-  });
+  assert.equal(
+    await page.getByLabel('Resource filter', { exact: true }).count(),
+    0,
+  );
+  const originalTitles = await page.locator('.paper-row h3').allTextContents();
   await tab('Focus').click();
   await page.getByLabel('Available equipment', { exact: true }).fill('');
   await page.getByLabel('Available skills', { exact: true }).fill('');
   await tab('Papers').click();
   assert.equal(await page.locator('.paper-row').count(), 4);
-  await page
-    .getByText('Off — resource fields are blank.', { exact: false })
-    .waitFor();
+  assert.deepEqual(
+    await page.locator('.paper-row h3').allTextContents(),
+    originalTitles,
+  );
   await tab('Focus').click();
   await page.getByLabel('Available equipment', { exact: true }).fill('no GPU');
+  await page.getByLabel('Project deadline', { exact: true }).fill('one day');
   await tab('Papers').click();
-  assert.equal(await page.locator('.paper-row').count(), 3);
+  assert.equal(await page.locator('.paper-row').count(), 4);
+  assert.deepEqual(
+    await page.locator('.paper-row h3').allTextContents(),
+    originalTitles,
+  );
+  assert.equal(searches, 1);
   assert.equal(
     await page
       .locator('.paper-row')
       .filter({ hasText: 'SYNTHETIC RESOURCE TEST 1' })
       .count(),
-    0,
+    1,
   );
-  await page
-    .getByText('Review 1 hidden papers and why', { exact: true })
-    .click();
-  await page
-    .getByText('Potential resource conflict · why?', { exact: true })
-    .click();
-  await page.getByText(methods[1], { exact: true }).waitFor();
-  await tab('Focus').click();
-  await page.getByLabel('Project deadline', { exact: true }).fill('one day');
-  await tab('Papers').click();
-  assert.equal(await page.locator('.paper-row').count(), 2);
-  await page.getByLabel('Resource filter', { exact: true }).selectOption('off');
-  assert.equal(await page.locator('.paper-row').count(), 4);
   for (let i = 0; i < 3; i++)
     await page
       .getByLabel(`Select SYNTHETIC RESOURCE TEST ${i}`, { exact: true })
@@ -192,7 +187,7 @@ try {
     false,
   );
   console.log(
-    'PASS: resource matches/conflicts/unknowns, blank reset, deadline conflict, overrides, source evidence, retained selection, two-paper comparison/aspects, optional reader, mobile. No paid requests.',
+    'PASS: resource notes never hide/reorder papers or rerun search, selected source evidence, two-paper comparison/aspects, optional reader, mobile. No paid requests.',
   );
 } finally {
   await browser.close();

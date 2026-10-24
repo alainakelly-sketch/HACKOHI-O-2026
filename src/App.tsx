@@ -149,6 +149,7 @@ export default function App() {
     [priorBusy, setPriorBusy] = useState(false),
     [priorError, setPriorError] = useState('');
   const [resourceRevision, setResourceRevision] = useState(0);
+  const [analysisResourceRevision, setAnalysisResourceRevision] = useState(0);
   const [assessment, setAssessment] = useState<{
     revision: number;
     hypothesisId: string;
@@ -156,9 +157,13 @@ export default function App() {
   } | null>(null);
   const [activeNav, setActiveNav] = useState('question');
   useEffect(() => {
-    document
-      .getElementById(`tab-${activeNav}`)
-      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const revealTab = () =>
+      document
+        .getElementById(`tab-${activeNav}`)
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    revealTab();
+    window.addEventListener('resize', revealTab);
+    return () => window.removeEventListener('resize', revealTab);
   }, [activeNav]);
   const searchController = useRef<AbortController | null>(null),
     analysisController = useRef<AbortController | null>(null),
@@ -500,6 +505,7 @@ export default function App() {
       if (!controller.signal.aborted && version === generation.current) {
         setSelected(result.sources);
         setAnalysis(result.result);
+        setAnalysisResourceRevision(resourceRevision);
         setAnalysisId(result.analysisId);
         setActiveId(result.result.hypotheses[0]?.id ?? null);
       }
@@ -611,7 +617,9 @@ export default function App() {
     const draft = createManualPlan(brief, selected);
     draft.id = `discovery:${lead.id}`;
     draft.fields.question = lead.question;
-    draft.fields.constraints = lead.reason;
+    draft.fields.constraints = [lead.reason, draft.fields.constraints]
+      .filter(Boolean)
+      .join('\n\n');
     draft.sources = lead.sources.map((reference) => ({ ...reference }));
     setInspection(null);
     editPlan(drafts.current.get(draft.id) ?? draft);
@@ -657,10 +665,7 @@ export default function App() {
           }}
         >
           <BridgeMark />
-          <div>
-            <strong>PaperBridge</strong>
-            <span>Research workspace</span>
-          </div>
+          <span className="brand-tagline">Research workspace</span>
         </a>
         <nav className="steps" role="tablist" aria-label="Research workflow">
           {nav.map((item, i) => (
@@ -949,6 +954,9 @@ export default function App() {
               onRecheck={recheckHealth}
               readinessBusy={readinessBusy}
               onPlan={startHypothesisPlan}
+              resourcesChanged={
+                !!analysis && analysisResourceRevision !== resourceRevision
+              }
             />
           </div>
           <div
@@ -987,6 +995,7 @@ export default function App() {
             ) : null}
             <ExperimentPanel
               plan={plan}
+              currentResources={brief.resources}
               onChange={editPlan}
               onStartManual={() => startManualPlan()}
               needsReview={

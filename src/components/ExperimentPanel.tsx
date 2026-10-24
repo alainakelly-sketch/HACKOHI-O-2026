@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { FlaskConical, Download, Copy } from 'lucide-react';
-import type { Citation } from '../../shared/types';
+import type { Citation, Resources } from '../../shared/types';
 import type {
   ExperimentDraft,
   ExperimentFields,
 } from '../../shared/experiment-plan';
-import { exportPlan } from '../../shared/experiment-plan';
+import {
+  exportPlan,
+  resourcePlanningNotes,
+} from '../../shared/experiment-plan';
 import { Empty, Notice } from './Primitives';
 const fields: { key: keyof ExperimentFields; label: string; hint: string }[] = [
   {
@@ -71,6 +74,7 @@ export function ExperimentPanel({
   onStartManual,
   onInspect,
   onReview,
+  currentResources,
 }: {
   plan: ExperimentDraft | null;
   needsReview: boolean;
@@ -78,8 +82,19 @@ export function ExperimentPanel({
   onStartManual: () => void;
   onInspect?: (citation: Citation) => void;
   onReview?: () => void;
+  currentResources?: Resources;
 }) {
   const [copyMessage, setCopyMessage] = useState('');
+  const planningResources = currentResources ?? plan?.resources;
+  const resourceEntries = Object.entries(planningResources ?? {}).filter(
+    ([, value]) => value.trim(),
+  );
+  const resourceLabels: Record<string, string> = {
+    data: 'Available data',
+    equipment: 'Available equipment',
+    skills: 'Available skills',
+    deadline: 'Project deadline',
+  };
   function download() {
     if (!plan) return;
     const url = URL.createObjectURL(
@@ -123,6 +138,73 @@ export function ExperimentPanel({
           </div>
         ) : null}
       </div>
+      <section
+        className="planning-resource-context"
+        aria-label="Resources shaping this experiment"
+      >
+        <h3>Plan around your resources</h3>
+        <p className="panel-footnote">
+          Resource notes shape the proposed test; they do not hide scientific
+          sources. These are your stated resources and limits, not facts
+          extracted from a paper.
+        </p>
+        {resourceEntries.length ? (
+          <>
+            <dl>
+              {resourceEntries.map(([key, value]) => (
+                <div key={key}>
+                  <dt>{resourceLabels[key] ?? key}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="panel-footnote">
+              Use accessible data, check equipment and skills, and choose a
+              small first test that fits your deadline. If a requirement cannot
+              be met, adapt the proposed experiment or record it as unresolved;
+              do not assume feasibility.
+            </p>
+          </>
+        ) : (
+          <p className="panel-footnote">
+            No resource limits provided. The app will not assume equipment, data
+            access, skills, or a deadline. Add optional notes in Focus when you
+            want to tailor the plan.
+          </p>
+        )}
+        {plan && needsReview ? (
+          <p className="panel-footnote">
+            The current notes above may differ from the draft's creation-time
+            snapshot below. Your written plan is preserved; review and edit it
+            explicitly. No automatic regeneration or paid request occurs.
+          </p>
+        ) : null}
+        {plan &&
+        resourceEntries.length &&
+        !plan.fields.constraints.includes(
+          resourcePlanningNotes(planningResources!),
+        ) ? (
+          <button
+            className="secondary"
+            onClick={() =>
+              onChange({
+                ...plan,
+                fields: {
+                  ...plan.fields,
+                  constraints: [
+                    plan.fields.constraints,
+                    resourcePlanningNotes(planningResources!),
+                  ]
+                    .filter(Boolean)
+                    .join('\n\n'),
+                },
+              })
+            }
+          >
+            Add current resource notes to this plan · free
+          </button>
+        ) : null}
+      </section>
       {!plan ? (
         <>
           <Empty

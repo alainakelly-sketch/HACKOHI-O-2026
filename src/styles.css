@@ -5,16 +5,16 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #18213d;
+  color: #0b1c3d;
   background: #fff;
   font-synthesis: none;
   font-size: 14px;
   font-weight: 400;
-  --ink: #17213c;
-  --muted: #727e98;
-  --line: #dfe5ef;
-  --accent: #5147df;
-  --soft: #f1f3ff;
+  --ink: #0b1c3d;
+  --muted: #62708b;
+  --line: #dce4f0;
+  --accent: #5558ef;
+  --soft: #eff5ff;
   --radius: 9px;
 }
 * {
@@ -52,7 +52,7 @@ summary {
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible {
-  outline: 3px solid #8b83f4;
+  outline: 3px solid #9271df;
 }
 input,
 textarea {
@@ -70,7 +70,7 @@ input:focus,
 textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px #5147df15;
+  box-shadow: 0 0 0 3px #5558ef18;
 }
 textarea {
   resize: vertical;
@@ -239,7 +239,7 @@ button.secondary:hover {
   color: var(--accent);
 }
 .steps a.current > span {
-  background: #eeedff;
+  background: #eeebfc;
   box-shadow: 0 0 0 1px #ddd9ff inset;
 }
 .session-note {
@@ -274,7 +274,7 @@ button.secondary:hover {
   position: relative;
 }
 .sidebar > a.active {
-  background: #eeefff;
+  background: #eeebfc;
   color: var(--accent);
   font-weight: 600;
 }
@@ -1978,7 +1978,7 @@ details summary {
   color: var(--accent);
 }
 .steps > button.current > span {
-  background: #eeedff;
+  background: #eeebfc;
   box-shadow: 0 0 0 1px #ddd9ff inset;
 }
 .sidebar > button {
@@ -1994,7 +1994,7 @@ details summary {
   text-align: left;
 }
 .sidebar > button.active {
-  background: #eeefff;
+  background: #eeebfc;
   color: var(--accent);
   font-weight: 600;
 }
@@ -2037,7 +2037,7 @@ details summary {
 }
 button:focus-visible,
 [role='tabpanel']:focus-visible {
-  outline: 3px solid #8b83ec;
+  outline: 3px solid #9271df;
   outline-offset: 3px;
 }
 @media (max-width: 1100px) {
@@ -2261,4 +2261,180 @@ button:focus-visible,
   font-size: 12px;
   line-height: 1.8;
   margin: 10px 0;
+}
+
+/* PaperBridge brand: navy wordmark, violet bridge and blue paper accents. */
+:root {
+  --ink: #0b1c3d;
+  --accent: #5558ef;
+  --brand-violet: #6d4fd1;
+  --brand-blue: #0878c8;
+  --brand-lavender: #eee8fc;
+  --brand-sky: #eaf4ff;
+  --muted: #62708b;
+  --line: #dce4f0;
+  --soft: #f2f5ff;
+}
+.app-header {
+  min-height: 92px;
+  height: 92px;
+  background: #fff;
+  border-bottom: 1px solid #dddff4;
+}
+.brand {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 150px;
+}
+.brand .bridge-mark {
+  display: block;
+  width: 146px;
+  height: 66px;
+  object-fit: contain;
+}
+.brand .brand-tagline {
+  font-size: 9px;
+  color: #62708b;
+  margin: 0;
+}
+.sidebar {
+  top: 92px;
+  background: linear-gradient(160deg, #f6f8ff, #fbf9ff);
+}
+.sidebar-bottom .bridge-mark.small {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+button.primary {
+  background: linear-gradient(110deg, #6550d2, #0878c8);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 5px #4050aa14;
+}
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(110deg, #5641bf, #0869af);
+}
+.sidebar > button.active {
+  background: #eee8fc;
+  color: #5141a9;
+}
+.steps > button.current {
+  color: #4d45bb;
+}
+.steps > button.current > span {
+  background: linear-gradient(120deg, #e7defa, #e2f0ff);
+  box-shadow: 0 0 0 1px #cdc8f0 inset;
+}
+.panel {
+  border-color: #dce4f0;
+}
+.evidence-panel {
+  border-top: 3px solid #2689d1;
+}
+.source-quote {
+  background: #f2f7ff;
+  border-color: #b2d4f2;
+}
+.source-quote .source-label {
+  color: #205f98;
+}
+.notice:not(.error),
+.analysis-readiness {
+  background: #f1f0fd;
+}
+.cost-total,
+.discovery-summary {
+  background: linear-gradient(120deg, #f3edfd, #edf6ff);
+}
+.planning-resource-context {
+  background: #f0f6ff;
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid #cbdff3;
+  border-radius: 8px;
+}
+.planning-resource-context h3 {
+  color: #174d80;
+  font-size: 14px;
+}
+.planning-resource-context dl {
+  margin: 14px 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.planning-resource-context dt {
+  color: #174d80;
+  font-size: 11px;
+  font-weight: 600;
+}
+.planning-resource-context dd {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1100px) {
+  .workflow-evidence .evidence-panel {
+    top: 110px;
+  }
+}
+@media (max-width: 760px) {
+  .app-header {
+    height: auto;
+    min-height: 92px;
+  }
+  .brand {
+    min-width: 134px;
+  }
+  .brand .bridge-mark {
+    width: 134px;
+    height: 62px;
+  }
+  .planning-resource-context dl {
+    grid-template-columns: 1fr;
+  }
+}
+.hypothesis-resource-context {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f0f6ff;
+  border: 1px solid #cbdff3;
+  border-radius: 8px;
+}
+.hypothesis-resource-context summary {
+  color: #174d80;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 12px;
+}
+.hypothesis-resource-context p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 10px 0;
+  color: var(--muted);
+}
+.hypothesis-resource-context dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.hypothesis-resource-context dt {
+  font-weight: 600;
+  font-size: 11px;
+  color: #174d80;
+}
+.hypothesis-resource-context dd {
+  margin: 4px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .hypothesis-resource-context dl {
+    grid-template-columns: 1fr;
+  }
 }

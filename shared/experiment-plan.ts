@@ -42,6 +42,25 @@ function context(brief: Brief, papers: Paper[]) {
     contextKey: planContextKey(brief, papers),
   };
 }
+const resourceLabels: Record<keyof Resources, string> = {
+  data: 'Available data',
+  equipment: 'Available equipment',
+  skills: 'Available skills',
+  deadline: 'Project deadline',
+};
+/** Preserve the user's stated constraints without inventing a method or an
+ * assessment that their resources really are adequate. No model call needed. */
+export function resourcePlanningNotes(resources: Resources): string {
+  const notes = (Object.keys(resourceLabels) as (keyof Resources)[])
+    .filter((key) => resources[key].trim())
+    .map((key) => `${resourceLabels[key]}: ${resources[key].trim()}`);
+  if (!notes.length) return '';
+  return [
+    'User-stated resources and limits — planning context, not source evidence:',
+    ...notes,
+    'Planning review: choose data you can access, check equipment and skill requirements, and scope the first test to the deadline. Leave unresolved requirements unknown; do not assume this plan is feasible.',
+  ].join('\n');
+}
 export function createHypothesisPlan(
   hypothesis: Hypothesis,
   brief: Brief,
@@ -58,10 +77,13 @@ export function createHypothesisPlan(
       confounders: hypothesis.experiment.confounders ?? '',
       supports: hypothesis.experiment.supports ?? '',
       constraints: [
+        resourcePlanningNotes(brief.resources),
         ...hypothesis.assumptions,
         ...hypothesis.incompatibilities,
         ...hypothesis.unknowns,
-      ].join('\n'),
+      ]
+        .filter(Boolean)
+        .join('\n'),
     },
     sources: hypothesis.evidence.map((citation) => ({ ...citation })),
     ...context(brief, papers),
@@ -86,7 +108,7 @@ export function createManualPlan(
       baseline: '',
       measure: '',
       against: '',
-      constraints: '',
+      constraints: resourcePlanningNotes(brief.resources),
     },
     sources: lead ? [{ paperId: lead.paperId, passageId: lead.passageId }] : [],
     ...context(brief, papers),

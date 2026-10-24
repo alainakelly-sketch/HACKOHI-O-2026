@@ -21,6 +21,34 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 describe('model integration without paid calls (SDK mocked)', () => {
+  it('passes resource notes as planning constraints while preserving all selected source material', async () => {
+    const resources = {
+      data: 'Public dataset only',
+      equipment: 'Laptop; no GPU',
+      skills: 'Beginner Python',
+      deadline: 'One day',
+    };
+    mocked.parse.mockResolvedValue({ output_parsed: exampleAnalysis });
+    await analyze({ ...exampleBrief, resources }, examplePapers);
+    const request = mocked.parse.mock.calls[0][0];
+    const payload = JSON.parse(request.input);
+    expect(payload.brief.resources).toEqual(resources);
+    expect(
+      payload.sources.map((paper: { paperId: string }) => paper.paperId),
+    ).toEqual(examplePapers.map((paper) => paper.id));
+    expect(request.instructions).toContain(
+      'USER-STATED PLANNING CONSTRAINTS, not literature filters',
+    );
+    expect(request.instructions).toContain(
+      'Respect explicit exclusions such as no GPU or no laboratory',
+    );
+    expect(request.instructions).toContain('their deadline');
+    expect(request.instructions).toContain(
+      'impose no invented resource restriction',
+    );
+    expect(request.instructions).not.toContain('Beginner Python');
+  });
+
   it('prioritizes a selected lead passage and treats lead reasoning as untrusted context', async () => {
     const source = structuredClone(examplePapers);
     const citation = exampleAnalysis.hypotheses[0].evidence[0];

@@ -21,6 +21,7 @@ export function ConnectionPanel({
   onRecheck,
   readinessBusy = false,
   onPlan,
+  resourcesChanged = false,
 }: {
   brief: Brief;
   analysis: Analysis | null;
@@ -31,6 +32,7 @@ export function ConnectionPanel({
   onRecheck?: () => void;
   readinessBusy?: boolean;
   onPlan?: (id: string) => void;
+  resourcesChanged?: boolean;
   busy: boolean;
   error: string;
   onAnalyze: () => void;
@@ -61,6 +63,52 @@ export function ConnectionPanel({
           )}
         </button>
       </div>
+      <details
+        className="hypothesis-resource-context"
+        open={Object.values(brief.resources).some((value) => value.trim())}
+      >
+        <summary>Resources guiding the next hypothesis and experiment</summary>
+        <p>
+          Your notes guide the proposed approach, data choices, equipment,
+          skills and scope. They do not hide papers. Unknown feasibility stays
+          unknown.
+        </p>
+        <dl>
+          {Object.entries(brief.resources)
+            .filter(([, value]) => value.trim())
+            .map(([key, value]) => (
+              <div key={key}>
+                <dt>
+                  {key === 'deadline'
+                    ? 'Project deadline'
+                    : key === 'data'
+                      ? 'Available data'
+                      : key === 'equipment'
+                        ? 'Available equipment'
+                        : 'Available skills'}
+                </dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+        </dl>
+        {!Object.values(brief.resources).some((value) => value.trim()) ? (
+          <p>
+            No resource constraints entered. Add them in Focus if you want to
+            tailor a proposal.
+          </p>
+        ) : null}
+        <p>
+          Editing notes does not regenerate a result or make a paid request. Use
+          the generation button explicitly when you want a new AI proposal.
+        </p>
+      </details>
+      {analysis && resourcesChanged ? (
+        <Notice>
+          Resource notes changed after this analysis. These existing hypotheses
+          have not been regenerated. Review their fit or explicitly generate
+          again; your edited experiment drafts are kept.
+        </Notice>
+      ) : null}
       <div className="analysis-readiness" aria-live="polite">
         <h3>Before generating</h3>
         <ul>

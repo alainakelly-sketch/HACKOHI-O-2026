@@ -105,15 +105,13 @@ Click **Inspect full passage** to open the complete stored quotation in **Eviden
 
 This free comparison uses local words and exact quotations, not an AI scientific summary. Shared vocabulary does not establish agreement, and missing text does not establish that an original paper lacks an aspect.
 
-### Filter papers using your resources
+### Resources shape proposals, not the literature list
 
-Leave all four resource fields blank to keep the usual research-focus search and result order. Filling resource fields automatically screens the results already retrieved; it does not make paid model calls or change your research-focus query. Changes apply immediately, without rerunning search, and selected papers stay selected.
+Resources are optional planning context. Filling, editing or clearing data/equipment/skills/deadline notes **does not hide, reorder or rerun paper results**. Research focus and the normal text-availability, collection, year and publication-version filters still control paper discovery.
 
-Use short comma-separated notes such as **Python, laptop**, **no GPU**, or **public data only**. The filter uses explicit author method statements, not a title keyword or an assumption that an unmentioned tool is unavailable. **Automatic** shows supported matches when available-resource terms are supplied; with only exclusions or a deadline, it keeps unknown papers and hides explicit conflicts. A supported match means at least one resource term matches; it does not mean every requirement is satisfied. A conflict takes priority over a matching term.
+The **AI hypotheses** tab shows the resources guiding the next explicit generation. Model instructions use these notes to tailor the proposed hypothesis, approach and first experiment: prefer accessible data and available tools/skills, respect explicit exclusions such as “no GPU,” and scope the test cautiously to the deadline. Source-supported requirements that cannot be met remain explicit incompatibilities or unknowns; the app does not dismiss scientific evidence or invent a feasible protocol. Blank notes impose no invented resource restriction.
 
-In **Papers → Match papers to my resources**, switch to **Include unknowns; hide explicit conflicts**, **Show supported resource matches**, or **Off**. **Review hidden papers and why** preserves access to excluded records and their explanations. Each assessment can show the exact supporting source sentence, passage ID and whether it came from an abstract or article body.
-
-Deadline checks are deliberately limited: an explicitly reported procedure taking three days conflicts with a one-day deadline. A shorter procedure does not establish total project duration. Dates such as “next Friday,” skill proficiency, equipment capacity, budgets, and vague prose can remain Unknown. This is a resource-term screen, not a feasibility guarantee; methods may also be adaptable. When strict matching finds nothing, include unknowns or turn the filter off instead of assuming no suitable research exists.
+New manual, gap-led and AI experiment drafts carry clearly labelled **user-stated resources and limits** into their constraints. **Plan around your resources** shows current notes separately from the creation-time snapshot. Changing notes preserves edits, flags older hypotheses/plans for review, and makes no automatic model request. **Add current resource notes to this plan · free** appends the latest notes without overwriting your method or other fields. Only an explicit AI generation can incur an OpenAI charge.
 
 ### What “full text” means here
 
@@ -201,7 +199,7 @@ The official OpenAI SDK uses structured output, a timeout, no automatic retries,
 
 ### Cost of each OpenAI run
 
-The **AI hypotheses** tab shows **OpenAI usage & estimated cost**: the latest run, per-run token counts and an estimated subtotal for the current browser session. Search, resource screening, comparison, local gap scanning, source inspection and manual planning make no OpenAI requests. Each explicit AI generation can incur a new charge.
+The **AI hypotheses** tab shows **OpenAI usage & estimated cost**: the latest run, per-run token counts and an estimated subtotal for the current browser session. Search, resource notes, comparison, local gap scanning, source inspection and manual planning make no OpenAI requests. Each explicit AI generation can incur a new charge.
 
 The backend uses returned input, cached-input and output tokens. GPT-4.1 mini estimates currently use reference standard text rates of $0.40 / $0.10 cached / $1.60 output per million tokens. Official pricing pages were inaccessible from this environment, so these are **unverified reference estimates, not actual billed charges**. Check current [model pricing](https://platform.openai.com/docs/models/gpt-4.1-mini) and [OpenAI Usage](https://platform.openai.com/usage). Unknown models or missing/malformed usage produce **Cost unknown**, never an assumed zero. A no-provider operation can explicitly report zero.
 
@@ -256,3 +254,7 @@ Coordinate before editing `shared/types.ts`, `server/app.ts` or `src/App.tsx`, w
 - Article-body prose is partial evidence. Missing images, tables, supplements, formulas and methods can change an interpretation.
 - No scientific verification, numerical novelty score, guaranteed feasibility, accounts, database, uploads, custom training or automatic experiment execution.
 - Resource fit is a conservative comparison of cited terms with user notes. Quantities, quality, equivalent terms, budgets, deadlines and ambiguous negation often remain **Unknown**.
+
+## Brand assets
+
+`public/paperbridge-logo.png` and `public/paperbridge-icon.png` are prepared PNG variants based on the supplied PaperBridge logo reference: filled lavender/blue documents, a violet-to-blue bridge, and the navy/violet wordmark. The header and browser favicon use these assets. Navy text, violet/blue actions and pale lavender/sky evidence surfaces carry the palette through the existing workspace. No external font or asset service is required.

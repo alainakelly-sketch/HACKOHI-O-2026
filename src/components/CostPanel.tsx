@@ -33,7 +33,7 @@ export function CostPanel({ entries }: { entries: UsageEntry[] }) {
       </div>
       <p>
         <strong>
-          Search, resource filters, comparison, free gap scans and manual plans:
+          Search, resource notes, comparison, free gap scans and manual plans:
           $0 in OpenAI API charges.
         </strong>{' '}
         Only generating AI hypotheses calls OpenAI.
