@@ -160,7 +160,7 @@ Reloading clears the browser workspace. The backend keeps bounded, temporary sou
 
 ## Workflow tabs and editable planning
 
-The numbered **Focus → Papers → Compare → Gap leads → Resources → AI hypotheses → Experiment** controls are real in-app tabs. Only the active step is displayed. Your work stays in memory while switching tabs; tab visits do not rerun searches or AI. Arrow Left/Right and Home/End navigate the top tabs. The sidebar uses the same selection. Visiting a step does not mark it complete.
+The header follows **Search → Hypothesis → Experiment**. Search exposes Focus, Papers and Compare; Hypothesis exposes Gap leads, Resources and AI hypotheses. Only the active stage’s tools are shown. Only the active step is displayed. Your work stays in memory while switching tabs; tab visits do not rerun searches or AI. Arrow Left/Right and Home/End navigate the top tabs. The sidebar is removed; the stage header and contextual tabs share one selection. Visiting a step does not mark it complete.
 
 In **AI hypotheses**, the checklist identifies missing question/field, selected paper count (4–6), usable source text, and server readiness. **Recheck server readiness** makes only a health request. The backend distinguishes deliberately disabled spending, missing model credentials, and provider authentication, quota, timeout or response failures. A failed request is never replaced by an example. Live AI remains off until the owner explicitly approves spending and configures it.
 
@@ -261,4 +261,12 @@ Coordinate before editing `shared/types.ts`, `server/app.ts` or `src/App.tsx`, w
 
 ## Minimal navigation and Resources step
 
-The header contains the only logo. The sidebar contains navigation only and stays available while scrolling. Each step has a short task-specific heading. **Resources** is a separate optional tab before **AI hypotheses**, with data, equipment, skills and deadline fields. **Continue to hypotheses** (or **Skip for now** when blank) only navigates; it never generates a paid result. The hypothesis tab offers **Edit planning resources**, a collapsed resource summary, and a checklist of only missing prerequisites. Cost history follows the hypothesis controls. Notes, selections, results and edited plans remain in root session state across all seven tabs.
+The header contains the only logo and primary navigation. There is no sidebar. Each research view has one short task-specific heading. **Resources** is a separate optional tab before **AI hypotheses**, with data, equipment, skills and deadline fields. **Continue to hypotheses** (or **Skip for now** when blank) only navigates; it never generates a paid result. The hypothesis view offers **Edit planning resources** and a collapsed resource summary. Missing prerequisites are visible before the first generation; generation setup for an existing result lives under **Generate a new hypothesis**. A compact cost summary follows the hypothesis controls; per-run history and billing explanations are collapsed. Notes, selections, results and edited plans remain in root session state across all research views.
+
+## Summary-first layout
+
+- **Search:** compact paper cards show title, year, coverage and selection. **Paper details** reveals abstracts, metadata and source links. Collection diagnostics and advanced filters stay collapsed.
+- **Hypothesis:** candidate/claim cards lead with a clear **Plan an experiment** action. Analysis notes, maps, study profiles, context and secondary citations are disclosed only when requested. **Inspect evidence & limitations** opens an accessible evidence dialog; Close or Escape returns to the same work without clearing it.
+- **Experiment:** question, method and evaluation measure are the three visible essentials. **Design details**, **Success & failure criteria**, **Constraints & open questions**, **Planning resources**, and **Sources & draft context** contain the remaining editable material. Related work is a distinct card; abstracts, overlap explanations and search limits stay expandable.
+
+All existing data remains in session state. Opening details, changing stages or viewing evidence does not search or call OpenAI. Live AI generation remains an explicit paid action; examples, unknown costs, unavailable body text and stale resource warnings remain labelled.

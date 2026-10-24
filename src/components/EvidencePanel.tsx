@@ -1,4 +1,4 @@
-import { FileText, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import type {
   Brief,
   Citation,
@@ -8,7 +8,9 @@ import type {
   PriorWork,
 } from '../../shared/types';
 import { resolveCitation } from '../../shared/evidence';
-import { Busy, Empty, Notice } from './Primitives';
+import { Busy, Notice } from './Primitives';
+import './evidence-inspector.css';
+
 export type EvidenceInspection = {
   reference: Citation;
   label: string;
@@ -41,23 +43,30 @@ function SourceQuote({
           target="_blank"
           rel="noreferrer"
         >
-          {paper.title} <ArrowUpRight size={12} />
+          Open original source <ArrowUpRight size={12} />
         </a>
-        <p className="muted">
-          {paper.year ?? 'Publication year unavailable'} ·{' '}
-          {paper.authors.length
-            ? paper.authors.slice(0, 3).join(', ')
-            : 'Authors unavailable'}{' '}
-          ·{' '}
-          {passage.kind === 'full-text'
-            ? 'Retrieved body passage'
-            : 'Abstract only'}
-        </p>
-        <p className="muted">
-          Section: {passage.section ?? 'Abstract'}. Page numbers are unavailable
-          in this extracted text.
-        </p>
-        <code>{passage.id}</code>
+        <details className="source-metadata">
+          <summary>Source details</summary>
+          <p>
+            <strong>{paper.title}</strong>
+          </p>
+          <p className="muted">
+            {paper.year ?? 'Publication year unavailable'} ·{' '}
+            {paper.authors.length
+              ? paper.authors.slice(0, 3).join(', ')
+              : 'Authors unavailable'}
+          </p>
+          <p className="muted">
+            {passage.kind === 'full-text'
+              ? 'Retrieved body passage'
+              : 'Abstract only'}{' '}
+            · Section: {passage.section ?? 'Abstract'}.
+          </p>
+          <p className="muted">
+            Page numbers are unavailable in this extracted text.
+          </p>
+          <code>{passage.id}</code>
+        </details>
       </div>
     );
   } catch {
@@ -68,16 +77,48 @@ function SourceQuote({
     );
   }
 }
-function TextList({ title, items }: { title: string; items: string[] }) {
+function SourceDisclosure({
+  reference,
+  papers,
+  index,
+}: {
+  reference: Citation;
+  papers: Paper[];
+  index: number;
+}) {
+  let title = 'Source unavailable';
+  let coverage = '';
+  try {
+    const resolved = resolveCitation(reference, papers);
+    title = resolved.paper.title;
+    coverage =
+      resolved.passage.kind === 'full-text' ? 'Article body' : 'Abstract only';
+  } catch {
+    /* SourceQuote presents the explicit unavailable state. */
+  }
   return (
-    <div className="evidence-section">
-      <h3>{title}</h3>
+    <details className="evidence-source-disclosure">
+      <summary>
+        <span>
+          Source {index + 1} · {title}
+        </span>
+        <small>{coverage}</small>
+      </summary>
+      <SourceQuote reference={reference} papers={papers} />
+    </details>
+  );
+}
+function TextList({ title, items }: { title: string; items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <section className="evidence-note-list">
+      <h4>{title}</h4>
       <ul>
         {items.map((item, i) => (
           <li key={i}>{item}</li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
 export function EvidencePanel({
@@ -113,69 +154,92 @@ export function EvidencePanel({
     >
       <h2 id="evidence-title">Evidence & limitations</h2>
       {inspection ? (
-        <div className="evidence-content">
+        <div className="evidence-content explicit-evidence">
           <h3 className="inspected-evidence-title">{inspection.label}</h3>
           <SourceQuote reference={inspection.reference} papers={papers} />
           {inspection.explanation ? (
-            <p className="evidence-intro">{inspection.explanation}</p>
+            <details className="inspector-disclosure">
+              <summary>How to interpret this passage</summary>
+              <p>{inspection.explanation}</p>
+            </details>
           ) : null}
-          <Notice>
-            This is retrieved source text. Its presence does not prove a
-            scientific interpretation or a currently open research gap.
-          </Notice>
+          <p className="inspector-caution">
+            A source passage supports inspection, not scientific verification or
+            proof of a gap.
+          </p>
         </div>
       ) : !hypothesis ? (
-        <Empty title="Inspect a gap hypothesis" icon={<FileText size={30} />}>
-          Click “Inspect evidence” on a free gap lead or comparison item to see
-          its source passage here. Optional AI hypotheses also show supporting
-          passages and limitations.
-        </Empty>
+        <p className="inspector-empty">
+          Select a finding or source to inspect its supporting evidence.
+        </p>
       ) : (
-        <div className="evidence-content">
-          <p className="evidence-intro">
-            Scope: {brief.field}. A matching passage does not prove a gap exists
-            or that the interpretation is correct.
-          </p>
-          <div className="evidence-section">
-            <h3>Supporting passages</h3>
-            {hypothesis.evidence.map((ref, i) => (
-              <SourceQuote
-                key={`${ref.passageId}-${i}`}
-                reference={ref}
+        <div className="evidence-content hypothesis-evidence">
+          <div className="inspector-summary">
+            <span className="source-label">
+              EVIDENCE SUMMARY · {hypothesis.evidence.length} PASSAGES
+            </span>
+            <p>
+              {hypothesis.evidenceSummary.length > 260
+                ? `${hypothesis.evidenceSummary.slice(0, 260).trimEnd()}…`
+                : hypothesis.evidenceSummary}
+            </p>
+            {brief.field ? (
+              <small>Selected-source scope: {brief.field}</small>
+            ) : null}
+          </div>
+          <div className="evidence-source-list">
+            {hypothesis.evidence.map((reference, index) => (
+              <SourceDisclosure
+                key={`${reference.paperId}:${reference.passageId}:${index}`}
+                reference={reference}
                 papers={papers}
+                index={index}
               />
             ))}
           </div>
-          <div className="inference">
-            <div className="source-label">PAPERBRIDGE INFERS</div>
-            <h3>Evidence and the proposed gap</h3>
-            <h4>What the selected sources support</h4>
-            <p>{hypothesis.evidenceSummary}</p>
-            <h4>Why this may be worth investigating</h4>
-            <p>{hypothesis.gapRationale}</p>
-            <h4>Proposed approach</h4>
-            <p>{hypothesis.proposedApproach}</p>
-          </div>
-          <div className="hypothesis-note">
-            <div className="source-label">UNTESTED HYPOTHESIS</div>
-            <p>{hypothesis.hypothesis}</p>
-          </div>
-          <TextList title="Assumptions" items={hypothesis.assumptions} />
-          <TextList
-            title="Potential incompatibilities"
-            items={hypothesis.incompatibilities}
-          />
-          <TextList title="Unknowns" items={hypothesis.unknowns} />
-          <section className="evidence-section resource-assessment">
-            <h3>Does this fit my resources?</h3>
+          <details className="inspector-disclosure">
+            <summary>Reasoning & proposed approach</summary>
+            <div className="inference">
+              <div className="source-label">PAPERBRIDGE INFERS · UNTESTED</div>
+              {hypothesis.evidenceSummary.length > 260 ? (
+                <section>
+                  <h4>Full evidence summary</h4>
+                  <p>{hypothesis.evidenceSummary}</p>
+                </section>
+              ) : null}
+              <section>
+                <h4>Why investigate this?</h4>
+                <p>{hypothesis.gapRationale}</p>
+              </section>
+              <section>
+                <h4>Proposed approach</h4>
+                <p>{hypothesis.proposedApproach}</p>
+              </section>
+            </div>
+          </details>
+          <details className="inspector-disclosure">
+            <summary>Assumptions & limitations</summary>
+            <TextList title="Assumptions" items={hypothesis.assumptions} />
+            <TextList
+              title="Potential incompatibilities"
+              items={hypothesis.incompatibilities}
+            />
+            <TextList title="Unknowns" items={hypothesis.unknowns} />
+          </details>
+          <details className="inspector-disclosure resource-assessment">
+            <summary>
+              Resource fit{' '}
+              <small>
+                {staleFit ? 'Needs review' : (fit?.status ?? 'Not checked')}
+              </small>
+            </summary>
             <p className="muted">
-              Compares cited method terms with your notes. It cannot establish
+              Compares cited method terms with your notes; it does not establish
               full feasibility.
             </p>
             {staleFit ? (
               <Notice>
-                Resources changed. The previous assessment is invalid. Reassess
-                to see current results.
+                Resources changed. Reassess before using the previous result.
               </Notice>
             ) : null}
             <button className="secondary" onClick={onAssess}>
@@ -190,32 +254,42 @@ export function EvidencePanel({
                 </strong>
                 {!fit.rows.length ? (
                   <p>
-                    No explicit method requirements were identified in the cited
-                    abstracts. Resource fit is unknown.
+                    No explicit cited method requirements were identified.
+                    Resource fit is unknown.
                   </p>
                 ) : (
-                  fit.rows.map((row, i) => (
-                    <div className="fit-row" key={i}>
-                      <strong>
+                  fit.rows.map((row, index) => (
+                    <details className="fit-row" key={index}>
+                      <summary>
                         {row.requirement.term} · {row.status}
-                      </strong>
+                      </summary>
                       <p>{row.explanation}</p>
                       <SourceQuote
                         reference={row.requirement.evidence}
                         papers={papers}
                       />
-                    </div>
+                    </details>
                   ))
                 )}
                 <p className="muted">{fit.note}</p>
               </div>
             ) : null}
-          </section>
-          <section className="evidence-section prior-work">
-            <h3>Check related prior work</h3>
+          </details>
+          <details className="inspector-disclosure prior-work">
+            <summary>
+              Related prior work{' '}
+              <small>
+                {priorBusy
+                  ? 'Searching'
+                  : priorError
+                    ? 'Search incomplete'
+                    : prior
+                      ? 'Results available'
+                      : 'Not checked'}
+              </small>
+            </summary>
             <p className="muted">
-              Searches the proposed combination across free-paper collections.
-              Retrieval is not proof of novelty or equivalence.
+              Search related papers before treating this proposal as new.
             </p>
             <button
               className="secondary"
@@ -234,45 +308,50 @@ export function EvidencePanel({
             {prior ? (
               <>
                 <p className="prior-status">{prior.status}</p>
-                <h4>Search terms used</h4>
-                <ul className="query-list">
-                  {prior.searches.map((s) => (
-                    <li key={s.query}>
-                      <q>{s.query}</q>
-                      {s.error ? <p className="error-text">{s.error}</p> : null}
-                    </li>
-                  ))}
-                </ul>
-                <p className="muted">
-                  Closest retrieved candidates in interleaved source relevance
-                  order; overlap needs human review.
-                </p>
-                {prior.matches.map((m) => (
-                  <article className="prior-match" key={m.paper.id}>
+                <details className="prior-query-disclosure">
+                  <summary>Search terms used</summary>
+                  <ul className="query-list">
+                    {prior.searches.map((search) => (
+                      <li key={search.query}>
+                        <q>{search.query}</q>
+                        {search.error ? (
+                          <p className="error-text">{search.error}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+                {prior.matches.map((match) => (
+                  <article className="prior-match" key={match.paper.id}>
                     <a
-                      href={m.paper.doi || m.paper.url}
+                      href={match.paper.doi || match.paper.url}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {m.paper.title} <ArrowUpRight size={12} />
+                      {match.paper.title} <ArrowUpRight size={12} />
                     </a>
-                    <div className="paper-meta">
-                      {m.paper.year ?? 'Year unavailable'} · {m.paper.coverage}
-                    </div>
-                    <p>{m.overlap}</p>
-                    {m.paper.abstract ? (
-                      <details>
-                        <summary>Available abstract</summary>
-                        <p>{m.paper.abstract}</p>
-                      </details>
-                    ) : (
-                      <p className="muted">No abstract available.</p>
-                    )}
+                    <p className="paper-meta">
+                      {match.paper.year ?? 'Year unavailable'} ·{' '}
+                      {match.paper.coverage}
+                    </p>
+                    <details>
+                      <summary>Overlap & available abstract</summary>
+                      <p>{match.overlap}</p>
+                      {match.paper.abstract ? (
+                        <p>{match.paper.abstract}</p>
+                      ) : (
+                        <p className="muted">No abstract available.</p>
+                      )}
+                    </details>
                   </article>
                 ))}
               </>
             ) : null}
-          </section>
+          </details>
+          <p className="inspector-caution">
+            Source-linked does not mean scientifically verified. The hypothesis
+            remains untested.
+          </p>
         </div>
       )}
     </aside>

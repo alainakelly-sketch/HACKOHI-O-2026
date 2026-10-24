@@ -95,3 +95,11 @@ Brand raster assets live in `public/paperbridge-logo.png` and `paperbridge-icon.
 ## Minimal seven-step navigation
 
 `App.tsx` owns seven tab panels: Focus, Papers, Compare, Gap leads, Resources, AI hypotheses and Experiment. All panels remain mounted but only the active panel is visible; sidebar selection and keyboard navigation use the same root active state. `ResourcesPanel.tsx` has no local note copy or external request; its callbacks update `brief.resources` and navigate to hypotheses explicitly. No resource fields remain in `BriefForm`. `ConnectionPanel` can navigate back to Resources and shows only unmet readiness items; its resource details default closed. Root-owned analysis, revisions, drafts and token ledger are unchanged. The sidebar has no decorative brand/footer block.
+
+## Three-stage progressive disclosure refactor
+
+`App.tsx` retains the seven underlying research view states, grouped under three primary stages: Search (Focus/Papers/Compare), Hypothesis (Gap leads/Resources/AI hypotheses), and Experiment. Each stage remembers its last view. Contextual tab controls and hidden mounted panels preserve field, reader, result and plan state; no sidebar duplicates navigation.
+
+Root-owned evidence selection now opens a native `<dialog>`. Explicit citation inspection shows the requested source passage; choosing a hypothesis opens compact supporting evidence. Creating a plan only selects its hypothesis and navigates, without opening the dialog. Close/Escape changes only dialog visibility, never plan/hypothesis state. Metadata, assumptions, fit and prior work remain progressive disclosures inside the inspector.
+
+Component-specific styles are in `search-cards.css`, `workflow-cards.css`, `experiment-editor.css`, `evidence-inspector.css`, `gap-leads.css` and the existing comparison/discovery/prior styles. Backend retrieval, validation, model gates, pricing calculations and evidence text are unchanged. Experiment secondary fields stay mounted inside native details, so hidden details and exports retain edits. Cost unknowns remain visible alongside known estimates; explanatory billing material is collapsed.

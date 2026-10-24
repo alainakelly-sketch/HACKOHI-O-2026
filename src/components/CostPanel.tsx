@@ -1,3 +1,4 @@
+import './workflow-cards.css';
 import { formatEstimatedUsd } from '../../shared/analysis-cost';
 import type { AnalysisCost } from '../../shared/analysis-cost';
 export type UsageEntry = {
@@ -20,7 +21,10 @@ export function CostPanel({ entries }: { entries: UsageEntry[] }) {
   const latest = entries.at(-1);
   const running = entries.some((entry) => entry.status === 'running');
   return (
-    <section className="panel cost-panel" aria-labelledby="cost-title">
+    <section
+      className="panel cost-panel compact-cost-panel"
+      aria-labelledby="cost-title"
+    >
       <div className="panel-heading">
         <h2 id="cost-title">OpenAI usage & estimated cost</h2>
         <a
@@ -31,23 +35,11 @@ export function CostPanel({ entries }: { entries: UsageEntry[] }) {
           Check actual OpenAI charges ↗
         </a>
       </div>
-      <p>
-        <strong>
-          Search, resource notes, comparison, free gap scans and manual plans:
-          $0 in OpenAI API charges.
-        </strong>{' '}
-        Only generating AI hypotheses calls OpenAI.
-      </p>
       <p className="cost-total" role="status">
         Estimated cost recorded this session:{' '}
         <strong>{formatEstimatedUsd(total)} USD</strong>
         {unknown ? ` + ${unknown} run(s) with unknown cost` : ''}
         {running ? ' · analysis in progress' : ''}
-      </p>
-      <p className="muted">
-        Based on returned token usage and reference model prices, not your bill.
-        Reference rates have not been live-verified here. This session history
-        clears on reload and excludes other apps and unseen requests.
       </p>
       {latest && latest.status !== 'running' ? (
         <p className="cost-latest">
@@ -60,9 +52,9 @@ export function CostPanel({ entries }: { entries: UsageEntry[] }) {
         </p>
       ) : null}
       {!entries.length ? (
-        <p>
-          No AI runs recorded in this session yet. Each click on Develop AI gap
-          hypotheses or Analyze again can incur a new charge.
+        <p className="cost-latest">
+          No AI runs recorded. Search and manual planning make no OpenAI
+          requests.
         </p>
       ) : (
         <details>
@@ -119,6 +111,22 @@ export function CostPanel({ entries }: { entries: UsageEntry[] }) {
           </ol>
         </details>
       )}
+      <details className="cost-explanation">
+        <summary>How estimates work</summary>
+        <p>
+          Search, resource notes, comparison, free gap scans and manual plans:
+          $0 in OpenAI API charges. Only generating AI hypotheses calls OpenAI.
+        </p>
+        <p className="muted">
+          Based on returned token usage and reference model prices, not your
+          bill. Reference rates have not been live-verified here. This session
+          history clears on reload and excludes other apps and unseen requests.
+        </p>
+        <p>
+          Each generation can incur a charge. Failed or interrupted requests may
+          still be billed; unknown costs are not zero.
+        </p>
+      </details>
     </section>
   );
 }

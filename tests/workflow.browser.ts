@@ -140,21 +140,66 @@ await page.route('**/api/**', async (route) => {
   await route.fulfill({ status, json: data });
 });
 const tab = (name: string) => page.getByRole('tab', { name, exact: true });
-async function open(name: string) {
-  await tab(name).click();
-  assert.equal(
-    (
-      await page.locator('.sidebar button[aria-current=step]').innerText()
-    ).trim(),
-    name,
-  );
-  assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
+const stageFor = (name: string) =>
+  ['Focus', 'Papers', 'Compare'].includes(name)
+    ? 'Search'
+    : name === 'Experiment'
+      ? 'Experiment'
+      : 'Hypothesis';
+async function closeEvidence() {
+  const close = page.getByRole('button', {
+    name: 'Close evidence',
+    exact: true,
+  });
+  if (await close.isVisible()) await close.click();
 }
+async function open(name: string) {
+  await closeEvidence();
+  const stage = page
+    .getByRole('navigation', { name: 'Research pipeline' })
+    .getByRole('button', { name: new RegExp(stageFor(name)) });
+  if ((await stage.getAttribute('aria-current')) !== 'step')
+    await stage.click();
+  await tab(name).click();
+  assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
+  assert.ok((await page.getByRole('tab').count()) <= 3);
+}
+async function expand(text: string | RegExp) {
+  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const details = summary.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+}
+async function generate(name: string) {
+  const button = page.getByRole('button', {
+    name,
+    exact: true,
+    includeHidden: true,
+  });
+  const details = button.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+  await button.click();
+}
+
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   assert.match(await page.title(), /PaperBridge/);
-  assert.equal(await page.getByRole('tab').count(), 7);
-  assert.equal(await page.locator('.sidebar img').count(), 0);
+  assert.equal(
+    await page
+      .getByRole('navigation', { name: 'Research pipeline' })
+      .getByRole('button')
+      .count(),
+    3,
+  );
+  assert.ok((await page.getByRole('tab').count()) <= 3);
+  assert.equal(await page.locator('.sidebar').count(), 0);
   assert.equal(
     await page
       .locator('#step-question')
@@ -222,15 +267,15 @@ try {
   ready = true;
   await page.getByRole('button', { name: 'Recheck server readiness' }).click();
   mode = 'error';
-  await page.getByRole('button', { name: 'Develop AI gap hypotheses' }).click();
+  await generate('Develop AI gap hypotheses');
   await page
     .getByText('The model provider timed out. Please retry.', { exact: true })
     .waitFor();
   mode = 'insufficient';
-  await page.getByRole('button', { name: 'Develop AI gap hypotheses' }).click();
+  await generate('Develop AI gap hypotheses');
   await page.getByText('Insufficient evidence.', { exact: false }).waitFor();
   mode = 'success';
-  await page.getByRole('button', { name: 'Analyze again' }).click();
+  await generate('Analyze again');
   await page.getByText('Synthetic test hypothesis', { exact: true }).waitFor();
   await page.getByText('Cost of each AI run (3)', { exact: true }).click();
   await page
@@ -264,6 +309,11 @@ try {
     .click();
   assert.equal(await tab('Experiment').getAttribute('aria-selected'), 'true');
   assert.equal(
+    await page.locator('.experiment-panel textarea:visible').count(),
+    3,
+  );
+  await expand('Design details');
+  assert.equal(
     await page
       .getByLabel('Independent variables', { exact: true })
       .inputValue(),
@@ -273,10 +323,13 @@ try {
     .getByLabel('Proposed method', { exact: true })
     .fill('Edited synthetic method');
   await open('Compare');
+  await page.getByRole('button', { name: 'Limitations', exact: true }).click();
   await page
     .getByRole('button', { name: /Inspect/ })
     .first()
     .click();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('dialog').isVisible(), false);
   await open('Experiment');
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
@@ -297,7 +350,7 @@ try {
   assert.equal(exported.fields.method, 'Edited synthetic method');
   // A second analysis may reuse a model hypothesis ID; it must get a new draft.
   await open('AI hypotheses');
-  await page.getByRole('button', { name: 'Analyze again' }).click();
+  await generate('Analyze again');
   await page
     .getByRole('button', { name: 'Plan an experiment', exact: true })
     .click();
@@ -306,6 +359,7 @@ try {
     'Synthetic method',
   );
   await open('Gap leads');
+  await expand('Scan author-stated limitations and future work');
   await page
     .getByRole('button', { name: 'Find gap leads', exact: true })
     .click();
@@ -344,12 +398,7 @@ try {
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
     'Manual method remains mine',
   );
-  await page
-    .getByText(
-      'Research focus, resources, and source references carried into this draft',
-      { exact: true },
-    )
-    .click();
+  await expand('Sources & draft context');
   await page
     .getByRole('button', { name: 'Inspect source passage body:0', exact: true })
     .click();

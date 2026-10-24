@@ -67,3 +67,15 @@
 .comparison-columns.single-reader {
   grid-auto-columns: minmax(0, 1fr);
 }
+.full-source-reader .text-scope > summary,
+.passage-identifier > summary {
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.full-source-reader .text-scope {
+  font-size: 11px;
+}
+.passage-identifier {
+  margin-top: 10px;
+}

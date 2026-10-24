@@ -1,0 +1,114 @@
+/* Search is a shortlist; provenance stays one deliberate action away. */
+.compact-paper {
+  padding: 20px 0;
+}
+.compact-paper .paper-top {
+  align-items: flex-start;
+}
+.compact-paper .paper-heading-copy {
+  min-width: 0;
+  flex: 1;
+}
+.compact-paper .paper-heading-copy h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+.compact-paper .paper-meta {
+  margin: 0;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.paper-quick-actions {
+  margin: 14px 0 0 28px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.paper-quick-actions .text-button {
+  padding: 0;
+}
+.paper-quick-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.paper-details {
+  margin: 12px 0 0 28px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.paper-details > summary,
+.collection-details > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}
+.paper-details[open] {
+  padding: 12px 14px;
+  background: #fafbfe;
+  border-radius: 8px;
+}
+.paper-facts {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+.paper-facts div {
+  min-width: 0;
+}
+.paper-facts dt {
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.paper-facts dd {
+  margin: 4px 0 0;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.paper-details .abstract,
+.paper-details .body-preview,
+.paper-details .version-links {
+  margin: 14px 0;
+}
+.paper-details .body-preview {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.paper-details .body-preview p {
+  margin-top: 10px;
+}
+.paper-details .free-copy-links {
+  margin: 14px 0;
+}
+.paper-details .muted {
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.collection-details {
+  margin: 12px 0 18px;
+}
+.collection-details .source-statuses {
+  margin-top: 10px;
+}
+.paper-panel .check-article-text {
+  margin: 8px 0;
+  font-size: 11px;
+  padding: 7px 10px;
+}
+@media (max-width: 650px) {
+  .compact-paper .paper-heading-copy h3 {
+    font-size: 14px;
+  }
+  .paper-quick-actions,
+  .paper-details {
+    margin-left: 24px;
+  }
+}

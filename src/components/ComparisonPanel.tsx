@@ -82,8 +82,7 @@ export function ComparisonPanel({
       </div>
       {papers.length < 1 ? (
         <p className="panel-footnote">
-          Select one paper to read its body text, or 2–6 papers to compare them
-          side by side. Use the AI hypotheses tab for optional AI analysis.
+          Choose a paper to read, or two papers to compare.
         </p>
       ) : (
         <>
@@ -95,11 +94,8 @@ export function ComparisonPanel({
             <summary>
               Read full retrieved passages · optional deeper reading
             </summary>
-            <h3 className="reader-heading">Read the supporting article text</h3>
             <p className="comparison-intro">
-              Article-body text is the default view. Abstracts are available
-              only when you choose them below. These are retrieved source
-              passages, not AI summaries.
+              Stored source passages. Abstracts are shown only when selected.
             </p>
             <div className="reading-status" role="status">
               <strong>
@@ -109,10 +105,10 @@ export function ComparisonPanel({
               </strong>
               <span>
                 {papers.some((p) => busy.has(p.id))
-                  ? 'Text retrieval is in progress. Ready papers can already be read.'
-                  : bodyReady === papers.length
-                    ? 'Ready to read. Check each source’s extraction scope below.'
-                    : 'Papers without imported body text are labelled below; an abstract is not a substitute for the body.'}
+                  ? 'Retrieving remaining text…'
+                  : bodyReady < papers.length
+                    ? 'Some body text is unavailable.'
+                    : ''}
               </span>
             </div>
             {remaining.length > 0 ? (
@@ -242,7 +238,8 @@ export function ComparisonPanel({
                       <Notice error>{errors[paper.id]}</Notice>
                     ) : null}
                     {paper.fullText ? (
-                      <div className="text-scope">
+                      <details className="text-scope">
+                        <summary>Extraction scope & license</summary>
                         <p>
                           {paper.fullText.note}
                           {paper.fullText.truncated
@@ -260,7 +257,7 @@ export function ComparisonPanel({
                             original.
                           </p>
                         )}
-                      </div>
+                      </details>
                     ) : null}
                     <div className="comparison-passages">
                       {passages.length ? (
@@ -273,7 +270,10 @@ export function ComparisonPanel({
                                 : 'ABSTRACT'}
                             </span>
                             <blockquote>{p.text}</blockquote>
-                            <code>{p.id}</code>
+                            <details className="passage-identifier">
+                              <summary>Passage ID</summary>
+                              <code>{p.id}</code>
+                            </details>
                           </div>
                         ))
                       ) : (

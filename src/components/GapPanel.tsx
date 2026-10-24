@@ -4,6 +4,7 @@ import type { Paper } from '../../shared/types';
 import { scanGapLeads } from '../../shared/gaps';
 import type { GapLead } from '../../shared/gaps';
 import { Busy, Notice } from './Primitives';
+import './gap-leads.css';
 export type GapEvidenceScope = 'body' | 'include-abstracts';
 /** Make evidence scope explicit; body mode never silently scans an abstract. */
 export function gapScanSources(
@@ -87,60 +88,62 @@ export function GapPanel({
         </button>
       </div>
       <p className="gap-explainer">
-        This free text scan finds explicit phrases about limitations, future
-        work, and unresolved questions.{' '}
-        {field.trim()
-          ? `Your focus in ${field.trim()} helps order the leads.`
-          : 'Adding a field or question is optional and helps order the leads.'}{' '}
-        It is not scientific synthesis and does not prove an issue remains
-        unresolved.
+        Find author-stated limitations and future work. These are leads to
+        review, not confirmed field-wide gaps.
       </p>
-      <label className="gap-evidence-filter" htmlFor="gap-evidence-scope">
-        Evidence to scan
-      </label>
-      <select
-        id="gap-evidence-scope"
-        value={scope}
-        onChange={(e) => setScope(e.target.value as GapEvidenceScope)}
-        style={{
-          maxWidth: '100%',
-          width: '100%',
-          padding: '9px',
-          border: '1px solid #dfe5ef',
-          borderRadius: '6px',
-          background: '#fff',
-          color: '#17213c',
-        }}
-      >
-        <option value="body">Retrieved article body only</option>
-        <option value="include-abstracts">
-          Include abstracts too — limited evidence
-        </option>
-      </select>
-      {papers.length ? (
-        <p className="coverage-summary">
-          {papers.length} selected sources · {bodyCount} with readable body text
-          · {papers.length - bodyCount} without body text ·{' '}
-          {scope === 'body'
-            ? 'Abstracts excluded from this scan.'
-            : 'Abstract-only evidence is included and labelled.'}
-        </p>
-      ) : (
-        <p className="panel-footnote">
-          Select at least one paper to scan its text. You can click Find gap
-          leads for step-by-step guidance. No field or AI key is required.
-        </p>
-      )}
-      {!field.trim() && papers.length ? (
-        <p className="panel-footnote">
-          You can scan now without a field. Add your research focus to help
-          order the results.
-        </p>
-      ) : null}
+      <details className="gap-scan-settings">
+        <summary>
+          Scan settings ·{' '}
+          {scope === 'body' ? 'article body only' : 'abstracts included'}
+        </summary>
+        <label className="gap-evidence-filter" htmlFor="gap-evidence-scope">
+          Evidence to scan
+        </label>
+        <select
+          id="gap-evidence-scope"
+          value={scope}
+          onChange={(e) => setScope(e.target.value as GapEvidenceScope)}
+          style={{
+            maxWidth: '100%',
+            width: '100%',
+            padding: '9px',
+            border: '1px solid #dfe5ef',
+            borderRadius: '6px',
+            background: '#fff',
+            color: '#17213c',
+          }}
+        >
+          <option value="body">Retrieved article body only</option>
+          <option value="include-abstracts">
+            Include abstracts too — limited evidence
+          </option>
+        </select>
+        {papers.length ? (
+          <p className="coverage-summary">
+            {papers.length} selected sources · {bodyCount} with readable body
+            text · {papers.length - bodyCount} without body text ·{' '}
+            {scope === 'body'
+              ? 'Abstracts excluded from this scan.'
+              : 'Abstract-only evidence is included and labelled.'}
+          </p>
+        ) : (
+          <p className="panel-footnote">
+            Select at least one paper to scan its text. You can click Find gap
+            leads for step-by-step guidance. No field or AI key is required.
+          </p>
+        )}
+        {!field.trim() && papers.length ? (
+          <p className="panel-footnote">
+            You can scan now without a field. Add your research focus to help
+            order the results.
+          </p>
+        ) : null}
+        <p className="panel-footnote">No AI key or field is required.</p>
+      </details>
       {loading || retrieving ? (
         <Notice>
-          <Busy>Waiting for article-body retrieval.</Busy> Ready sources can
-          already be scanned. An opened scan updates as text arrives.
+          <Busy>Waiting for article-body retrieval.</Busy> Ready sources can be
+          scanned now.
         </Notice>
       ) : null}
       {scope === 'body' && papers.length > 0 && bodyCount === 0 ? (
@@ -148,7 +151,7 @@ export function GapPanel({
           No retrieved article-body text is available to scan yet.{' '}
           {retrievable
             ? 'Retrieve selected article text first, or explicitly choose “Include abstracts too” for a more limited scan.'
-            : 'These records have no imported body text. Open their free-copy links or select a paper with supported in-app retrieval; abstracts are not used automatically.'}
+            : 'These records have no imported body text. Choose another source or explicitly include abstracts in Scan settings.'}
         </Notice>
       ) : null}
       {onRetrieve && retrievable ? (
@@ -182,7 +185,10 @@ export function GapPanel({
       ) : null}
       {opened && papers.length ? (
         <>
-          <Notice>{scan.caution}</Notice>
+          <details className="gap-scan-caution">
+            <summary>Scan limitations</summary>
+            <p>{scan.caution}</p>
+          </details>
           <p className="gap-summary" role="status">
             {scope === 'body' && !sources.length
               ? 'No article-body scan has run because no readable body text is available. This is not a finding that your field has no gaps.'
@@ -200,26 +206,29 @@ export function GapPanel({
                       : 'ABSTRACT ONLY'}
                   </div>
                   <h3>{paper.title}</h3>
-                  <p className="muted">
-                    {paper.year ?? 'Year unavailable'} · {lead.section}
+                  <p className="gap-lead-preview">
+                    {lead.signalText.slice(0, 180)}
+                    {lead.signalText.length > 180 ? '…' : ''}
                   </p>
-                  <blockquote>{lead.signalText}</blockquote>
                   <details>
                     <summary>Inspect complete supporting passage</summary>
+                    <p className="muted">
+                      {paper.year ?? 'Year unavailable'} · {lead.section}
+                    </p>
                     <blockquote>{lead.quote}</blockquote>
                     <code>{lead.passageId}</code>
+                    <a
+                      href={
+                        lead.kind === 'full-text'
+                          ? paper.fullText?.url || paper.url
+                          : paper.url
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Read original source <ArrowUpRight size={12} />
+                    </a>
                   </details>
-                  <a
-                    href={
-                      lead.kind === 'full-text'
-                        ? paper.fullText?.url || paper.url
-                        : paper.url
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Read original source <ArrowUpRight size={12} />
-                  </a>
                   {onInspect ? (
                     <button
                       className="secondary"
@@ -233,37 +242,32 @@ export function GapPanel({
                       Draft an experiment from this lead
                     </button>
                   ) : null}
-                  <h4>Before treating this as a gap</h4>
-                  <p>{lead.followUp}</p>
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      onSearch(lead.searchQuery);
-                      document.getElementById('papers')?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                      });
-                    }}
-                  >
-                    <Search size={13} />
-                    Search for follow-up work
-                  </button>
-                  <details className="gap-query">
-                    <summary>Search terms</summary>
-                    <p>{lead.searchQuery}</p>
+                  <details className="gap-follow-up">
+                    <summary>Check this lead before planning</summary>
+                    <p>{lead.followUp}</p>
+                    <button
+                      className="secondary"
+                      onClick={() => {
+                        onSearch(lead.searchQuery);
+                        document.getElementById('papers')?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'start',
+                        });
+                      }}
+                    >
+                      <Search size={13} />
+                      Search for follow-up work
+                    </button>
+                    <details className="gap-query">
+                      <summary>Search terms</summary>
+                      <p>{lead.searchQuery}</p>
+                    </details>
                   </details>
                 </article>
               );
             })}
           </div>
         </>
-      ) : null}
-      {!opened ? (
-        <p className="panel-footnote">
-          Select sources, retrieve article-body text, then scan. The default
-          excludes abstracts; you can deliberately include them using the
-          evidence filter. No AI key or field is required.
-        </p>
       ) : null}
     </section>
   );

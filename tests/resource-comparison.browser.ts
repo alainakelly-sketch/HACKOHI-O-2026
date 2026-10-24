@@ -81,6 +81,54 @@ await page.route('**/api/**', async (route) => {
     throw new Error(`Unexpected request ${path}; no model calls permitted.`);
 });
 const tab = (name: string) => page.getByRole('tab', { name, exact: true });
+const stageFor = (name: string) =>
+  ['Focus', 'Papers', 'Compare'].includes(name)
+    ? 'Search'
+    : name === 'Experiment'
+      ? 'Experiment'
+      : 'Hypothesis';
+async function closeEvidence() {
+  const close = page.getByRole('button', {
+    name: 'Close evidence',
+    exact: true,
+  });
+  if (await close.isVisible()) await close.click();
+}
+async function open(name: string) {
+  await closeEvidence();
+  const stage = page
+    .getByRole('navigation', { name: 'Research pipeline' })
+    .getByRole('button', { name: new RegExp(stageFor(name)) });
+  if ((await stage.getAttribute('aria-current')) !== 'step')
+    await stage.click();
+  await tab(name).click();
+  assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
+  assert.ok((await page.getByRole('tab').count()) <= 3);
+}
+async function expand(text: string | RegExp) {
+  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const details = summary.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+}
+async function generate(name: string) {
+  const button = page.getByRole('button', {
+    name,
+    exact: true,
+    includeHidden: true,
+  });
+  const details = button.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+  await button.click();
+}
+
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   await page
@@ -94,47 +142,41 @@ try {
       .count(),
     0,
   );
-  assert.equal(await page.locator('.sidebar img').count(), 0);
-  await tab('Resources').click();
+  assert.equal(await page.locator('.sidebar').count(), 0);
+  await open('Resources');
   await page.getByLabel('Available equipment', { exact: true }).fill('laptop');
   await page.getByLabel('Available skills', { exact: true }).fill('Python');
-  await tab('Focus').click();
-  await tab('Resources').click();
+  await open('Focus');
+  await open('Resources');
   assert.equal(
     await page.getByLabel('Available skills', { exact: true }).inputValue(),
     'Python',
   );
   assert.equal(searches, 0);
-  await tab('Focus').click();
+  await open('Focus');
   await page
     .getByRole('button', { name: 'Find papers for this focus' })
     .click();
   await page.locator('.paper-row').first().waitFor();
   assert.equal(await page.locator('.paper-row').count(), 4);
-  await page
-    .getByText(
-      'Resource notes guide hypothesis and experiment planning. They do not hide papers.',
-      { exact: true },
-    )
-    .waitFor();
   assert.equal(
     await page.getByLabel('Resource filter', { exact: true }).count(),
     0,
   );
   const originalTitles = await page.locator('.paper-row h3').allTextContents();
-  await tab('Resources').click();
+  await open('Resources');
   await page.getByLabel('Available equipment', { exact: true }).fill('');
   await page.getByLabel('Available skills', { exact: true }).fill('');
-  await tab('Papers').click();
+  await open('Papers');
   assert.equal(await page.locator('.paper-row').count(), 4);
   assert.deepEqual(
     await page.locator('.paper-row h3').allTextContents(),
     originalTitles,
   );
-  await tab('Resources').click();
+  await open('Resources');
   await page.getByLabel('Available equipment', { exact: true }).fill('no GPU');
   await page.getByLabel('Project deadline', { exact: true }).fill('one day');
-  await tab('Papers').click();
+  await open('Papers');
   assert.equal(await page.locator('.paper-row').count(), 4);
   assert.deepEqual(
     await page.locator('.paper-row h3').allTextContents(),
@@ -152,7 +194,7 @@ try {
     await page
       .getByLabel(`Select SYNTHETIC RESOURCE TEST ${i}`, { exact: true })
       .check();
-  await tab('Compare').click();
+  await open('Compare');
   await page.getByText('What they have in common', { exact: true }).waitFor();
   await page.getByText('How they differ', { exact: true }).waitFor();
   assert.equal(
@@ -161,6 +203,18 @@ try {
   );
   await page.getByLabel('Comparison paper B').selectOption('test:2');
   await page.getByRole('button', { name: 'Method', exact: true }).click();
+  await expand('Read source excerpt');
+  const excerptSummaries = page
+    .locator('.comparison-overview summary')
+    .filter({ hasText: 'Read source excerpt' });
+  for (let i = 0; i < (await excerptSummaries.count()); i++)
+    if (
+      !(await excerptSummaries
+        .nth(i)
+        .locator('xpath=..')
+        .evaluate((d: HTMLDetailsElement) => d.open))
+    )
+      await excerptSummaries.nth(i).click();
   await page
     .locator('.comparison-overview')
     .getByText(methods[2], { exact: false })
@@ -172,6 +226,7 @@ try {
     .first()
     .click();
   await page.locator('#evidence-inspector blockquote').waitFor();
+  await closeEvidence();
   assert.equal(await page.locator('.comparison-passages:visible').count(), 0);
   await page
     .getByText('Read full retrieved passages · optional deeper reading', {

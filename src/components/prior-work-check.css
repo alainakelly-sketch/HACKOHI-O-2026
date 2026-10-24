@@ -85,3 +85,44 @@
     width: 100%;
   }
 }
+.prior-work-check {
+  background: #fff;
+  padding: 24px;
+  margin-top: 20px;
+  border-radius: 10px;
+}
+.prior-check-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.prior-check-heading > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.prior-work-check > p {
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.prior-search-details {
+  margin: 16px 0;
+  font-size: 12px;
+}
+.prior-search-details > summary,
+.prior-paper-details > summary {
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+}
+.manual-prior-papers {
+  margin-top: 16px;
+}
+.manual-prior-papers article {
+  padding: 16px;
+}
+.prior-paper-details {
+  margin-top: 10px;
+}

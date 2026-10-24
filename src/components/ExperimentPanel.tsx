@@ -10,6 +10,7 @@ import {
   resourcePlanningNotes,
 } from '../../shared/experiment-plan';
 import { Empty, Notice } from './Primitives';
+import './experiment-editor.css';
 const fields: { key: keyof ExperimentFields; label: string; hint: string }[] = [
   {
     key: 'question',
@@ -117,6 +118,38 @@ export function ExperimentPanel({
       );
     }
   }
+  function renderField(key: keyof ExperimentFields) {
+    if (!plan) return null;
+    const field = fields.find((item) => item.key === key)!;
+    return (
+      <div key={key} className={`plan-field plan-field-${key}`}>
+        <label htmlFor={`plan-${key}`}>{field.label}</label>
+        <textarea
+          id={`plan-${key}`}
+          aria-describedby={`plan-${key}-hint`}
+          rows={key === 'method' ? 4 : key === 'question' ? 2 : 3}
+          value={plan.fields[key]}
+          placeholder={field.hint}
+          onChange={(event) => {
+            setCopyMessage('');
+            onChange({
+              ...plan,
+              fields: { ...plan.fields, [key]: event.target.value },
+            });
+          }}
+        />
+        <span className="sr-only" id={`plan-${key}-hint`}>
+          {field.hint}
+        </span>
+      </div>
+    );
+  }
+  const origin =
+    plan?.origin === 'user-created'
+      ? 'User-created draft · not AI-generated'
+      : plan?.origin === 'saved-example'
+        ? 'Saved example · manually prepared'
+        : 'AI-generated proposal · editable';
   return (
     <section
       className="panel experiment-panel"
@@ -138,18 +171,92 @@ export function ExperimentPanel({
           </div>
         ) : null}
       </div>
-      <section
-        className="planning-resource-context"
-        aria-label="Resources shaping this experiment"
-      >
-        <h3>Plan around your resources</h3>
-        <p className="panel-footnote">
-          Resource notes shape the proposed test; they do not hide scientific
-          sources. These are your stated resources and limits, not facts
-          extracted from a paper.
-        </p>
-        {resourceEntries.length ? (
-          <>
+      {!plan ? (
+        <div className="experiment-start">
+          <Empty
+            title="No experiment plan yet"
+            icon={<FlaskConical size={24} />}
+          >
+            Choose a hypothesis or start a free draft.
+          </Empty>
+          <button className="primary" onClick={onStartManual}>
+            Start my own experiment draft
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="plan-origin">
+            <strong>{origin}</strong>
+            <span>Untested proposal</span>
+          </p>
+          {needsReview ? (
+            <Notice>
+              Your research focus, selected source text, or resources changed.
+              Your edits have been kept. Review this plan before using it.
+              {onReview ? (
+                <button className="text-button" onClick={onReview}>
+                  I have reviewed this plan against the current workspace
+                </button>
+              ) : null}
+            </Notice>
+          ) : null}
+          <div className="plan-essential-fields">
+            {renderField('question')}
+            {renderField('method')}
+            {renderField('measure')}
+          </div>
+          <div className="plan-detail-groups">
+            <details className="plan-disclosure">
+              <summary>
+                Design details{' '}
+                <span>Data, baseline, variables & confounders</span>
+              </summary>
+              <div className="plan-secondary-fields">
+                {(
+                  [
+                    'data',
+                    'baseline',
+                    'independent',
+                    'dependent',
+                    'confounders',
+                  ] as const
+                ).map(renderField)}
+              </div>
+            </details>
+            <details className="plan-disclosure">
+              <summary>
+                Success & failure criteria{' '}
+                <span>What would support or weaken the hypothesis?</span>
+              </summary>
+              <div className="plan-secondary-fields">
+                {renderField('supports')}
+                {renderField('against')}
+              </div>
+            </details>
+            <details className="plan-disclosure">
+              <summary>Constraints & open questions</summary>
+              <div className="plan-secondary-fields">
+                {renderField('constraints')}
+              </div>
+            </details>
+          </div>
+        </>
+      )}
+      <details className="planning-resource-context plan-disclosure">
+        <summary>
+          Planning resources{' '}
+          <span>
+            {resourceEntries.length
+              ? `${resourceEntries.length} notes`
+              : 'Optional'}
+          </span>
+        </summary>
+        <div className="plan-disclosure-content">
+          <p className="panel-footnote">
+            Your stated resources guide the proposal; they are not source
+            evidence.
+          </p>
+          {resourceEntries.length ? (
             <dl>
               {resourceEntries.map(([key, value]) => (
                 <div key={key}>
@@ -158,174 +265,113 @@ export function ExperimentPanel({
                 </div>
               ))}
             </dl>
+          ) : (
             <p className="panel-footnote">
-              Use accessible data, check equipment and skills, and choose a
-              small first test that fits your deadline. If a requirement cannot
-              be met, adapt the proposed experiment or record it as unresolved;
-              do not assume feasibility.
+              No resource limits provided. Add optional notes in Resources to
+              tailor the plan.
             </p>
-          </>
-        ) : (
-          <p className="panel-footnote">
-            No resource limits provided. The app will not assume equipment, data
-            access, skills, or a deadline. Add optional notes in Resources when
-            you want to tailor the plan.
-          </p>
-        )}
-        {plan && needsReview ? (
-          <p className="panel-footnote">
-            The current notes above may differ from the draft's creation-time
-            snapshot below. Your written plan is preserved; review and edit it
-            explicitly. No automatic regeneration or paid request occurs.
-          </p>
-        ) : null}
-        {plan &&
-        resourceEntries.length &&
-        !plan.fields.constraints.includes(
-          resourcePlanningNotes(planningResources!),
-        ) ? (
-          <button
-            className="secondary"
-            onClick={() =>
-              onChange({
-                ...plan,
-                fields: {
-                  ...plan.fields,
-                  constraints: [
-                    plan.fields.constraints,
-                    resourcePlanningNotes(planningResources!),
-                  ]
-                    .filter(Boolean)
-                    .join('\n\n'),
-                },
-              })
-            }
-          >
-            Add current resource notes to this plan · free
-          </button>
-        ) : null}
-      </section>
-      {!plan ? (
-        <>
-          <Empty
-            title="No experiment plan yet"
-            icon={<FlaskConical size={24} />}
-          >
-            Choose “Plan an experiment” on a hypothesis or gap lead, or start
-            your own draft below. No paid AI is needed for a manual plan.
-          </Empty>
-          <button className="primary" onClick={onStartManual}>
-            Start my own experiment draft
-          </button>
-        </>
-      ) : (
-        <>
-          <p className="panel-footnote">
-            <strong>
-              {plan.origin === 'user-created'
-                ? 'User-created draft · not AI-generated'
-                : plan.origin === 'saved-example'
-                  ? 'Saved example · manually prepared'
-                  : 'AI-generated proposal · editable'}
-            </strong>
-            . This is a proposal, not an established protocol. Blank fields need
-            your input; no method is inferred for manual drafts. Variable
-            definitions, possible confounders, and supporting-result criteria
-            are left for you to specify when they have not been generated.
-          </p>
-          {needsReview ? (
-            <Notice>
-              Your research focus, selected source text, or resources changed.
-              Your edits have been kept. Review this plan and reassess resource
-              fit before using it.
-              {onReview ? (
-                <button className="text-button" onClick={onReview}>
-                  I have reviewed this plan against the current workspace
-                </button>
-              ) : null}
-            </Notice>
+          )}
+          {plan && needsReview ? (
+            <p className="panel-footnote">
+              These current notes may differ from the creation-time snapshot.
+              Updating them does not regenerate the plan.
+            </p>
           ) : null}
-          {plan.id !== 'manual' ? (
-            <button className="secondary" onClick={onStartManual}>
-              Open my own experiment draft
+          {plan &&
+          resourceEntries.length > 0 &&
+          !plan.fields.constraints.includes(
+            resourcePlanningNotes(planningResources!),
+          ) ? (
+            <button
+              className="secondary"
+              onClick={() =>
+                onChange({
+                  ...plan,
+                  fields: {
+                    ...plan.fields,
+                    constraints: [
+                      plan.fields.constraints,
+                      resourcePlanningNotes(planningResources!),
+                    ]
+                      .filter(Boolean)
+                      .join('\n\n'),
+                  },
+                })
+              }
+            >
+              Add current resource notes to this plan · free
             </button>
           ) : null}
-          <div className="experiment-grid">
-            {fields.map(({ key, label, hint }) => (
-              <div key={key} className="resource-field">
-                <label htmlFor={`plan-${key}`}>{label}</label>
-                <textarea
-                  id={`plan-${key}`}
-                  aria-describedby={`plan-${key}-hint`}
-                  rows={key === 'method' ? 5 : 3}
-                  value={plan.fields[key]}
-                  placeholder={hint}
-                  onChange={(event) => {
-                    setCopyMessage('');
-                    onChange({
-                      ...plan,
-                      fields: { ...plan.fields, [key]: event.target.value },
-                    });
-                  }}
-                />
-                <small id={`plan-${key}-hint`}>{hint}</small>
-              </div>
-            ))}
-          </div>
-          <details>
+        </div>
+      </details>
+      {plan ? (
+        <>
+          <details className="plan-disclosure plan-source-context">
             <summary>
-              Research focus, resources, and source references carried into this
-              draft
+              Sources & draft context{' '}
+              <span>{plan.sources.length} supporting passages</span>
             </summary>
-            <p>
-              <strong>Field:</strong> {plan.focus.field || 'Not provided'}
-              <br />
-              <strong>Research focus:</strong>{' '}
-              {plan.focus.question || 'Not provided'}
-            </p>
-            <dl>
-              {Object.entries(plan.resources).map(([key, value]) => (
-                <div key={key}>
-                  <dt>{key}</dt>
-                  <dd>{value || 'Not provided'}</dd>
-                </div>
-              ))}
-            </dl>
-            <p>
-              These are the resources recorded when the draft was created;
-              compare them with your current focus before planning.
-            </p>
-            {plan.sources.length ? (
+            <div className="plan-disclosure-content">
+              <p>
+                <strong>{plan.focus.field || 'Field not provided'}</strong>
+                <br />
+                {plan.focus.question || 'Research focus not provided'}
+              </p>
+              {plan.sources.length ? (
+                <ul>
+                  {plan.sources.map((citation) => (
+                    <li key={`${citation.paperId}:${citation.passageId}`}>
+                      <button
+                        className="text-button"
+                        onClick={() => onInspect?.(citation)}
+                      >
+                        Inspect source passage {citation.passageId}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No supporting passage is attached to this draft.</p>
+              )}
               <ul>
-                {plan.sources.map((citation) => (
-                  <li key={`${citation.paperId}:${citation.passageId}`}>
-                    <button
-                      className="text-button"
-                      onClick={() => onInspect?.(citation)}
-                    >
-                      Inspect source passage {citation.passageId}
-                    </button>
+                {plan.sourcePapers.map((paper) => (
+                  <li key={paper.id}>
+                    <a href={paper.url} target="_blank" rel="noreferrer">
+                      {paper.title}
+                    </a>
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p>
-                No supporting passage is attached to this user-created draft.
+              <details className="plan-snapshot">
+                <summary>
+                  Resources recorded when this draft was created
+                </summary>
+                <dl>
+                  {Object.entries(plan.resources).map(([key, value]) => (
+                    <div key={key}>
+                      <dt>{resourceLabels[key] ?? key}</dt>
+                      <dd>{value || 'Not provided'}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+              <p className="panel-footnote">
+                Blank fields need your input. This draft is not an established
+                protocol or a feasibility assessment.
               </p>
-            )}
-            <ul>
-              {plan.sourcePapers.map((paper) => (
-                <li key={paper.id}>
-                  <a href={paper.url} target="_blank" rel="noreferrer">
-                    {paper.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
+            </div>
           </details>
+          {plan.id !== 'manual' ? (
+            <button
+              className="text-button start-another-draft"
+              onClick={onStartManual}
+            >
+              Open my own experiment draft
+            </button>
+          ) : null}
           {copyMessage ? <p role="status">{copyMessage}</p> : null}
         </>
-      )}
+      ) : null}
     </section>
   );
 }

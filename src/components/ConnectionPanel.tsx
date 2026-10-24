@@ -2,6 +2,7 @@ import { GitBranch, ArrowRight } from 'lucide-react';
 import type { Analysis, Brief, Health, Paper } from '../../shared/types';
 import { analysisReadiness } from '../../shared/analysis-readiness';
 import { Busy, Notice } from './Primitives';
+import './workflow-cards.css';
 export function analysisLabel(origin: Analysis['origin']) {
   return origin === 'live'
     ? 'Live model analysis · untested hypotheses'
@@ -40,17 +41,30 @@ export function ConnectionPanel({
   onAnalyze: () => void;
   onSelect: (id: string) => void;
 }) {
-  const readiness = analysisReadiness(brief, count, papers, health);
-  const complete = readiness.every((item) => item.ready);
-  const missing = readiness.filter((item) => !item.ready);
-  return (
-    <section
-      className="panel connection-panel"
-      id="connections"
-      aria-labelledby="connections-title"
-    >
-      <div className="panel-heading">
-        <h2 id="connections-title">Optional AI gap hypotheses</h2>
+  const missing = analysisReadiness(brief, count, papers, health).filter(
+    (item) => !item.ready,
+  );
+  const complete = missing.length === 0;
+  const resourceNotes = Object.entries(brief.resources).filter(([, value]) =>
+    value.trim(),
+  );
+  const setup = (
+    <div className="hypothesis-setup">
+      {missing.length ? (
+        <div className="analysis-readiness" aria-live="polite">
+          <h3>What’s needed</h3>
+          <ul>
+            {missing.map((item) => (
+              <li key={item.key}>{item.message}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="hypothesis-ready">
+          {count} papers ready · your resource notes will guide the proposal.
+        </p>
+      )}
+      <div className="hypothesis-generate-row">
         <button
           className="primary"
           disabled={!complete || busy || readinessBusy}
@@ -65,18 +79,121 @@ export function ConnectionPanel({
             </>
           )}
         </button>
+        {onRecheck ? (
+          <button
+            className="text-button"
+            onClick={onRecheck}
+            disabled={readinessBusy}
+          >
+            {readinessBusy ? 'Checking server…' : 'Recheck server readiness'}
+          </button>
+        ) : null}
       </div>
+      <p className="panel-footnote">
+        This button sends selected source text to OpenAI and may incur a charge.
+        You can also draft an experiment from a free gap lead.
+      </p>
+    </div>
+  );
+  return (
+    <section
+      className="panel connection-panel concise-hypotheses"
+      id="connections"
+      aria-labelledby="connections-title"
+    >
+      <div className="panel-heading">
+        <h2 id="connections-title">Your hypothesis</h2>
+        {onEditResources ? (
+          <button
+            className="text-button edit-planning-resources"
+            onClick={onEditResources}
+          >
+            Edit planning resources
+          </button>
+        ) : null}
+      </div>
+      {analysis && resourcesChanged ? (
+        <Notice>
+          Resource notes changed after this analysis. Review the existing
+          hypotheses or explicitly generate again. Your edited drafts are kept.
+        </Notice>
+      ) : null}
+      {error ? <Notice error>{error}</Notice> : null}
+      {analysis ? (
+        <>
+          <p
+            className={`analysis-origin ${analysis.origin === 'saved-example' ? 'example' : ''}`}
+          >
+            {analysisLabel(analysis.origin)}
+          </p>
+          {analysis.status === 'insufficient' ? (
+            <>
+              <Notice>
+                Insufficient evidence. Select more relevant sources with
+                readable text before trying again.
+              </Notice>
+              <p className="analysis-summary">{analysis.summary}</p>
+            </>
+          ) : (
+            <div className="connection-cards">
+              {analysis.hypotheses.map((hypothesis, index) => (
+                <article
+                  className={`hypothesis-result-card ${activeId === hypothesis.id ? 'selected' : ''}`}
+                  key={hypothesis.id}
+                >
+                  <span className="hypothesis-card-label">
+                    Hypothesis {index + 1}
+                  </span>
+                  <h3>{hypothesis.title}</h3>
+                  <p className="hypothesis-claim">
+                    {hypothesis.hypothesis.length > 260
+                      ? `${hypothesis.hypothesis.slice(0, 260)}…`
+                      : hypothesis.hypothesis}
+                  </p>
+                  {hypothesis.hypothesis.length > 260 ? (
+                    <details className="hypothesis-full-claim">
+                      <summary>Read full hypothesis</summary>
+                      <p>{hypothesis.hypothesis}</p>
+                    </details>
+                  ) : null}
+                  <div className="hypothesis-result-actions">
+                    {onPlan ? (
+                      <button
+                        className="primary"
+                        onClick={() => onPlan(hypothesis.id)}
+                      >
+                        Plan an experiment <ArrowRight size={14} />
+                      </button>
+                    ) : null}
+                    <button
+                      className="text-button"
+                      onClick={() => onSelect(hypothesis.id)}
+                      aria-pressed={activeId === hypothesis.id}
+                    >
+                      Inspect evidence & limitations
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          {analysis.status !== 'insufficient' ? (
+            <details className="hypothesis-analysis-notes">
+              <summary>Analysis notes</summary>
+              <p>{analysis.summary}</p>
+            </details>
+          ) : null}
+        </>
+      ) : (
+        <p className="hypothesis-empty-summary">
+          Turn your selected evidence into a small, testable proposal.
+        </p>
+      )}
       <details className="hypothesis-resource-context">
         <summary>Resources guiding the next hypothesis and experiment</summary>
-        <p>
-          Your notes guide the proposed approach, data choices, equipment,
-          skills and scope. They do not hide papers. Unknown feasibility stays
-          unknown.
-        </p>
-        <dl>
-          {Object.entries(brief.resources)
-            .filter(([, value]) => value.trim())
-            .map(([key, value]) => (
+        {resourceNotes.length ? (
+          <dl>
+            {resourceNotes.map(([key, value]) => (
               <div key={key}>
                 <dt>
                   {key === 'deadline'
@@ -90,132 +207,25 @@ export function ConnectionPanel({
                 <dd>{value}</dd>
               </div>
             ))}
-        </dl>
-        {!Object.values(brief.resources).some((value) => value.trim()) ? (
+          </dl>
+        ) : (
           <p>
-            No resource constraints entered. Add them in Resources if you want
-            to tailor a proposal.
+            No resource constraints entered. Add optional notes in Resources.
           </p>
-        ) : null}
+        )}
         <p>
-          Editing notes does not regenerate a result or make a paid request. Use
-          the generation button explicitly when you want a new AI proposal.
+          Notes guide proposals, not paper search. Editing them does not
+          regenerate a result.
         </p>
       </details>
-      {onEditResources ? (
-        <button
-          className="text-button edit-planning-resources"
-          onClick={onEditResources}
-        >
-          Edit planning resources
-        </button>
-      ) : null}
-      {analysis && resourcesChanged ? (
-        <Notice>
-          Resource notes changed after this analysis. These existing hypotheses
-          have not been regenerated. Review their fit or explicitly generate
-          again; your edited experiment drafts are kept.
-        </Notice>
-      ) : null}
-      <div className="analysis-readiness" aria-live="polite">
-        <h3>{complete ? 'Ready to generate' : 'Before generating'}</h3>
-        <ul>
-          {missing.map((item) => (
-            <li key={item.key}>
-              {item.ready ? '✓' : '○'} {item.message}
-            </li>
-          ))}
-        </ul>
-        {complete ? (
-          <p>
-            Your focus and selected sources are ready. Resource notes will guide
-            the proposal.
-          </p>
-        ) : null}
-        {onRecheck ? (
-          <button
-            className="secondary"
-            onClick={onRecheck}
-            disabled={readinessBusy}
-          >
-            {readinessBusy ? 'Checking server…' : 'Recheck server readiness'}
-          </button>
-        ) : null}
-        <p className="panel-footnote">
-          Search, comparison, gap scanning and user-created experiment drafts
-          work without paid AI. Rechecking readiness does not make a model
-          request.
-        </p>
-      </div>
-      {!analysis ? (
-        <div className="ai-gap-empty">
-          <h3>{brief.field || 'Your field of interest'}</h3>
-          <p>
-            Free author-stated gap leads are available in the Gap leads tab.
-            Optional AI can help develop a testable hypothesis from the selected
-            evidence.
-          </p>
-        </div>
+      {analysis ? (
+        <details className="hypothesis-regenerate">
+          <summary>Generate a new hypothesis</summary>
+          {setup}
+        </details>
       ) : (
-        <>
-          <p
-            className={`analysis-origin ${analysis.origin === 'saved-example' ? 'example' : ''}`}
-          >
-            {analysisLabel(analysis.origin)}
-          </p>
-          <p className="analysis-summary">{analysis.summary}</p>
-          {analysis.status === 'insufficient' ? (
-            <Notice>
-              Insufficient evidence. No gap hypothesis or experiment was
-              generated. Try selecting more relevant papers with readable source
-              text.
-            </Notice>
-          ) : (
-            <div className="connection-cards">
-              {analysis.hypotheses.map((h, i) => (
-                <div key={h.id}>
-                  <button
-                    className={`connection-card ${activeId === h.id ? 'active' : ''}`}
-                    onClick={() => onSelect(h.id)}
-                    aria-pressed={activeId === h.id}
-                  >
-                    <span className="connection-number">0{i + 1}</span>
-                    <div>
-                      <strong>{h.title}</strong>
-                      <p>{h.hypothesis}</p>
-                      <span>
-                        Inspect evidence & limitations <ArrowRight size={13} />
-                      </span>
-                    </div>
-                  </button>
-                  {onPlan ? (
-                    <button className="secondary" onClick={() => onPlan(h.id)}>
-                      Plan an experiment
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+        setup
       )}
-      {error ? <Notice error>{error}</Notice> : null}
-      {!health ? (
-        <Notice>Checking server configuration…</Notice>
-      ) : !health.analysisAvailable ? (
-        <Notice>
-          <strong>AI analysis is optional.</strong> Read source text and scan
-          gap leads for free. {health.reason} Live requests never fall back to
-          saved examples.
-        </Notice>
-      ) : (
-        <p className="panel-footnote">{health.reason}</p>
-      )}
-      {!complete ? (
-        <p className="panel-footnote">
-          To analyze: enter a question and one field, then select 4–6 papers.
-        </p>
-      ) : null}
     </section>
   );
 }

@@ -2644,3 +2644,306 @@ button.primary:hover:not(:disabled) {
   width: 76px;
   flex-shrink: 0;
 }
+
+/* Summary-first research workflow. Only supporting tools for the active stage show. */
+body {
+  background: #f8fafc;
+}
+.app-header {
+  height: 78px;
+  min-height: 78px;
+  padding: 0 28px;
+  gap: 24px;
+}
+.pipeline-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  background: #f4f5f9;
+  border-radius: 10px;
+}
+.pipeline-step {
+  background: transparent;
+  color: #68748d;
+  border: 1px solid transparent;
+  padding: 9px 16px;
+  gap: 9px;
+  font-size: 13px;
+}
+.pipeline-step.current {
+  background: #fff;
+  color: #393a98;
+  border-color: #e0e1f1;
+  box-shadow: 0 1px 3px #13234808;
+}
+.pipeline-number {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e9ecf4;
+  font-size: 10px;
+}
+.pipeline-step.current .pipeline-number {
+  background: #eeebfc;
+  color: #5558ef;
+}
+.workspace {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: 1200px;
+  padding: 28px 28px 32px;
+  min-height: calc(100vh - 126px);
+}
+.workflow-subnav {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid #e3e7f0;
+  margin: 0 0 28px;
+  padding: 0 0 10px;
+}
+.workflow-subnav [role='tab'] {
+  padding: 6px 0;
+  border-radius: 0;
+  color: #737f95;
+  background: none;
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+}
+.workflow-subnav [aria-selected='true'] {
+  color: #4444b0;
+  border-bottom-color: #6663e8;
+  font-weight: 650;
+}
+.page-heading {
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.page-heading h1 {
+  font-size: 26px;
+  letter-spacing: -0.8px;
+}
+.page-heading p {
+  font-size: 13px;
+  max-width: 680px;
+  line-height: 1.6;
+}
+.example-link {
+  border: 0;
+  padding: 5px 0;
+  font-size: 11px;
+  background: none;
+}
+.example-banner {
+  padding: 10px 13px;
+  margin-bottom: 20px;
+  font-size: 11px;
+}
+.example-banner summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.example-banner p {
+  max-width: 760px;
+  margin-top: 8px;
+}
+.workspace-grid.tab-workspace {
+  display: block;
+}
+.workflow-panel > .panel {
+  width: 100%;
+  max-width: none;
+  padding: 24px;
+}
+.panel {
+  border-color: #e2e7ef;
+  background: #fff;
+}
+.panel-heading {
+  gap: 18px;
+  align-items: center;
+}
+.panel-heading h2 {
+  font-size: 16px;
+}
+.panel-footnote {
+  font-size: 11px;
+  line-height: 1.7;
+}
+.author-lead-scan {
+  margin-top: 16px;
+  border: 1px solid #e2e7ef;
+  background: #fff;
+  border-radius: 10px;
+}
+.author-lead-scan > summary {
+  padding: 17px 20px;
+  font-size: 12px;
+}
+.author-lead-scan .gap-panel {
+  border: 0;
+  margin: 0;
+}
+.selected-discovery-lead {
+  padding: 18px 22px;
+  margin-bottom: 16px;
+}
+.selected-discovery-lead h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #79839a;
+}
+.selected-discovery-lead > p {
+  font-size: 14px;
+  margin: 8px 0;
+  max-width: 800px;
+}
+.selected-discovery-lead details {
+  font-size: 11px;
+  margin-top: 10px;
+}
+.selected-discovery-lead details summary {
+  cursor: pointer;
+  color: #5558ef;
+}
+.workflow-controls {
+  border-top: 1px solid #e6eaf1;
+  padding-top: 20px;
+  margin-top: 24px;
+}
+.app-footer {
+  font-size: 10px;
+  background: transparent;
+  color: #8993a6;
+}
+.evidence-dialog {
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100svh - 48px);
+  overflow: auto;
+  color: var(--ink);
+  box-shadow: 0 24px 80px #0b1c3d35;
+}
+.evidence-dialog::backdrop {
+  background: #0b1c3d66;
+}
+.evidence-dialog .evidence-panel {
+  position: static;
+  top: auto;
+  width: 100%;
+  max-height: none;
+  padding: 28px;
+  border: 0;
+  border-radius: 14px;
+}
+.evidence-dialog .evidence-panel > h2 {
+  padding-right: 40px;
+}
+.evidence-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  padding: 6px;
+  background: #f1f3f8;
+  color: #5b6680;
+  z-index: 1;
+}
+.evidence-dialog .source-quote {
+  max-height: none;
+}
+.resources-panel {
+  margin: 0;
+}
+.resources-intro {
+  max-width: 740px;
+}
+@media (max-width: 900px) {
+  .app-header {
+    gap: 12px;
+    padding: 0 20px;
+  }
+  .session-note {
+    display: none;
+  }
+  .pipeline-step {
+    padding: 9px 12px;
+  }
+  .workspace {
+    padding: 24px 20px;
+  }
+}
+@media (max-width: 650px) {
+  .app-header {
+    height: auto;
+    min-height: 78px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  .pipeline-nav {
+    width: 100%;
+    gap: 4px;
+    justify-content: space-between;
+  }
+  .pipeline-step {
+    flex: 1;
+    padding: 8px 5px;
+    font-size: 11px;
+    gap: 5px;
+  }
+  .pipeline-number {
+    width: 19px;
+    height: 19px;
+    font-size: 9px;
+  }
+  .workspace {
+    padding: 20px 16px;
+  }
+  .workflow-subnav {
+    gap: 22px;
+    margin-bottom: 22px;
+    overflow-x: auto;
+  }
+  .workflow-subnav [role='tab'] {
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .workflow-panel > .panel {
+    padding: 18px;
+  }
+  .page-heading h1 {
+    font-size: 23px;
+  }
+  .page-heading p {
+    font-size: 12px;
+  }
+  .example-link {
+    margin-top: 10px;
+  }
+  .workflow-controls {
+    font-size: 10px;
+    gap: 8px;
+  }
+  .workflow-controls .primary {
+    font-size: 10px;
+    padding: 10px;
+  }
+  .evidence-dialog .evidence-panel {
+    padding: 22px 18px;
+  }
+  .evidence-dialog {
+    max-height: calc(100svh - 24px);
+  }
+}
+
+.evidence-dialog {
+  overscroll-behavior: contain;
+}

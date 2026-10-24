@@ -194,3 +194,40 @@
     padding: 13px;
   }
 }
+.overview-source-excerpt {
+  margin: 14px 0;
+}
+.overview-source-excerpt > summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12px;
+}
+.overview-source-excerpt > small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.overview-term-sources {
+  font-size: 11px;
+}
+.overview-term-sources > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.overview-term-sources > span {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+.overview-essential-caveat {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-top: 18px;
+}
+.comparison-overview .overview-explanation {
+  max-width: 580px;
+}
+.comparison-overview {
+  border-top: 0;
+  padding-top: 0;
+}

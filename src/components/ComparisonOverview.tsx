@@ -57,11 +57,15 @@ export function ComparisonOverview({
   function quote(item: OverviewEvidence) {
     return (
       <>
-        <blockquote>
-          {item.leadingOmitted ? '…' : ''}
-          {item.excerpt}
-          {item.truncated ? '…' : ''}
-        </blockquote>
+        <details className="overview-source-excerpt">
+          <summary>Read source excerpt</summary>
+          <blockquote>
+            {item.leadingOmitted ? '…' : ''}
+            {item.excerpt}
+            {item.truncated ? '…' : ''}
+          </blockquote>
+          <small>{item.section}</small>
+        </details>
         <button
           className="text-button"
           onClick={() => onInspect(item.reference)}
@@ -76,12 +80,11 @@ export function ComparisonOverview({
       className="comparison-overview"
       aria-labelledby="comparison-overview-title"
     >
-      <h3 id="comparison-overview-title">
+      <h3 id="comparison-overview-title" className="sr-only">
         Similarities & differences overview
       </h3>
       <p className="overview-explanation">
-        Compare two papers at a time. Start with their shared topics, then read
-        how their questions, methods and findings differ.
+        Choose two sources and one aspect to compare.
       </p>
       {papers.length >= 2 ? (
         <div className="overview-pair-picker">
@@ -126,26 +129,28 @@ export function ComparisonOverview({
           <section className="overview-common">
             <h4>What they have in common</h4>
             <p className="overview-helper">
-              Both article texts mention these topics. This shows shared
-              wording, not that their findings agree.
+              Shared terms in the retrieved text.
             </p>
             {result.shared.length ? (
               <ul className="overview-shared-list">
                 {result.shared.map((item) => (
                   <li key={item.term}>
                     <strong>{item.term}</strong>
-                    <span>
-                      {item.evidence.map((ref) => (
-                        <button
-                          key={ref.reference.paperId}
-                          className="text-button"
-                          onClick={() => onInspect(ref.reference)}
-                          aria-label={`Inspect ${item.term} in ${label(ref.reference.paperId)}`}
-                        >
-                          {label(ref.reference.paperId)} evidence
-                        </button>
-                      ))}
-                    </span>
+                    <details className="overview-term-sources">
+                      <summary>Sources ({item.evidence.length})</summary>
+                      <span>
+                        {item.evidence.map((ref) => (
+                          <button
+                            key={ref.reference.paperId}
+                            className="text-button"
+                            onClick={() => onInspect(ref.reference)}
+                            aria-label={`Inspect ${item.term} in ${label(ref.reference.paperId)}`}
+                          >
+                            {label(ref.reference.paperId)} evidence
+                          </button>
+                        ))}
+                      </span>
+                    </details>
                   </li>
                 ))}
               </ul>
@@ -157,9 +162,7 @@ export function ComparisonOverview({
           </section>
           <section className="overview-differences">
             <h4>How they differ</h4>
-            <p className="overview-helper">
-              Choose one aspect to compare the authors’ own words side by side.
-            </p>
+
             <div
               className="overview-aspect-picker"
               role="group"
@@ -195,9 +198,8 @@ export function ComparisonOverview({
                     quote(cell.evidence)
                   ) : (
                     <p className="overview-missing">
-                      No clear {currentAspect.label.toLowerCase()} passage found
-                      in the retrieved text. Open the original paper before
-                      treating this as missing.
+                      No clear {currentAspect.label.toLowerCase()} passage
+                      found. Check the original paper.
                     </p>
                   )}
                 </article>
@@ -239,13 +241,15 @@ export function ComparisonOverview({
           </section>
         </>
       )}
+      <p className="overview-essential-caveat">
+        Shared wording does not establish agreement; missing text does not prove
+        absence.
+      </p>
       <details className="overview-how">
-        <summary>How this comparison works and what it cannot tell you</summary>
+        <summary>Comparison limits</summary>
         <p className="overview-caution">
-          {result.caution} The Question, Method, Findings and Limitations views
-          locate labelled sections or explicit author statements; they do not
-          generate a scientific summary. Read the passages to decide whether the
-          studies are comparable.
+          {result.caution} Excerpts follow source headings or explicit
+          statements; they are not generated scientific summaries.
         </p>
       </details>
     </section>

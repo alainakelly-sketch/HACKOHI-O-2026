@@ -137,14 +137,62 @@ await page.route('**/api/**', async (route) => {
   } else throw new Error(`Unexpected endpoint ${path}`);
 });
 const tab = (name: string) => page.getByRole('tab', { name, exact: true });
+const stageFor = (name: string) =>
+  ['Focus', 'Papers', 'Compare'].includes(name)
+    ? 'Search'
+    : name === 'Experiment'
+      ? 'Experiment'
+      : 'Hypothesis';
+async function closeEvidence() {
+  const close = page.getByRole('button', {
+    name: 'Close evidence',
+    exact: true,
+  });
+  if (await close.isVisible()) await close.click();
+}
+async function open(name: string) {
+  await closeEvidence();
+  const stage = page
+    .getByRole('navigation', { name: 'Research pipeline' })
+    .getByRole('button', { name: new RegExp(stageFor(name)) });
+  if ((await stage.getAttribute('aria-current')) !== 'step')
+    await stage.click();
+  await tab(name).click();
+  assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
+  assert.ok((await page.getByRole('tab').count()) <= 3);
+}
+async function expand(text: string | RegExp) {
+  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const details = summary.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+}
+async function generate(name: string) {
+  const button = page.getByRole('button', {
+    name,
+    exact: true,
+    includeHidden: true,
+  });
+  const details = button.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+  await button.click();
+}
+
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   await page
     .getByLabel('Research question', { exact: true })
     .fill('Original question preserved until Apply');
   await page.getByLabel('Your field of interest').fill('Medical AI');
-  assert.equal(await page.locator('.sidebar img').count(), 0);
-  await tab('Resources').click();
+  assert.equal(await page.locator('.sidebar').count(), 0);
+  await open('Resources');
   await page
     .getByRole('heading', {
       name: 'Resources for your hypothesis',
@@ -153,7 +201,7 @@ try {
     .waitFor();
   assert.equal(modelCalls, 0);
   assert.equal(searches, 0);
-  await tab('Focus').click();
+  await open('Focus');
   await page.getByText('Help me shape a question', { exact: true }).click();
   await page
     .getByLabel('Topic, approach, or factor', { exact: true })
@@ -181,7 +229,7 @@ try {
     await page
       .getByLabel(`Select SYNTHETIC DISCOVERY PAPER ${i}`, { exact: true })
       .check();
-  await tab('Gap leads').click();
+  await open('Gap leads');
   await page
     .getByRole('heading', { name: 'Follow the evidence', exact: true })
     .waitFor();
@@ -196,6 +244,7 @@ try {
       exact: true,
     })
     .waitFor();
+  await expand(/^Supporting evidence/);
   for (let i = 0; i < 2; i++)
     await discovery
       .getByText(papers[i].passages[0].text, { exact: true })
@@ -223,6 +272,7 @@ try {
     .locator('#evidence-inspector')
     .getByText(papers[0].passages[0].text, { exact: true })
     .waitFor();
+  await closeEvidence();
   assert.equal(priorCalls, 0);
   assert.equal(modelCalls, 0);
   await discovery
@@ -232,6 +282,7 @@ try {
   await page
     .getByText('User-created draft · not AI-generated', { exact: true })
     .waitFor();
+  await expand('Design details');
   assert.equal(
     await page
       .getByLabel('Independent variables', { exact: true })
@@ -287,7 +338,7 @@ try {
   await planPrior
     .getByText('Related prior work found.', { exact: true })
     .waitFor();
-  await tab('Gap leads').click();
+  await open('Gap leads');
   await discovery
     .getByRole('button', {
       name: 'Use this question in AI hypotheses',
@@ -302,21 +353,19 @@ try {
   await page
     .getByRole('heading', { name: 'Selected discovery lead', exact: true })
     .waitFor();
-  await page
-    .getByRole('button', { name: 'Develop AI gap hypotheses', exact: true })
-    .click();
+  await generate('Develop AI gap hypotheses');
   await page
     .getByText('SYNTHETIC MOCK: insufficient evidence', { exact: true })
     .waitFor();
   assert.equal(modelCalls, 1);
-  await tab('Experiment').click();
+  await open('Experiment');
   assert.equal(
     await page
       .getByLabel('Independent variables', { exact: true })
       .inputValue(),
     'Study population group',
   );
-  await tab('Gap leads').click();
+  await open('Gap leads');
   await discovery
     .getByRole('button', {
       name: /Possible disagreement to review: diagnostic accuracy/,

@@ -60,11 +60,11 @@ export function PriorWorkCheck({
   }
   return (
     <section className="prior-work-check" aria-label="Check related prior work">
-      <h3>Has related work already explored this?</h3>
-      <p>
-        Search the free-paper collections for your question before treating a
-        lead as a research opportunity. No OpenAI request is made.
-      </p>
+      <div className="prior-check-heading">
+        <h3>Check related work</h3>
+        <span>Free literature search</span>
+      </div>
+      <p>Check whether related papers already address your question.</p>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -93,14 +93,6 @@ export function PriorWorkCheck({
           )}
         </button>
       </form>
-      <p className="muted">
-        The search uses these terms
-        {field.trim()
-          ? ` and a second search with your field, “${field.trim()}”.`
-          : '.'}{' '}
-        Edit them to test alternative wording. No close match does not establish
-        novelty.
-      </p>
       {error ? (
         <Notice error>
           {error} Search incomplete. Retry when the paper sources are available.
@@ -109,20 +101,27 @@ export function PriorWorkCheck({
       {result ? (
         <div className="manual-prior-result">
           <strong role="status">{result.status}</strong>
-          <h4>Searches performed</h4>
-          <ul className="manual-prior-queries">
-            {result.searches.map((search, index) => (
-              <li key={`${index}:${search.query}`}>
-                <code>{search.query}</code>
-                {search.error ? <span>{search.error}</span> : null}
-              </li>
-            ))}
-          </ul>
-          <p>
-            Search results are candidates for possible overlap, not verified
-            matches. Compare the actual question, population, dataset, methods
-            and findings before deciding how your idea differs.
-          </p>
+          <details className="prior-search-details">
+            <summary>Search details & limits</summary>
+            <ul className="manual-prior-queries">
+              {result.searches.map((search, index) => (
+                <li key={`${index}:${search.query}`}>
+                  <code>{search.query}</code>
+                  {search.error ? <span>{search.error}</span> : null}
+                </li>
+              ))}
+            </ul>
+            <p>
+              Results indicate possible topical overlap, not equivalent
+              experiments or novelty. Compare the question, population, dataset
+              and methods. No close match does not establish novelty.
+            </p>
+            <p>
+              The search uses your terms
+              {field.trim() ? ` and a second query with “${field.trim()}”` : ''}
+              . No OpenAI request is made.
+            </p>
+          </details>
           <div className="manual-prior-papers">
             {result.matches.map(({ paper, overlap }) => (
               <article key={paper.id}>
@@ -132,22 +131,23 @@ export function PriorWorkCheck({
                 <p className="muted">
                   {paper.year ?? 'Year unavailable'} · {paper.coverage}
                 </p>
-                <p>{overlap}</p>
-                {paper.abstract ? (
-                  <details>
-                    <summary>Read available abstract</summary>
-                    <p>{paper.abstract}</p>
+                <details className="prior-paper-details">
+                  <summary>Inspect overlap & abstract</summary>
+                  <p>{overlap}</p>
+                  {paper.abstract ? (
+                    <>
+                      <p>{paper.abstract}</p>
+                      <p className="muted">
+                        Abstract only · not the complete paper.
+                      </p>
+                    </>
+                  ) : (
                     <p className="muted">
-                      Abstract only in this preview; this is not the complete
-                      paper.
+                      No abstract available. Open the source to inspect the
+                      study.
                     </p>
-                  </details>
-                ) : (
-                  <p className="muted">
-                    No abstract was available for this record. Open the source
-                    to inspect the study.
-                  </p>
-                )}
+                  )}
+                </details>
               </article>
             ))}
           </div>

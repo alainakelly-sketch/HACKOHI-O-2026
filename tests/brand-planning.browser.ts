@@ -120,6 +120,54 @@ await page.route('**/api/**', async (route) => {
   } else throw new Error(`Unexpected ${path}`);
 });
 const tab = (name: string) => page.getByRole('tab', { name, exact: true });
+const stageFor = (name: string) =>
+  ['Focus', 'Papers', 'Compare'].includes(name)
+    ? 'Search'
+    : name === 'Experiment'
+      ? 'Experiment'
+      : 'Hypothesis';
+async function closeEvidence() {
+  const close = page.getByRole('button', {
+    name: 'Close evidence',
+    exact: true,
+  });
+  if (await close.isVisible()) await close.click();
+}
+async function open(name: string) {
+  await closeEvidence();
+  const stage = page
+    .getByRole('navigation', { name: 'Research pipeline' })
+    .getByRole('button', { name: new RegExp(stageFor(name)) });
+  if ((await stage.getAttribute('aria-current')) !== 'step')
+    await stage.click();
+  await tab(name).click();
+  assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
+  assert.ok((await page.getByRole('tab').count()) <= 3);
+}
+async function expand(text: string | RegExp) {
+  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const details = summary.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+}
+async function generate(name: string) {
+  const button = page.getByRole('button', {
+    name,
+    exact: true,
+    includeHidden: true,
+  });
+  const details = button.locator('xpath=ancestor::details');
+  for (let i = 0; i < (await details.count()); i++) {
+    const detail = details.nth(i);
+    if (!(await detail.evaluate((element: HTMLDetailsElement) => element.open)))
+      await detail.locator(':scope > summary').click();
+  }
+  await button.click();
+}
+
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   await page
@@ -156,8 +204,15 @@ try {
     .getByLabel('Research question', { exact: true })
     .fill('What improves network evaluation?');
   await page.getByLabel('Your field of interest').fill('Network science');
-  assert.equal(await page.getByRole('tab').count(), 7);
-  assert.equal(await page.locator('.sidebar img').count(), 0);
+  assert.equal(
+    await page
+      .getByRole('navigation', { name: 'Research pipeline' })
+      .getByRole('button')
+      .count(),
+    3,
+  );
+  assert.ok((await page.getByRole('tab').count()) <= 3);
+  assert.equal(await page.locator('.sidebar').count(), 0);
   assert.equal(
     await page
       .locator('#step-question')
@@ -165,7 +220,7 @@ try {
       .count(),
     0,
   );
-  await tab('Resources').click();
+  await open('Resources');
   await page
     .getByRole('heading', {
       name: 'Resources for your hypothesis',
@@ -206,13 +261,13 @@ try {
   );
   assert.equal(calls, 0);
   assert.equal(searches, 0);
-  await tab('Focus').click();
-  await tab('Resources').click();
+  await open('Focus');
+  await open('Resources');
   assert.equal(
     await page.getByLabel('Project deadline', { exact: true }).inputValue(),
     'one week',
   );
-  await tab('Focus').click();
+  await open('Focus');
   await mkdir('/tmp/paperbridge-brand', { recursive: true });
   await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({ path: '/tmp/paperbridge-brand/focus-desktop.png' });
@@ -229,7 +284,7 @@ try {
     await page
       .getByLabel(`Select SYNTHETIC PLANNING PAPER ${i}`, { exact: true })
       .check();
-  await tab('AI hypotheses').click();
+  await open('AI hypotheses');
   await page
     .getByText('Resources guiding the next hypothesis and experiment', {
       exact: true,
@@ -240,9 +295,7 @@ try {
     .getByText('Laptop, no GPU', { exact: true })
     .waitFor();
   assert.equal(calls, 0);
-  await page
-    .getByRole('button', { name: 'Develop AI gap hypotheses', exact: true })
-    .click();
+  await generate('Develop AI gap hypotheses');
   await page
     .getByText('SYNTHETIC portable network test', { exact: true })
     .waitFor();
@@ -250,6 +303,7 @@ try {
     .getByRole('button', { name: 'Plan an experiment', exact: true })
     .first()
     .click();
+  await expand('Constraints & open questions');
   assert.match(
     await page
       .getByLabel('Resource constraints and unresolved questions', {
@@ -261,20 +315,21 @@ try {
   await page
     .getByLabel('Proposed method', { exact: true })
     .fill('Keep my edited method');
-  await tab('Resources').click();
+  await open('Resources');
   await page.getByLabel('Project deadline', { exact: true }).fill('one day');
-  await tab('Papers').click();
+  await open('Papers');
   assert.equal(await page.locator('.paper-row').count(), 4);
-  await tab('AI hypotheses').click();
+  await open('AI hypotheses');
   await page
     .getByText('Resource notes changed after this analysis.', { exact: false })
     .waitFor();
   assert.equal(calls, 1);
-  await tab('Experiment').click();
+  await open('Experiment');
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
     'Keep my edited method',
   );
+  await expand('Planning resources');
   await page
     .locator('.planning-resource-context')
     .getByText('one day', { exact: true })
@@ -285,6 +340,7 @@ try {
       exact: true,
     })
     .click();
+  await expand('Constraints & open questions');
   assert.match(
     await page
       .getByLabel('Resource constraints and unresolved questions', {
@@ -306,7 +362,7 @@ try {
   const exported = JSON.parse(await readFile((await saved.path())!, 'utf8'));
   assert.match(exported.fields.constraints, /Project deadline: one day/);
   assert.equal(exported.fields.method, 'Keep my edited method');
-  await tab('AI hypotheses').click();
+  await open('AI hypotheses');
   await page
     .getByRole('button', { name: 'Plan an experiment', exact: true })
     .nth(1)

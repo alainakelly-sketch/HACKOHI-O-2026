@@ -131,10 +131,10 @@ describe('editable experiment drafts', () => {
         onStartManual: () => {},
       }),
     );
-    expect(html).toContain('Plan around your resources');
+    expect(html).toContain('Planning resources');
     expect(html).toContain('No GPU; laptop only');
-    expect(html).toContain('not facts extracted from a paper');
-    expect(html).toContain('No automatic regeneration or paid request occurs');
+    expect(html).toContain('not source evidence');
+    expect(html).toContain('Updating them does not regenerate the plan');
     expect(html).toContain('Keep my edited method');
     expect(html).toContain('Add current resource notes to this plan');
     expect(plan.resources.equipment).toBe('');

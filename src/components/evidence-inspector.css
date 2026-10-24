@@ -1,0 +1,147 @@
+/* Supporting detail is deliberately quieter than the hypothesis or plan. */
+.evidence-panel .inspector-empty {
+  margin: 16px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.evidence-panel .evidence-content {
+  columns: auto;
+}
+.evidence-panel .inspector-summary {
+  padding: 16px 0;
+}
+.evidence-panel .inspector-summary p {
+  margin: 9px 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+.evidence-panel .inspector-summary small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.evidence-panel .evidence-source-disclosure,
+.evidence-panel .inspector-disclosure {
+  padding: 13px 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+.evidence-panel .evidence-source-disclosure > summary,
+.evidence-panel .inspector-disclosure > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.evidence-panel .evidence-source-disclosure > summary > span {
+  overflow-wrap: anywhere;
+}
+.evidence-panel summary small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-top: 3px;
+}
+.evidence-panel .evidence-source-disclosure .source-quote {
+  margin: 12px 0 0;
+}
+.evidence-panel .source-quote {
+  padding: 13px;
+  border-left: 2px solid #b2d4f2;
+  background: #f5f8fc;
+}
+.evidence-panel .source-quote blockquote {
+  font-size: 12px;
+  line-height: 1.85;
+  margin: 9px 0 12px;
+}
+.evidence-panel .source-quote a {
+  font-size: 11px;
+}
+.evidence-panel .source-metadata {
+  margin-top: 12px;
+  font-size: 11px;
+}
+.evidence-panel .source-metadata summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+}
+.evidence-panel .source-metadata p {
+  margin: 8px 0;
+  font-size: 11px;
+  line-height: 1.75;
+}
+.evidence-panel .source-metadata code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
+.evidence-panel .inference {
+  margin: 12px 0 0;
+  padding: 13px;
+}
+.evidence-panel .inference section + section {
+  margin-top: 16px;
+}
+.evidence-panel .inference h4,
+.evidence-panel .evidence-note-list h4 {
+  font-size: 11px;
+  margin: 9px 0 5px;
+}
+.evidence-panel .inference p,
+.evidence-panel .inspector-disclosure > p,
+.evidence-panel .evidence-note-list li {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.evidence-panel .evidence-note-list ul {
+  padding-left: 18px;
+  margin: 8px 0 14px;
+}
+.evidence-panel .evidence-note-list li + li {
+  margin-top: 7px;
+}
+.evidence-panel .inspector-disclosure button {
+  margin: 10px 0;
+}
+.evidence-panel .fit-row {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.evidence-panel .fit-row summary,
+.evidence-panel .prior-query-disclosure summary {
+  cursor: pointer;
+  font-size: 11px;
+}
+.evidence-panel .prior-match {
+  padding: 13px 0;
+  margin: 0;
+}
+.evidence-panel .prior-match p {
+  font-size: 11px;
+  line-height: 1.75;
+}
+.evidence-panel .prior-match details {
+  margin-top: 7px;
+}
+.evidence-panel .prior-match summary {
+  font-size: 11px;
+  cursor: pointer;
+}
+.evidence-panel .inspector-caution {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  margin: 8px 0 0;
+}
+.evidence-panel .explicit-evidence .inspected-evidence-title {
+  font-size: 13px;
+  margin: 16px 0 12px;
+}

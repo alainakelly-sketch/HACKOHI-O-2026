@@ -273,3 +273,84 @@
 .discovery-selection {
   scroll-margin-top: 120px;
 }
+/* Summary-first discovery: the primary surface is a short list of leads. */
+.discovery-panel .discovery-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 10px 0;
+  background: transparent;
+  border: 0;
+}
+.discovery-panel .discovery-summary span {
+  display: block;
+  font-size: 12px;
+}
+.discovery-scope {
+  color: var(--muted);
+  margin: 4px 0 18px;
+}
+.discovery-candidates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+.discovery-candidate {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 9px;
+  min-width: 0;
+}
+.discovery-candidate.active {
+  border-color: var(--accent);
+  background: #faf9ff;
+}
+.discovery-candidate strong {
+  font-size: 13px;
+  line-height: 1.65;
+}
+.discovery-candidate > span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.discovery-candidate .candidate-kind {
+  font-weight: 600;
+  color: #554b92;
+}
+.discovery-question {
+  font-size: 15px !important;
+  color: var(--ink);
+  margin: 12px 0 18px;
+}
+.discovery-panel details {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.discovery-panel details > summary {
+  font-weight: 600;
+}
+.discovery-panel .discovery-selection {
+  margin: 20px 0;
+  padding: 22px;
+}
+.discovery-panel .discovery-map {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: #fafbfe;
+}
+@media (max-width: 760px) {
+  .discovery-candidates,
+  .discovery-panel .discovery-map {
+    grid-template-columns: 1fr;
+  }
+  .discovery-panel .discovery-selection {
+    padding: 16px;
+  }
+}

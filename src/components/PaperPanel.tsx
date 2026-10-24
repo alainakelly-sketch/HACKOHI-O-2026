@@ -10,6 +10,7 @@ import { defaultFilter, filterPapers } from '../../shared/paper-filters';
 import type { PaperFilters } from '../../shared/paper-filters';
 import { canLoadFullText } from '../../shared/comparison';
 import { Busy, Empty, Notice } from './Primitives';
+import './search-cards.css';
 export function PaperRow({
   paper,
   selected,
@@ -30,10 +31,19 @@ export function PaperRow({
   textError?: string;
 }) {
   const body = paper.passages.filter(
-    (p) => p.kind === 'full-text' && p.text.trim(),
+    (passage) => passage.kind === 'full-text' && passage.text.trim(),
   );
+  const providers = [
+    ...new Set(
+      (paper.sources ?? [{ provider: 'OpenAlex' }]).map(
+        (source) => source.provider,
+      ),
+    ),
+  ];
   return (
-    <article className={`paper-row ${selected ? 'selected' : ''}`}>
+    <article
+      className={`paper-row compact-paper ${selected ? 'selected' : ''}`}
+    >
       <div className="paper-top">
         {onToggle ? (
           <input
@@ -44,83 +54,22 @@ export function PaperRow({
             onChange={onToggle}
           />
         ) : null}
-        <div>
+        <div className="paper-heading-copy">
+          <h3>{paper.title}</h3>
           <div className="paper-meta">
             <span>{paper.year ?? 'Year unavailable'}</span>
             <span className="coverage">{paper.coverage}</span>
-            <code>{paper.id}</code>
-          </div>
-          <h3>{paper.title}</h3>
-          <p className="collection-label">
-            {(paper.sources ?? [{ provider: 'OpenAlex' }])
-              .map((s) => s.provider)
-              .filter((v, i, a) => a.indexOf(v) === i)
-              .join(' + ')}
-            {paper.publicationType === 'Preprint'
-              ? ' · Preprint / arXiv manuscript; check review status'
-              : paper.publicationType === 'Includes preprint version'
-                ? ' · Includes a preprint / manuscript version'
-                : ''}
-          </p>
-          {paper.sources && paper.sources.length > 1 ? (
-            <details className="version-links">
-              <summary>
-                Grouped records / versions ({paper.sources.length})
-              </summary>
-              <p>
-                These records share a DOI, PMC identifier or arXiv identifier.
-                Manuscript versions may differ; grouping does not mean their
-                text is identical.
-              </p>
-              {paper.sources.map((s) => (
-                <a
-                  key={`${s.provider}-${s.id}`}
-                  href={s.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {s.provider}: {s.id}
-                </a>
-              ))}
-            </details>
-          ) : null}
-          <p className="authors">
-            {paper.authors.join(', ') || 'Authors unavailable'}
-          </p>
-          <div className="free-copy-links">
-            {(paper.freeCopies ?? []).slice(0, 3).map((copy) => (
-              <a
-                key={copy.url}
-                href={copy.url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Free {copy.format === 'PDF' ? 'PDF' : 'copy'}{' '}
-                <ArrowUpRight size={12} /> <span>{copy.via}</span>
-              </a>
-            ))}
-          </div>
-          <div className="paper-links">
-            <a href={paper.url} target="_blank" rel="noreferrer">
-              Source record <ArrowUpRight size={12} />
-            </a>
-            {paper.doi ? (
-              <a href={paper.doi} target="_blank" rel="noreferrer">
-                Publisher record / DOI <ArrowUpRight size={12} />
-              </a>
+            {paper.publicationType === 'Preprint' ||
+            paper.publicationType === 'Includes preprint version' ? (
+              <span>Includes preprint</span>
             ) : null}
           </div>
         </div>
       </div>
-      {body.length ? (
-        <div className="body-preview">
-          <strong>Article body retrieved · {body.length} paragraphs</strong>
-          <p>
-            {body[0].text.slice(0, 240)}
-            {body[0].text.length > 240 ? '…' : ''}
-          </p>
+      <div className="paper-quick-actions">
+        {body.length ? (
           <button
-            className="secondary"
+            className="text-button"
             disabled={disabled}
             onClick={() => {
               if (!selected) onToggle?.();
@@ -129,38 +78,104 @@ export function PaperRow({
           >
             Read article body
           </button>
-        </div>
-      ) : null}
-      {paper.abstract ? (
-        <details className="abstract">
-          <summary>Abstract preview (not the article body)</summary>
-          <p>{paper.abstract}</p>
-          <p className="muted">
-            {paper.fullText
-              ? 'This panel shows the abstract; retrieved article-body text is available in the comparison.'
-              : 'Abstract only. Body text has not been retrieved yet. Selecting a supported record starts retrieval.'}
-          </p>
-        </details>
-      ) : (
-        <p className="missing">
-          No abstract available. Metadata alone cannot support a connection.
-        </p>
-      )}
-      {onLoad && canLoadFullText(paper) ? (
-        <button
-          className="secondary text-load"
-          onClick={onLoad}
-          disabled={textBusy}
-        >
-          {textBusy ? <Busy>Retrieving text</Busy> : 'Retrieve free full text'}
-        </button>
-      ) : null}
-      {paper.fullText ? (
-        <p className="text-loaded">
-          Article-body text is ready in “Compare source text”.
+        ) : onLoad && canLoadFullText(paper) ? (
+          <button className="text-button" onClick={onLoad} disabled={textBusy}>
+            {textBusy ? (
+              <Busy>Retrieving text</Busy>
+            ) : (
+              'Retrieve free full text'
+            )}
+          </button>
+        ) : null}
+        <a href={paper.url} target="_blank" rel="noreferrer">
+          Source record <ArrowUpRight size={12} />
+        </a>
+      </div>
+      {textBusy && body.length ? (
+        <p role="status">
+          <Busy>Retrieving text</Busy>
         </p>
       ) : null}
       {textError ? <Notice error>{textError}</Notice> : null}
+      <details className="paper-details">
+        <summary>Paper details</summary>
+        <dl className="paper-facts">
+          <div>
+            <dt>Authors</dt>
+            <dd>{paper.authors.join(', ') || 'Unavailable'}</dd>
+          </div>
+          <div>
+            <dt>Found in</dt>
+            <dd>{providers.join(' + ')}</dd>
+          </div>
+          <div>
+            <dt>Source ID</dt>
+            <dd>
+              <code>{paper.id}</code>
+            </dd>
+          </div>
+        </dl>
+        {paper.abstract ? (
+          <details className="abstract">
+            <summary>Abstract only</summary>
+            <p>{paper.abstract}</p>
+          </details>
+        ) : (
+          <p className="missing">No abstract available.</p>
+        )}
+        {body.length ? (
+          <details className="body-preview">
+            <summary>
+              Article-body preview · {body.length} paragraphs retrieved
+            </summary>
+            <p>
+              {body[0].text.slice(0, 240)}
+              {body[0].text.length > 240 ? '…' : ''}
+            </p>
+          </details>
+        ) : null}
+        <div className="free-copy-links">
+          {(paper.freeCopies ?? []).slice(0, 3).map((copy) => (
+            <a key={copy.url} href={copy.url} target="_blank" rel="noreferrer">
+              Free {copy.format === 'PDF' ? 'PDF' : 'copy'}{' '}
+              <ArrowUpRight size={12} />
+              <span>{copy.via}</span>
+            </a>
+          ))}
+        </div>
+        {paper.doi ? (
+          <a href={paper.doi} target="_blank" rel="noreferrer">
+            Publisher record / DOI <ArrowUpRight size={12} />
+          </a>
+        ) : null}
+        {paper.sources && paper.sources.length > 1 ? (
+          <details className="version-links">
+            <summary>Grouped versions ({paper.sources.length})</summary>
+            <p>
+              Shared identifiers group these records; manuscript text may
+              differ.
+            </p>
+            {paper.sources.map((source) => (
+              <a
+                key={`${source.provider}:${source.id}`}
+                href={source.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {source.provider}: {source.id}
+              </a>
+            ))}
+          </details>
+        ) : null}
+        {paper.fullText ? (
+          <p className="muted">{paper.fullText.note}</p>
+        ) : (
+          <p className="muted">
+            Article-body text has not been imported. Free-copy links open the
+            original.
+          </p>
+        )}
+      </details>
     </article>
   );
 }
@@ -228,8 +243,7 @@ export function PaperPanel({
         </span>
       </div>
       <p className="collection-note">
-        Search your focus across free papers: arXiv · Europe PMC / PubMed
-        Central · OpenAlex, including repository links.
+        Find relevant papers, then choose the sources to explore.
       </p>
       <form
         className="search-form"
@@ -386,18 +400,14 @@ export function PaperPanel({
           Reset filters
         </button>
       </details>
-      <p className="panel-footnote resource-planning-note">
-        Resource notes guide hypothesis and experiment planning. They do not
-        hide papers.
-      </p>
+
       {verification.running ? (
         <Notice>
           <Busy>
             Checking article text: {verification.checked} of{' '}
             {verification.total}
           </Busy>{' '}
-          Retrieved papers appear as soon as they are ready. Checks are limited
-          to 12 records per batch.
+          Ready papers appear as text arrives.
         </Notice>
       ) : null}
       {papers.length > 0 ? (
@@ -431,22 +441,35 @@ export function PaperPanel({
         </details>
       ) : null}
       {sourceStatuses.length ? (
-        <div className="source-statuses" aria-label="Search collection status">
-          {sourceStatuses.map((s) => (
-            <div
-              key={s.source}
-              className={s.status === 'error' ? 'source-failed' : ''}
-            >
-              <strong>{s.source}</strong>
-              <span>
-                {s.status === 'ok'
-                  ? `${s.count} free-linked records`
-                  : 'Unavailable — search incomplete'}
-              </span>
-              {s.message ? <p>{s.message}</p> : null}
-            </div>
-          ))}
-        </div>
+        <details className="collection-details">
+          <summary>
+            Search collections ·{' '}
+            {sourceStatuses.filter((source) => source.status === 'ok').length}{' '}
+            of {sourceStatuses.length} available
+            {sourceStatuses.some((source) => source.status === 'error')
+              ? ' · search incomplete'
+              : ''}
+          </summary>
+          <div
+            className="source-statuses"
+            aria-label="Search collection status"
+          >
+            {sourceStatuses.map((source) => (
+              <div
+                key={source.source}
+                className={source.status === 'error' ? 'source-failed' : ''}
+              >
+                <strong>{source.source}</strong>
+                <span>
+                  {source.status === 'ok'
+                    ? `${source.count} free-linked records`
+                    : 'Unavailable — search incomplete'}
+                </span>
+                {source.message ? <p>{source.message}</p> : null}
+              </div>
+            ))}
+          </div>
+        </details>
       ) : null}
       {selected.length ? (
         <div className="selection-tray" aria-label="Selected papers">
@@ -461,8 +484,7 @@ export function PaperPanel({
             </button>
           ))}
           <span className="selection-note">
-            Filters change search results; selected papers stay until you remove
-            their chips.
+            Selection is kept when you search again.
           </span>
         </div>
       ) : null}
@@ -529,9 +551,8 @@ export function PaperPanel({
         </Empty>
       ) : null}
       <p className="panel-footnote">
-        Free links are reported by the source and may change. Not every free
-        paper is indexed, and not every free copy can be imported here. Your
-        selection stays while you search.
+        Coverage varies by source. Use the original paper to check omitted
+        material.
       </p>
     </section>
   );
