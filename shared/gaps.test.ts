@@ -30,6 +30,32 @@ function paper(
   };
 }
 describe('free source-led gap candidates', () => {
+  it('chooses a concrete follow-up later in a limitations paragraph over its generic introduction', () => {
+    // Synthetic reproduction of the reported paragraph structure; no real paper record.
+    const vague =
+      'While active music combined with exercise has been applied in rehabilitation research, several limitations persist (Example et al. 2022).';
+    const specific =
+      'Current evidence cannot determine whether combined effects are additive; future studies should employ factorial designs and interaction analyses.';
+    const text = `${vague} First, the sample is limited. ${specific}`;
+    const result = scanGapLeads(
+      [
+        paper('SYNTHETIC_DETAIL', [
+          {
+            text,
+            kind: 'full-text',
+            section: 'Limitations and Future Directions',
+          },
+        ]),
+      ],
+      'music exercise combined effects',
+      'Rehabilitation',
+    );
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0].signalText).toBe(specific);
+    expect(result.candidates[0].quote).toBe(text);
+    expect(result.candidates[0].category).toBe('future-work');
+    expect(result.candidates[0].passageId).toBe('SYNTHETIC_DETAIL:test:0');
+  });
   it('returns exact stored passage quotations and resolvable source references', () => {
     const source = paper();
     const result = scanGapLeads(

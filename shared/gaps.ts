@@ -64,28 +64,59 @@ const negativeFuture =
 const sectionLimitationDetail =
   /\b(?:small|short|single|limited|lack|only|bias|unable|unavailable|uncertain|unknown)\b|\b(?:could|did) not\b/i;
 
+const concreteIssue =
+  /\b(?:sample|cohort|population|long[-‐– ]term|randomi[sz]ed|factorial|interaction|mechanisms?|insufficient|lack|limited to|did not|have not|has not|cannot determine|could not|unable)\b/i;
+/** Domain words alone do not turn an introductory limitation notice into a
+ * testable issue. Exact source evidence remains unchanged. */
+export function isGenericGapNotice(text: string): boolean {
+  return (
+    /\blimitations?\s+(?:(?:still|remain(?:s)?)\s+)?(?:persist|remain|exist)|\b(?:has|have)\s+(?:some|several|various)\s+limitations?\b/i.test(
+      text,
+    ) && !concreteIssue.test(text)
+  );
+}
 function signal(
   passage: Passage,
 ): { category: GapLead['category']; text: string } | null {
   if (excludedSection.test(passage.section ?? '')) return null;
+  const candidates: {
+    category: GapLead['category'];
+    text: string;
+    priority: number;
+  }[] = [];
   for (const item of new Intl.Segmenter('en', {
     granularity: 'sentence',
   }).segment(passage.text)) {
     const sentence = item.segment.trim();
     if (sentence.length < 20) continue;
+    let category: GapLead['category'] | null = null;
     if (futureSignal.test(sentence) && !negativeFuture.test(sentence))
-      return { category: 'future-work', text: sentence };
-    if (unresolvedSignal.test(sentence))
-      return { category: 'unanswered-question', text: sentence };
-    if (
+      category = 'future-work';
+    else if (unresolvedSignal.test(sentence)) category = 'unanswered-question';
+    else if (
       !negativeLimitation.test(sentence) &&
       (limitationSignal.test(sentence) ||
         (/\blimitations?\b/i.test(passage.section ?? '') &&
           sectionLimitationDetail.test(sentence)))
     )
-      return { category: 'reported-limitation', text: sentence };
+      category = 'reported-limitation';
+    if (category)
+      candidates.push({
+        category,
+        text: sentence,
+        priority:
+          (isGenericGapNotice(sentence) ? -20 : 0) +
+          (concreteIssue.test(sentence) ? 3 : 0) +
+          (category === 'future-work'
+            ? 2
+            : category === 'unanswered-question'
+              ? 1
+              : 0),
+      });
   }
-  return null;
+  candidates.sort((a, b) => b.priority - a.priority);
+  const best = candidates[0];
+  return best ? { category: best.category, text: best.text } : null;
 }
 const labels: Record<GapLead['category'], string> = {
   'reported-limitation': 'Author-reported limitation',

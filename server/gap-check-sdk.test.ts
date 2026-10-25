@@ -44,6 +44,13 @@ it('uses the configured official SDK, reports usage and separates untrusted stri
   });
   const result = await assessGapResearch(gap, examplePapers);
   const payload = sdk.parse.mock.calls[0][0];
+  expect(payload.instructions).toContain(
+    'do not silently add requirements for a new empirical follow-up',
+  );
+  expect(payload.instructions).toContain('Never state that the gap persists');
+  expect(payload.instructions).toContain(
+    "Describe each candidate's own investigated question",
+  );
   expect(payload.store).toBe(false);
   expect(payload.model).toBe('gpt-4.1-mini');
   expect(payload.instructions).not.toContain(gap.question);

@@ -119,6 +119,30 @@ const candidate: Paper = {
     },
   ],
 };
+const uncertainCandidate: Paper = {
+  ...candidate,
+  id: 'synthetic:unclear',
+  title: 'SYNTHETIC Unclear related study',
+  passages: [
+    {
+      ...candidate.passages[0],
+      id: 'synthetic:unclear:p',
+      text: 'SYNTHETIC abstract reports sleep measurements but does not describe a memory outcome.',
+    },
+  ],
+};
+const differentCandidate: Paper = {
+  ...candidate,
+  id: 'synthetic:different',
+  title: 'SYNTHETIC Different outcome study',
+  passages: [
+    {
+      ...candidate.passages[0],
+      id: 'synthetic:different:p',
+      text: 'SYNTHETIC abstract examines sleep and physical coordination, not memory recall.',
+    },
+  ],
+};
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
   args: ['--no-sandbox'],
@@ -173,7 +197,12 @@ await page.route('**/api/**', async (route) => {
         mode === 'manual' || mode === 'failure'
           ? 'SYNTHETIC AI assessment has not been completed; candidates require manual review.'
           : 'SYNTHETIC mocked assessment, not a live AI response.',
-      candidates: mode === 'empty' ? [] : [candidate],
+      candidates:
+        mode === 'empty'
+          ? []
+          : mode === 'part'
+            ? [candidate, uncertainCandidate, differentCandidate]
+            : [candidate],
       matches:
         mode === 'manual' || mode === 'failure' || mode === 'empty'
           ? []
@@ -206,6 +235,36 @@ await page.route('**/api/**', async (route) => {
       reviewed: false,
       decision: null,
     };
+    if (mode === 'part')
+      result.matches.push(
+        {
+          paperId: uncertainCandidate.id,
+          question: 'SYNTHETIC sleep measurements',
+          establishes: 'The abstract describes measurements only.',
+          addresses: 'unclear',
+          uncertainty:
+            'Memory outcomes are unavailable; relevance cannot be resolved.',
+          evidence: [
+            {
+              paperId: uncertainCandidate.id,
+              passageId: uncertainCandidate.passages[0].id,
+            },
+          ],
+        },
+        {
+          paperId: differentCandidate.id,
+          question: 'SYNTHETIC sleep and coordination',
+          establishes: 'The reported outcome is coordination.',
+          addresses: 'different',
+          uncertainty: 'This outcome does not answer memory recall.',
+          evidence: [
+            {
+              paperId: differentCandidate.id,
+              passageId: differentCandidate.passages[0].id,
+            },
+          ],
+        },
+      );
     last = result;
     if (delayNext) {
       delayNext = false;
@@ -442,6 +501,24 @@ try {
     await page.evaluate(() => document.activeElement?.id),
     'selected-gap-check',
   );
+  const uncertainMatch = check().locator(
+    `details.gap-check-match[data-paper-id="${uncertainCandidate.id}"]`,
+  );
+  await uncertainMatch.locator(':scope > summary').click();
+  await uncertainMatch
+    .getByText(
+      'Memory outcomes are unavailable; relevance cannot be resolved.',
+      { exact: true },
+    )
+    .waitFor();
+  await uncertainMatch.locator(':scope > summary').click();
+  assert.equal(
+    await check()
+      .getByRole('button', { name: 'Confirm review & continue', exact: true })
+      .isEnabled(),
+    true,
+    'Partial evidence stays reviewable despite other uncertain/different matches',
+  );
   const match = check().locator('details.gap-check-match').first();
   assert.equal(
     await match.evaluate((e) => (e as HTMLDetailsElement).open),
@@ -453,7 +530,7 @@ try {
     fullPage: true,
   });
   await match.locator(':scope > summary').click();
-  await check().getByText('Supporting passages · 1', { exact: true }).click();
+  await match.getByText('Supporting passages · 1', { exact: true }).click();
   await check()
     .getByText(candidate.passages[0].text, { exact: true })
     .waitFor();
@@ -523,6 +600,28 @@ try {
   await check()
     .getByRole('button', { name: 'Confirm review & continue', exact: true })
     .click();
+  mode = 'part';
+  const rerun = check().getByText('Run another check', { exact: true });
+  await rerun.click();
+  await check()
+    .getByRole('button', { name: 'Check existing research again', exact: true })
+    .click();
+  await check()
+    .getByText('Related work addresses part of this gap', { exact: true })
+    .waitFor();
+  await check()
+    .getByRole('button', { name: 'Confirm review & continue', exact: true })
+    .click();
+  const reviewedUncertainty = check().locator(
+    `details.gap-check-match[data-paper-id="${uncertainCandidate.id}"]`,
+  );
+  await reviewedUncertainty.locator(':scope > summary').click();
+  await reviewedUncertainty
+    .getByText(
+      'Memory outcomes are unavailable; relevance cannot be resolved.',
+      { exact: true },
+    )
+    .waitFor();
   const generate = page.getByRole('button', {
     name: 'Generate hypothesis',
     exact: true,
@@ -538,10 +637,20 @@ try {
     document.body.textContent?.includes('SYNTHETIC selected hypothesis'),
   );
   assert.equal(calls.analysis, 1);
+  assert.equal(
+    await reviewedUncertainty
+      .getByText(
+        'Memory outcomes are unavailable; relevance cannot be resolved.',
+        { exact: true },
+      )
+      .isVisible(),
+    true,
+    'Uncertain matches remain inspectable after successful generation',
+  );
   assert.equal(analyzed.checkId, last?.checkId);
   assert.deepEqual(analyzed.gap, last?.gap);
   // The generated finding inherits its reviewed source-gap check; no second charge.
-  assert.equal(calls.check, 2);
+  assert.equal(calls.check, 3);
   const generated = page.getByRole('article', {
     name: 'Generated hypothesis',
     exact: true,

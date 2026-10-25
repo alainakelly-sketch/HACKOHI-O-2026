@@ -151,6 +151,21 @@ describe('canonical gap findings shared by list and map', () => {
       'without specifying a useful unresolved point',
     );
   });
+  it('does not mistake a domain-specific introductory limitation notice for a specific gap', () => {
+    const text =
+      'While active music combined with exercise has been applied in rehabilitation research, several limitations persist (Example et al. 2022).';
+    const source = paper();
+    source.passages[1].text = text;
+    const [finding] = buildGapFindings(
+      [lead({ signalText: text, quote: text })],
+      null,
+      '',
+      [source],
+    );
+    expect(finding.ready).toBe(false);
+    expect(finding.title).toBe('Insufficient detail for a candidate gap');
+    expect(finding.unresolved).toBe(text);
+  });
   it('does not treat a background problem as a current open gap', () => {
     const [finding] = buildGapFindings(
       [lead({ section: 'Background' })],

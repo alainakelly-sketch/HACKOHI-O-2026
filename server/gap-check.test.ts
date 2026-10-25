@@ -3,7 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from './app';
 import { normalizeWork } from './openalex';
-import { performGapCheck, validateGapAssessment } from './gap-check';
+import {
+  performGapCheck,
+  validateGapAssessment,
+  gapCheckQueries,
+} from './gap-check';
 import { gapCheckScopeKey } from '../shared/gap-check';
 import { syntheticAssessor, reviewedCheck } from './gap-check-test-fixtures';
 import type { GapCheckGap } from '../shared/gap-check';
@@ -255,5 +259,151 @@ describe('server enforces chosen-gap check and explicit review', () => {
       .send({ ...input, decision: 'replication' });
     expect(review.status).toBe(200);
     expect(review.body.decision).toBe('replication');
+  });
+});
+
+describe('mixed candidate judgments do not erase supported related work', () => {
+  const mixed = (positive: 'all' | 'part' | 'unclear') => async () => {
+    const output = await syntheticAssessor(gap, papers);
+    return {
+      ...output,
+      summary: 'SYNTHETIC forbidden overclaim: the gap persists.',
+      matches: output.matches.map((match, index) => ({
+        ...match,
+        addresses:
+          index === 0
+            ? positive
+            : index === 1
+              ? ('unclear' as const)
+              : ('different' as const),
+      })),
+    };
+  };
+  it.each([
+    ['part', 'Related work addresses part of this gap'],
+    ['all', 'Existing research may address this gap'],
+  ] as const)(
+    'preserves %s evidence with an unclear and different candidate',
+    async (positive, status) => {
+      const result = await performGapCheck(
+        brief,
+        input.paperIds,
+        gap,
+        search,
+        mixed(positive),
+      );
+      expect(result.aiCompleted).toBe(true);
+      expect(result.status).toBe(status);
+      expect(result.summary).toContain('1 candidate remains inconclusive');
+      expect(result.summary).not.toContain('the gap persists');
+      expect(result.matches.map((m) => m.addresses)).toEqual([
+        positive,
+        'unclear',
+        'different',
+        'different',
+      ]);
+    },
+  );
+  it('keeps all-unclear candidates incomplete', async () => {
+    const assessor = async () => {
+      const out = await syntheticAssessor(gap, papers);
+      return {
+        ...out,
+        matches: out.matches.map((m) => ({
+          ...m,
+          addresses: 'unclear' as const,
+        })),
+      };
+    };
+    expect(
+      (await performGapCheck(brief, input.paperIds, gap, search, assessor))
+        .status,
+    ).toBe('Check incomplete or inconclusive');
+  });
+  it('keeps a failed search incomplete even when a candidate partially answers the question', async () => {
+    const partialSearch = async (q: string) => ({
+      ...(await search(q)),
+      sourceStatuses: [
+        {
+          source: 'OpenAlex' as const,
+          status: 'error' as const,
+          count: 4,
+          message: 'Synthetic collection unavailable',
+        },
+      ],
+    });
+    const result = await performGapCheck(
+      brief,
+      input.paperIds,
+      gap,
+      partialSearch,
+      mixed('part'),
+    );
+    expect(result.aiCompleted).toBe(true);
+    expect(result.matches[0].addresses).toBe('part');
+    expect(result.status).toBe('Check incomplete or inconclusive');
+  });
+  it.each(['part', 'all'] as const)(
+    'reviews and develops mixed %s evidence with authoritative context',
+    async (positive) => {
+      const analyze = vi.fn().mockResolvedValue({
+        origin: 'live',
+        status: 'insufficient',
+        summary: 'Synthetic',
+        hypotheses: [],
+      });
+      const app = createApp({ search, assessGap: mixed(positive), analyze });
+      await request(app).get('/api/search?q=test');
+      const result = await request(app).post('/api/gap-check').send(input);
+      expect(result.status).toBe(200);
+      const decision = positive === 'all' ? 'extension' : 'continue';
+      const review = await request(app)
+        .post(`/api/gap-check/${result.body.checkId}/review`)
+        .send({ ...input, decision });
+      expect(review.status).toBe(200);
+      const response = await request(app)
+        .post('/api/analyze')
+        .send({ ...input, checkId: result.body.checkId });
+      expect(response.status).toBe(200);
+      expect(analyze.mock.calls[0][3]).toMatchObject({
+        reviewed: true,
+        decision,
+        status:
+          positive === 'all'
+            ? 'Existing research may address this gap'
+            : 'Related work addresses part of this gap',
+      });
+      expect(analyze.mock.calls[0][3].matches[1].addresses).toBe('unclear');
+      expect(analyze.mock.calls[0][3].summary).toContain('inconclusive');
+    },
+  );
+});
+
+describe('focused gap-check query cleanup', () => {
+  it('removes follow-up boilerplate and citation authors while retaining focus and concrete gap concepts', () => {
+    const question =
+      'What follow-up study could address “While active music combined with exercise has been applied in rehabilitation research, several limitations persist (Schneider et al. 2022a). Future studies should use factorial designs to compare additive and super-additive outcomes”?';
+    const queries = gapCheckQueries(
+      { ...gap, question },
+      {
+        ...brief,
+        question: 'How do music and exercise affect brain health?',
+        field: 'Neuroscience',
+      },
+    );
+    expect(queries.length).toBeGreaterThan(0);
+    expect(queries.length).toBeLessThanOrEqual(2);
+    for (const query of queries) {
+      expect(query).toContain('music');
+      expect(query).toContain('exercise');
+      expect(query).not.toMatch(
+        /follow-up study could address|schneider|2022|[“”]/i,
+      );
+      expect(query.length).toBeLessThanOrEqual(240);
+    }
+    expect(queries.join(' ')).toContain('factorial');
+    expect(queries.join(' ')).toContain('rehabilitation');
+    expect(queries.join(' ')).toContain('combined');
+    expect(queries.join(' ')).toContain('musical');
   });
 });

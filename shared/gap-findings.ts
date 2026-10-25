@@ -1,5 +1,5 @@
 import type { Analysis, Citation, Paper, Passage } from './types';
-import type { GapLead } from './gaps';
+import { isGenericGapNotice, type GapLead } from './gaps';
 
 /** One view model shared by the findings list and supplementary map. Source
  * records and citation IDs remain authoritative; this adapter never runs AI. */
@@ -70,6 +70,7 @@ function issueLabel(text: string): string {
   return trimmed || text.trim();
 }
 function specificIssue(text: string): boolean {
+  if (isGenericGapNotice(text)) return false;
   const detail =
     text
       .toLowerCase()
