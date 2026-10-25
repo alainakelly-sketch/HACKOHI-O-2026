@@ -219,11 +219,6 @@ async function open(name: string) {
     await stage.click();
   if (!['Focus', 'Experiment'].includes(name)) await tab(name).click();
   if (
-    ['AI hypotheses', 'Resources'].includes(name) &&
-    (await page.locator('.gap-development').isVisible())
-  )
-    await expand('Develop a candidate with AI');
-  if (
     name === 'Resources' &&
     (await page.locator('.gap-development').isVisible())
   )
@@ -342,17 +337,23 @@ try {
       .getByLabel(`Select SYNTHETIC TEST PAPER ${i}`, { exact: true })
       .check();
   await open('AI hypotheses');
-  assert.equal(await page.locator('.gap-development').isVisible(), false);
+  assert.equal(await page.locator('.gap-development').isVisible(), true);
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Generate hypothesis', exact: true })
+      .isDisabled(),
+    true,
+  );
   await checkAndReviewSelectedGap();
   await page
-    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .getByRole('button', { name: 'Go to hypothesis', exact: true })
     .click();
   await page
     .getByText('Select 1 more paper (4–6 required).', { exact: false })
     .waitFor();
   assert.equal(
     await page
-      .getByRole('button', { name: 'Develop AI gap hypotheses' })
+      .getByRole('button', { name: 'Generate hypothesis' })
       .isDisabled(),
     true,
   );
@@ -363,7 +364,7 @@ try {
   await open('AI hypotheses');
   await checkAndReviewSelectedGap();
   await page
-    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .getByRole('button', { name: 'Go to hypothesis', exact: true })
     .click();
   await page
     .getByText('Live analysis is off.', { exact: false })
@@ -379,15 +380,15 @@ try {
   ready = true;
   await page.getByRole('button', { name: 'Recheck server readiness' }).click();
   mode = 'error';
-  await generate('Develop AI gap hypotheses');
+  await generate('Generate hypothesis');
   await page
     .getByText('The model provider timed out. Please retry.', { exact: true })
     .waitFor();
   mode = 'insufficient';
-  await generate('Develop AI gap hypotheses');
+  await generate('Generate hypothesis');
   await page.getByText('Insufficient evidence:', { exact: false }).waitFor();
   mode = 'success';
-  await generate('Analyze again');
+  await generate('Generate hypothesis');
   await page
     .getByRole('region', { name: 'Selected gap finding' })
     .getByRole('heading', { name: 'Synthetic test hypothesis', exact: true })
@@ -421,6 +422,7 @@ try {
   );
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page
+    .getByRole('article', { name: 'Generated hypothesis', exact: true })
     .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   assert.equal(
@@ -459,6 +461,7 @@ try {
   );
   await open('AI hypotheses');
   await page
+    .getByRole('article', { name: 'Generated hypothesis', exact: true })
     .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   assert.equal(
@@ -472,8 +475,9 @@ try {
   assert.equal(exported.fields.method, 'Edited synthetic method');
   // A second analysis may reuse a model hypothesis ID; it must get a new draft.
   await open('AI hypotheses');
-  await generate('Analyze again');
+  await generate('Generate hypothesis');
   await page
+    .getByRole('article', { name: 'Generated hypothesis', exact: true })
     .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   assert.equal(
@@ -490,8 +494,9 @@ try {
     .check();
   await checkAndReviewSelectedGap();
   await page
-    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .getByRole('button', { name: 'Go to hypothesis', exact: true })
     .click();
+  await expand('Plan without AI');
   await page
     .getByRole('button', {
       name: 'Draft an experiment without AI',

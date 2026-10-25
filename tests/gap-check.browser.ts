@@ -168,7 +168,10 @@ await page.route('**/api/**', async (route) => {
             : mode === 'manual' || mode === 'failure'
               ? 'Check incomplete or inconclusive'
               : 'Related work addresses part of this gap',
-      summary: 'SYNTHETIC mocked assessment, not a live AI response.',
+      summary:
+        mode === 'manual' || mode === 'failure'
+          ? 'SYNTHETIC AI assessment has not been completed; candidates require manual review.'
+          : 'SYNTHETIC mocked assessment, not a live AI response.',
       candidates: mode === 'empty' ? [] : [candidate],
       matches:
         mode === 'manual' || mode === 'failure' || mode === 'empty'
@@ -354,10 +357,16 @@ try {
   );
   assert.equal(
     await page
-      .getByRole('button', { name: 'Develop AI gap hypotheses', exact: true })
+      .getByRole('button', { name: 'Generate hypothesis', exact: true })
       .isVisible(),
-    false,
-    'Generation controls are absent from the first decision',
+    true,
+    'Hypothesis generation remains discoverable before checking',
+  );
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Generate hypothesis', exact: true })
+      .isDisabled(),
+    true,
   );
   await page.screenshot({
     path: `${output}/gap-default-desktop.png`,
@@ -375,7 +384,7 @@ try {
     .waitFor();
   assert.equal(
     await check()
-      .getByRole('button', { name: 'Develop hypothesis', exact: true })
+      .getByRole('button', { name: 'Go to hypothesis', exact: true })
       .count(),
     0,
   );
@@ -415,7 +424,7 @@ try {
     .getByRole('button', { name: 'I have reviewed this check', exact: true })
     .click();
   await check()
-    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .getByRole('button', { name: 'Go to hypothesis', exact: true })
     .waitFor();
   await editGap();
   await check()
@@ -423,7 +432,7 @@ try {
     .waitFor();
   assert.equal(
     await check()
-      .getByRole('button', { name: 'Develop hypothesis', exact: true })
+      .getByRole('button', { name: 'Go to hypothesis', exact: true })
       .count(),
     0,
   );
@@ -439,14 +448,16 @@ try {
   await check()
     .getByRole('button', { name: 'I have reviewed this check', exact: true })
     .click();
-  await check()
-    .getByRole('button', { name: 'Develop hypothesis', exact: true })
-    .click();
   const generate = page.getByRole('button', {
-    name: 'Develop AI gap hypotheses',
+    name: 'Generate hypothesis',
     exact: true,
   });
   await generate.waitFor();
+  assert.equal(
+    await generate.isEnabled(),
+    true,
+    'Reviewed selected gap permits direct generation without navigation CTA',
+  );
   await generate.click();
   await page.waitForFunction(() =>
     document.body.textContent?.includes('SYNTHETIC selected hypothesis'),
@@ -456,7 +467,22 @@ try {
   assert.deepEqual(analyzed.gap, last?.gap);
   // The generated finding inherits its reviewed source-gap check; no second charge.
   assert.equal(calls.check, 2);
-  await check()
+  const generated = page.getByRole('article', {
+    name: 'Generated hypothesis',
+    exact: true,
+  });
+  await generated.waitFor();
+  assert.equal(
+    await generated
+      .getByText(analysis.hypotheses[0].hypothesis, { exact: true })
+      .isVisible(),
+    true,
+  );
+  await page.screenshot({
+    path: `${output}/generated-hypothesis-desktop.png`,
+    fullPage: true,
+  });
+  await generated
     .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   await page
@@ -514,6 +540,7 @@ try {
     } else {
       await check()
         .getByText(/AI assessment has not been completed/)
+        .first()
         .waitFor();
       await check().locator('.gap-check-manual > summary').click();
       await check().getByText(candidate.title, { exact: true }).waitFor();

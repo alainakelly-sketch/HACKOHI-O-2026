@@ -40,7 +40,11 @@ export function GapFindings({
 }) {
   const finding = findings.find((item) => item.id === selectedId) ?? null;
   return (
-    <section className="gap-findings" aria-labelledby="gap-findings-title">
+    <section
+      id="gap-findings"
+      className="gap-findings"
+      aria-labelledby="gap-findings-title"
+    >
       <h2 id="gap-findings-title">Choose a gap to investigate</h2>
       {!findings.length ? (
         <div className="finding-empty">

@@ -488,7 +488,7 @@ try {
   // AI development remains an explicit, separately billed action, mocked here.
   await checkAndReviewSelectedGap();
   const develop = selected.getByRole('button', {
-    name: 'Develop hypothesis',
+    name: 'Go to hypothesis',
     exact: true,
   });
   await develop.click();
@@ -498,7 +498,7 @@ try {
     'Selecting development context must not auto-generate',
   );
   const generate = page.getByRole('button', {
-    name: 'Develop AI gap hypotheses',
+    name: 'Generate hypothesis',
     exact: true,
     includeHidden: true,
   });
@@ -569,7 +569,14 @@ try {
     true,
     'Full inspector must preserve the selected AI candidate',
   );
-  await selected
+  const generated = page.getByRole('article', {
+    name: 'Generated hypothesis',
+    exact: true,
+  });
+  await generated
+    .getByText(analysis.hypotheses[0].hypothesis, { exact: true })
+    .waitFor();
+  await generated
     .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   await page

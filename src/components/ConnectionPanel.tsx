@@ -86,7 +86,11 @@ export function ConnectionPanel({
           ) : (
             <>
               <GitBranch size={15} />
-              {analysis ? 'Analyze again' : 'Develop AI gap hypotheses'}
+              {generationOnly
+                ? 'Generate hypothesis'
+                : analysis
+                  ? 'Analyze again'
+                  : 'Develop AI gap hypotheses'}
             </>
           )}
         </button>

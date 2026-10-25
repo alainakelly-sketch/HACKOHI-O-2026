@@ -256,7 +256,7 @@ The header uses the exact original `public/paperbridge-logo.png` asset, includin
 
 ## Navigation and planning context
 
-Only four primary steps are visible: Focus, Papers, Find gaps and Experiment. Papers has two existing-tool views; Find gaps has exactly two views. Resources and AI development are contextual disclosures in Gap findings, not separate dashboards. Editing resources never filters papers or generates a result. Token/cost controls stay with explicit AI generation, including unknown-cost handling. Session state is held at the root; export work before refreshing.
+Only four primary steps are visible: Focus, Papers, Find gaps and Experiment. Papers has two existing-tool views; Find gaps has exactly two views. Hypothesis development is a visible section in Gap findings, with direct links between choosing a gap and developing a hypothesis. Resources remain an optional disclosure. Editing resources never filters papers or generates a result. Token/cost controls stay with explicit AI generation, including unknown-cost handling. Session state is held at the root; export work before refreshing.
 
 ## Summary-first layout
 
@@ -272,6 +272,6 @@ In **Find gaps → Gap findings**, select a candidate and review its question. C
 
 Read the status and closest studies, expand supporting passages, then choose how to use the check and confirm that you reviewed it. A study that may already address the question requires an explicit replication or extension choice. A no-close-match result is limited to the completed searches and does not establish novelty. Missing providers, text or AI assessment remain incomplete. A fully successful search with zero candidates needs no paid assessment.
 
-After review, develop the hypothesis. The backend requires the matching reviewed check and includes its assessment in generation. Editing the gap or research scope requires another check; checks also expire and are invalidated by changed source text. Resource notes guide planning without restarting literature discovery. Existing experiment edits remain available, with affected drafts flagged for review.
+The visible **Develop hypothesis** section includes **Generate hypothesis**. After reviewing the check, click that button to generate directly; no preparatory disclosure is required. The generated hypothesis and **Plan experiment** stay visible in that section. The backend requires the matching reviewed check and includes its assessment in generation. Editing the gap or research scope requires another check; checks also expire and are invalidated by changed source text. Resource notes guide planning without restarting literature discovery. Existing experiment edits remain available, with affected drafts flagged for review.
 
 Research checks are held in server memory and drafts in browser session state. Export your work before refreshing or restarting. No new account, database or billing setup is required.

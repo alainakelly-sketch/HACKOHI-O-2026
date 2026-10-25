@@ -30,7 +30,6 @@ export function GapResearchCheck({
   onCheck,
   onReview,
   onDevelop,
-  onPlan,
   aiAvailable,
   onInspect,
 }: {
@@ -387,14 +386,12 @@ export function GapResearchCheck({
               <button
                 type="button"
                 className="primary"
-                onClick={
-                  finding.origin === 'author-stated' ? onDevelop : onPlan
-                }
+                onClick={onDevelop}
                 disabled={busy || reviewBusy}
               >
                 {finding.origin === 'author-stated'
-                  ? 'Develop hypothesis'
-                  : 'Plan experiment'}
+                  ? 'Go to hypothesis'
+                  : 'View hypothesis'}
               </button>
               <details>
                 <summary>Run another check</summary>

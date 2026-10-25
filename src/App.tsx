@@ -240,7 +240,6 @@ export default function App() {
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(
     null,
   );
-  const [developmentOpen, setDevelopmentOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [gapQuestions, setGapQuestions] = useState<Record<string, string>>({});
   const [gapBindings, setGapBindings] = useState<Record<string, GapCheckGap>>(
@@ -257,9 +256,6 @@ export default function App() {
     {},
   );
   const gapCheckRuns = useRef(new Map<string, number>());
-  const [developmentFindingId, setDevelopmentFindingId] = useState<
-    string | null
-  >(null);
   const findings = useMemo(
     () =>
       buildGapFindings(gapScan.candidates, analysis, analysisId, selected).map(
@@ -329,7 +325,6 @@ export default function App() {
     );
     setGapCheckBusy((items) => ({ ...items, [finding.id]: false }));
     setGapReviewBusy((items) => ({ ...items, [finding.id]: false }));
-    setDevelopmentOpen(false);
     if (analysisBusy) {
       generation.current++;
       analysisController.current?.abort();
@@ -505,7 +500,6 @@ export default function App() {
       );
       setGapCheckBusy((items) => ({ ...items, [previous]: false }));
       setGapReviewBusy((items) => ({ ...items, [previous]: false }));
-      setDevelopmentOpen(false);
       if (analysisBusy) {
         generation.current++;
         analysisController.current?.abort();
@@ -518,7 +512,6 @@ export default function App() {
   }
   function developFinding(finding: GapFinding) {
     if (!checkIsReviewed(finding)) return;
-    setDevelopmentFindingId(finding.id);
     setSelectedFindingId(finding.id);
     startDiscoveryHypothesis({
       id: finding.id,
@@ -528,7 +521,6 @@ export default function App() {
       sources: finding.evidence,
       searchQuery: finding.sourceLead?.searchQuery ?? finding.title,
     });
-    setDevelopmentOpen(true);
     requestAnimationFrame(() => {
       const panel = document.getElementById('gap-development');
       panel?.focus({ preventScroll: true });
@@ -880,7 +872,7 @@ export default function App() {
     );
   }
   async function runAnalysis() {
-    const finding = findings.find((item) => item.id === developmentFindingId);
+    const finding = selectedFinding;
     if (
       !finding ||
       !checkIsReviewed(finding) ||
@@ -1316,6 +1308,13 @@ export default function App() {
             hidden={activeNav !== 'gaps'}
             tabIndex={0}
           >
+            <nav
+              className="gap-step-links"
+              aria-label="Gap and hypothesis steps"
+            >
+              <a href="#gap-findings">1. Choose a gap</a>
+              <a href="#gap-development">2. Develop hypothesis ↓</a>
+            </nav>
             <GapFindings
               onGoPapers={() => setActiveNav('papers')}
               onIncludeAbstracts={
@@ -1368,6 +1367,93 @@ export default function App() {
               onInspectHypothesis={(id) => choose(id, true)}
               field={brief.field}
             />
+            <section
+              className="gap-development"
+              id="gap-development"
+              tabIndex={-1}
+              aria-labelledby="hypothesis-step-title"
+            >
+              <h2 id="hypothesis-step-title">Develop hypothesis</h2>
+              <p className="muted">
+                Check and review your chosen gap above, then generate a testable
+                hypothesis.
+              </p>
+              {selectedFinding ? (
+                <p className="hypothesis-selected-question">
+                  <strong>Selected question</strong> {selectedFinding.question}
+                </p>
+              ) : (
+                <p>Select papers and choose a gap to begin.</p>
+              )}
+              {hypothesis && selectedFinding?.hypothesisId === hypothesis.id ? (
+                <article
+                  className="visible-hypothesis"
+                  aria-label="Generated hypothesis"
+                >
+                  <p className="muted">
+                    {analysis?.origin === 'saved-example'
+                      ? 'Saved example · manually prepared'
+                      : 'AI-generated · untested hypothesis'}
+                  </p>
+                  <h3>{hypothesis.title}</h3>
+                  <p>{hypothesis.hypothesis}</p>
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => planFinding(selectedFinding)}
+                    disabled={!checkIsReviewed(selectedFinding)}
+                  >
+                    Plan experiment
+                  </button>
+                </article>
+              ) : null}
+              <details
+                className="gap-resources"
+                open={resourcesOpen}
+                onToggle={(event) => setResourcesOpen(event.currentTarget.open)}
+              >
+                <summary>Planning resources · optional</summary>
+                <ResourcesPanel
+                  embedded
+                  resources={brief.resources}
+                  onChange={onResources}
+                  onContinue={() => setResourcesOpen(false)}
+                />
+              </details>
+              <ConnectionPanel
+                generationOnly
+                researchCheckReady={
+                  !!selectedFinding && checkIsReviewed(selectedFinding)
+                }
+                brief={brief}
+                analysis={analysis}
+                activeId={activeId}
+                health={health}
+                count={selected.length}
+                busy={analysisBusy}
+                error={analysisError}
+                onAnalyze={runAnalysis}
+                onSelect={choose}
+                papers={selected}
+                onRecheck={recheckHealth}
+                readinessBusy={readinessBusy}
+                resourcesChanged={
+                  !!analysis && analysisResourceRevision !== resourceRevision
+                }
+              />
+              {selectedFinding && checkIsReviewed(selectedFinding) ? (
+                <details className="hypothesis-manual-alternative">
+                  <summary>Plan without AI</summary>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => planFinding(selectedFinding)}
+                  >
+                    Draft an experiment without AI
+                  </button>
+                </details>
+              ) : null}
+            </section>
             <details className="gap-source-settings">
               <summary>Evidence scope & retrieval</summary>
               <label htmlFor="gap-evidence-scope">Evidence to scan</label>
@@ -1405,85 +1491,6 @@ export default function App() {
                   source statuses in Papers.
                 </Notice>
               ) : null}
-            </details>
-            <details
-              className="gap-development"
-              id="gap-development"
-              tabIndex={-1}
-              hidden={!developmentOpen}
-              open={developmentOpen}
-              onToggle={(event) => setDevelopmentOpen(event.currentTarget.open)}
-            >
-              <summary>Develop a candidate with AI · optional</summary>
-              {researchLead ? (
-                <div className="prepared-gap">
-                  <h3>Candidate to develop</h3>
-                  <p>{researchLead.lead.question}</p>
-                  {researchLead.contextKey !==
-                  planContextKey(brief, selected) ? (
-                    <Notice>
-                      Inputs changed. Select the current finding again before
-                      developing it.
-                    </Notice>
-                  ) : null}
-                  <button
-                    className="text-button"
-                    onClick={() => {
-                      const finding = findings.find(
-                        (item) => item.id === developmentFindingId,
-                      );
-                      if (finding) planFinding(finding);
-                    }}
-                    disabled={
-                      !findings.some(
-                        (item) =>
-                          item.id === developmentFindingId &&
-                          checkIsReviewed(item),
-                      )
-                    }
-                  >
-                    Draft an experiment without AI
-                  </button>
-                </div>
-              ) : null}
-              <details
-                className="gap-resources"
-                open={resourcesOpen}
-                onToggle={(event) => setResourcesOpen(event.currentTarget.open)}
-              >
-                <summary>Planning resources · optional</summary>
-                <ResourcesPanel
-                  embedded
-                  resources={brief.resources}
-                  onChange={onResources}
-                  onContinue={() => setResourcesOpen(false)}
-                />
-              </details>
-              <ConnectionPanel
-                generationOnly
-                researchCheckReady={
-                  !!developmentFindingId &&
-                  !!findings.find(
-                    (item) =>
-                      item.id === developmentFindingId && checkIsReviewed(item),
-                  )
-                }
-                brief={brief}
-                analysis={analysis}
-                activeId={activeId}
-                health={health}
-                count={selected.length}
-                busy={analysisBusy}
-                error={analysisError}
-                onAnalyze={runAnalysis}
-                onSelect={choose}
-                papers={selected}
-                onRecheck={recheckHealth}
-                readinessBusy={readinessBusy}
-                resourcesChanged={
-                  !!analysis && analysisResourceRevision !== resourceRevision
-                }
-              />
             </details>
             {usageEntries.length ? (
               <details className="gap-cost-details">
