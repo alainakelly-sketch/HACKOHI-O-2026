@@ -41,7 +41,7 @@ export function manualPriorQueries(question: string, field = ''): string[] {
   ].filter(Boolean);
 }
 
-async function searchPriorQueries(
+export async function searchPriorQueries(
   queries: string[],
   search: (q: string) => Promise<SearchResult>,
 ): Promise<PriorWork> {

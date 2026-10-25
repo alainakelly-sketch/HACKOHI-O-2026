@@ -1,3 +1,4 @@
+import { gapCheckScopeKey, type GapCheckResult } from '../shared/gap-check';
 /** SYNTHETIC FIXTURES ONLY. All API responses mocked; no paid API calls. */
 import { chromium, type Locator, type Page } from 'playwright';
 import assert from 'node:assert/strict';
@@ -100,8 +101,45 @@ page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => {
   if (m.type() === 'error') errors.push(m.text());
 });
+const checks = new Map<string, GapCheckResult>();
 await page.route('**/api/**', async (route) => {
   const path = new URL(route.request().url()).pathname;
+  if (path === '/api/gap-check') {
+    const body = route.request().postDataJSON();
+    const result: GapCheckResult = {
+      checkId: `synthetic-check-${checks.size + 1}`,
+      gap: body.gap,
+      scopeKey: gapCheckScopeKey(body.brief, body.paperIds, body.gap),
+      status: 'No close match found in the searches completed',
+      summary:
+        'SYNTHETIC completed searches returned no candidate studies; novelty is not established.',
+      candidates: [],
+      matches: [],
+      searches: [{ query: 'SYNTHETIC selected gap query', error: null }],
+      sourceStatuses: [],
+      checkedAt: '2026-10-25T00:00:00Z',
+      aiCompleted: false,
+      assessmentNotNeeded: true,
+      reviewed: false,
+      decision: null,
+    };
+    checks.set(result.checkId, result);
+    await route.fulfill({ json: result });
+    return;
+  }
+  if (/^\/api\/gap-check\/[^/]+\/review$/.test(path)) {
+    const previous = checks.get(path.split('/')[3]);
+    assert.ok(previous, 'Review requires a completed check');
+    const body = route.request().postDataJSON();
+    assert.equal(
+      gapCheckScopeKey(body.brief, body.paperIds, body.gap),
+      previous.scopeKey,
+    );
+    const result = { ...previous, reviewed: true, decision: body.decision };
+    checks.set(result.checkId, result);
+    await route.fulfill({ json: result });
+    return;
+  }
   if (path === '/api/health')
     await route.fulfill({
       json: {
@@ -122,6 +160,16 @@ await page.route('**/api/**', async (route) => {
       },
     });
   } else if (path === '/api/analyze') {
+    const body = route.request().postDataJSON();
+    const checked = checks.get(body.checkId);
+    assert.ok(
+      checked?.reviewed,
+      'Hypothesis generation requires explicit review',
+    );
+    assert.equal(
+      gapCheckScopeKey(body.brief, body.paperIds, body.gap),
+      checked.scopeKey,
+    );
     calls.analysis++;
     await route.fulfill({
       json: {
@@ -307,6 +355,34 @@ try {
   await noJump(unresolved);
   assert.equal(calls.analysis, 0);
   assert.equal(calls.search, 1);
+  await open('Gap leads');
+  await page
+    .getByRole('button', { name: 'Check existing research', exact: true })
+    .click();
+  await page
+    .getByText('No close match found in the searches completed', {
+      exact: true,
+    })
+    .waitFor();
+  await page
+    .getByLabel('How will you use this check?', { exact: true })
+    .selectOption('continue');
+  await page
+    .getByRole('button', { name: 'I have reviewed this check', exact: true })
+    .click();
+  await page
+    .getByText('Reviewed · candidate follow-up, novelty not established.', {
+      exact: true,
+    })
+    .waitFor();
+  await finding
+    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .click();
+  assert.equal(
+    calls.analysis,
+    0,
+    'Choosing development context must not trigger a model call',
+  );
   await open('AI hypotheses');
   await generate();
   await page

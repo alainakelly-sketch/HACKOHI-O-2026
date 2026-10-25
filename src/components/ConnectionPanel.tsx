@@ -10,6 +10,7 @@ export function analysisLabel(origin: Analysis['origin']) {
 }
 export function ConnectionPanel({
   generationOnly = false,
+  researchCheckReady = false,
   brief,
   analysis,
   activeId,
@@ -27,6 +28,7 @@ export function ConnectionPanel({
   onEditResources,
 }: {
   generationOnly?: boolean;
+  researchCheckReady?: boolean;
   brief: Brief;
   analysis: Analysis | null;
   activeId: string | null;
@@ -46,6 +48,13 @@ export function ConnectionPanel({
   const missing = analysisReadiness(brief, count, papers, health).filter(
     (item) => !item.ready,
   );
+  if (!researchCheckReady)
+    missing.push({
+      key: 'research-check',
+      ready: false,
+      message:
+        'Check existing research for the selected gap and review the matches first.',
+    });
   const complete = missing.length === 0;
   const resourceNotes = Object.entries(brief.resources).filter(([, value]) =>
     value.trim(),

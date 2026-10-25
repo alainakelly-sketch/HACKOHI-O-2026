@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Citation, Paper } from '../../shared/types';
 import type { GapFinding } from '../../shared/gap-findings';
 import { Notice } from './Primitives';
@@ -20,7 +21,9 @@ export function GapFindings({
   onPlan,
   field = '',
   onInspectHypothesis,
+  researchCheck,
 }: {
+  researchCheck?: ReactNode;
   field?: string;
   findings: GapFinding[];
   papers: Paper[];
@@ -105,20 +108,22 @@ export function GapFindings({
                   source detail or select another finding.
                 </Notice>
               ) : null}
-              <button
-                type="button"
-                className="primary finding-next"
-                disabled={!finding.ready}
-                onClick={() =>
-                  finding.origin === 'author-stated'
-                    ? onDevelop(finding)
-                    : onPlan(finding)
-                }
-              >
-                {finding.origin === 'author-stated'
-                  ? 'Develop this gap'
-                  : 'Plan experiment'}
-              </button>
+              {researchCheck ?? (
+                <button
+                  type="button"
+                  className="primary finding-next"
+                  disabled={!finding.ready}
+                  onClick={() =>
+                    finding.origin === 'author-stated'
+                      ? onDevelop(finding)
+                      : onPlan(finding)
+                  }
+                >
+                  {finding.origin === 'author-stated'
+                    ? 'Develop this gap'
+                    : 'Plan experiment'}
+                </button>
+              )}
               <details className="finding-evidence">
                 <summary>
                   Supporting passages & sources · {finding.evidence.length}
@@ -178,16 +183,18 @@ export function GapFindings({
                   </button>
                 ) : null}
               </details>
-              <details className="finding-prior">
-                <summary>Check related work</summary>
-                <PriorWorkCheck
-                  key={finding.id}
-                  field={field}
-                  initialQuery={
-                    finding.sourceLead?.searchQuery ?? finding.title
-                  }
-                />
-              </details>
+              {!researchCheck ? (
+                <details className="finding-prior">
+                  <summary>Check related work</summary>
+                  <PriorWorkCheck
+                    key={finding.id}
+                    field={field}
+                    initialQuery={
+                      finding.sourceLead?.searchQuery ?? finding.title
+                    }
+                  />
+                </details>
+              ) : null}
             </article>
           ) : (
             <Notice>

@@ -1,6 +1,7 @@
 // Explicit synthetic fixtures and injected analyzer; no paid/live model request.
 import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
+import { reviewedCheck, syntheticAssessor } from './gap-check-test-fixtures';
 import { createApp } from './app';
 import { normalizeWork } from './openalex';
 import type { Analysis } from '../shared/types';
@@ -31,6 +32,7 @@ async function setup() {
   const analyze = vi.fn().mockResolvedValue(output);
   const app = createApp({
     analyze,
+    assessGap: syntheticAssessor,
     search: async () => ({ papers, query: 'synthetic', retrievedAt: 'test' }),
   });
   await request(app).get('/api/search?q=synthetic');
@@ -42,12 +44,16 @@ describe('selected-source research lead API validation', () => {
     const response = await request(app)
       .post('/api/analyze')
       .send({
-        brief,
-        paperIds: papers.slice(0, 4).map((p) => p.id),
-        lead: validLead,
+        ...(await reviewedCheck(app, brief, papers.slice(0, 4), {
+          id: 'synthetic-lead',
+          ...validLead,
+        })),
       });
     expect(response.status).toBe(200);
-    expect(analyze.mock.calls[0][2]).toEqual(validLead);
+    expect(analyze.mock.calls[0][2]).toEqual({
+      id: 'synthetic-lead',
+      ...validLead,
+    });
   });
   it('rejects unknown passage and nonselected paper references before model calls', async () => {
     for (const evidence of [
@@ -56,14 +62,14 @@ describe('selected-source research lead API validation', () => {
     ]) {
       const { app, analyze } = await setup();
       const response = await request(app)
-        .post('/api/analyze')
+        .post('/api/gap-check')
         .send({
           brief,
           paperIds: papers.slice(0, 4).map((p) => p.id),
-          lead: { ...validLead, evidence },
+          gap: { id: 'synthetic', ...validLead, evidence },
         });
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('research lead references');
+      expect(response.body.error).toContain('gap references');
       expect(analyze).not.toHaveBeenCalled();
     }
   });

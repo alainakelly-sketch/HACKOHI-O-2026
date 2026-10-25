@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import request from 'supertest';
+import { reviewedCheck, syntheticAssessor } from './gap-check-test-fixtures';
 import { AppError } from './errors';
 import { noRequestCost } from './analysis-cost';
 import { createApp } from './app';
@@ -21,6 +22,7 @@ afterEach(() => vi.unstubAllEnvs());
 describe('API boundaries and credentials', () => {
   it('returns safe cost metadata on a failed analysis', async () => {
     const app = createApp({
+      assessGap: syntheticAssessor,
       search: async () => ({ papers, query: 'test', retrievedAt: 'test' }),
       analyze: async () => {
         throw new AppError(503, 'Synthetic disabled request', noRequestCost());
@@ -29,7 +31,7 @@ describe('API boundaries and credentials', () => {
     await request(app).get('/api/search?q=test');
     const response = await request(app)
       .post('/api/analyze')
-      .send({ brief, paperIds: papers.map((p) => p.id) });
+      .send(await reviewedCheck(app, brief, papers));
     expect(response.status).toBe(503);
     expect(response.body.cost.estimatedUsd).toBe(0);
     expect(response.body.cost.note).toContain('No model provider request');
@@ -60,6 +62,7 @@ describe('API boundaries and credentials', () => {
   });
   it('propagates useful failed-API states without leaking error internals', async () => {
     const app = createApp({
+      assessGap: syntheticAssessor,
       search: vi
         .fn()
         .mockRejectedValue(new Error('sensitive upstream details')),
@@ -84,13 +87,14 @@ describe('API boundaries and credentials', () => {
       hypotheses: [],
     });
     const app = createApp({
+      assessGap: syntheticAssessor,
       search: async () => ({ query: 'test', papers, retrievedAt: 'test' }),
       analyze,
     });
     await request(app).get('/api/search?q=test');
     const res = await request(app)
       .post('/api/analyze')
-      .send({ brief, paperIds: papers.map((p) => p.id) });
+      .send(await reviewedCheck(app, brief, papers));
     expect(res.status).toBe(200);
     expect(analyze.mock.calls[0][0]).toEqual(brief);
     expect(analyze.mock.calls[0][0]).not.toHaveProperty('fieldB');
@@ -116,13 +120,16 @@ describe('API boundaries and credentials', () => {
     const search = vi
       .fn()
       .mockResolvedValue({ papers, query: 'test', retrievedAt: 'now' });
-    const app = createApp({ search });
+    const app = createApp({
+      assessGap: syntheticAssessor,
+      search,
+    });
     const res = await request(app).get('/api/search?q=test');
     expect(res.status).toBe(200);
     expect(res.body.papers).toHaveLength(4);
     const analysis = await request(app)
       .post('/api/analyze')
-      .send({ brief, paperIds: papers.map((p) => p.id) });
+      .send(await reviewedCheck(app, brief, papers));
     expect(analysis.status).toBe(503);
   });
   it('accepts only source selections from server retrieval, no client source bodies', async () => {
@@ -133,6 +140,7 @@ describe('API boundaries and credentials', () => {
       hypotheses: [],
     });
     const app = createApp({
+      assessGap: syntheticAssessor,
       search: vi.fn().mockResolvedValue({ papers }),
       analyze,
     });
@@ -140,8 +148,7 @@ describe('API boundaries and credentials', () => {
     const res = await request(app)
       .post('/api/analyze')
       .send({
-        brief,
-        paperIds: papers.map((p) => p.id),
+        ...(await reviewedCheck(app, brief, papers)),
         papers: [{ title: 'Fabricated' }],
       });
     expect(res.status).toBe(200);

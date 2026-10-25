@@ -1,6 +1,7 @@
 // SYNTHETIC TEST DATA ONLY. No real network or paid model calls.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import request from 'supertest';
+import { reviewedCheck, syntheticAssessor } from './gap-check-test-fixtures';
 import { createApp } from './app';
 import { codespaceHost } from './config';
 import type { Paper } from '../shared/types';
@@ -94,18 +95,22 @@ describe('full-text API source boundary', () => {
         retrievedAt: 'test',
       }),
       analyze,
+      assessGap: syntheticAssessor,
     });
     await request(app).get('/api/search?q=test');
     const res = await request(app)
       .post('/api/analyze')
-      .send({
-        brief: {
-          question: 'Synthetic test?',
-          field: 'Synthetic test field',
-          resources: { data: '', equipment: '', skills: '', deadline: '' },
-        },
-        paperIds: records.map((p) => p.id),
-      });
+      .send(
+        await reviewedCheck(
+          app,
+          {
+            question: 'Synthetic test?',
+            field: 'Synthetic test field',
+            resources: { data: '', equipment: '', skills: '', deadline: '' },
+          },
+          records,
+        ),
+      );
     expect(res.status).toBe(200);
     expect(analyze.mock.calls[0][1]).toEqual(records);
   });

@@ -12,7 +12,6 @@ import type {
   SearchConcept,
   SearchSourceStatus,
   Citation,
-  ResearchLeadContext,
 } from '../shared/types';
 import {
   assessResources,
@@ -40,6 +39,13 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { ComparisonPanel } from './components/ComparisonPanel';
 import { GapVisualMap } from './components/GapVisualMap';
 import { GapFindings } from './components/GapFindings';
+import { GapResearchCheck } from './components/GapResearchCheck';
+import { gapCheckScopeKey } from '../shared/gap-check';
+import type {
+  GapCheckGap,
+  GapCheckResult,
+  GapCheckDecision,
+} from '../shared/gap-check';
 import { buildGapFindings } from '../shared/gap-findings';
 import type { GapFinding } from '../shared/gap-findings';
 import type { DiscoveryLead } from './components/DiscoveryPanel';
@@ -114,6 +120,9 @@ export default function App() {
   const [usageEntries, setUsageEntries] = useState<UsageEntry[]>([]);
   const [plan, setPlan] = useState<ExperimentDraft | null>(null);
   const drafts = useRef(new Map<string, ExperimentDraft>());
+  const draftGapBindings = useRef(
+    new Map<string, { findingId: string; gapId: string }>(),
+  );
   const [planSources, setPlanSources] = useState<Paper[]>([]);
   function editPlan(next: ExperimentDraft) {
     drafts.current.set(next.id, next);
@@ -162,6 +171,9 @@ export default function App() {
   const verificationRun = useRef(0);
   const [inspection, setInspection] = useState<EvidenceInspection | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [researchInspectionPapers, setResearchInspectionPapers] = useState<
+    Paper[]
+  >([]);
   const evidenceDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = evidenceDialog.current;
@@ -174,6 +186,7 @@ export default function App() {
     label = 'Supporting source passage',
     explanation?: string,
   ) {
+    setResearchInspectionPapers([]);
     setInspection({ reference, label, explanation });
     setEvidenceOpen(true);
   }
@@ -229,20 +242,283 @@ export default function App() {
   );
   const [developmentOpen, setDevelopmentOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
-  const findings = useMemo(
-    () => buildGapFindings(gapScan.candidates, analysis, analysisId, selected),
-    [gapScan, analysis, analysisId, selected],
+  const [gapQuestions, setGapQuestions] = useState<Record<string, string>>({});
+  const [gapBindings, setGapBindings] = useState<Record<string, GapCheckGap>>(
+    {},
   );
+  const [gapChecks, setGapChecks] = useState<
+    Record<string, { result: GapCheckResult; textKey: string }>
+  >({});
+  const [gapCheckBusy, setGapCheckBusy] = useState<Record<string, boolean>>({});
+  const [gapReviewBusy, setGapReviewBusy] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [gapCheckErrors, setGapCheckErrors] = useState<Record<string, string>>(
+    {},
+  );
+  const gapCheckRuns = useRef(new Map<string, number>());
+  const [developmentFindingId, setDevelopmentFindingId] = useState<
+    string | null
+  >(null);
+  const findings = useMemo(
+    () =>
+      buildGapFindings(gapScan.candidates, analysis, analysisId, selected).map(
+        (finding) => ({
+          ...finding,
+          question:
+            gapQuestions[finding.id] ??
+            gapBindings[finding.id]?.question ??
+            finding.question,
+        }),
+      ),
+    [gapScan, analysis, analysisId, selected, gapQuestions, gapBindings],
+  );
+  const sourceTextKey = JSON.stringify(
+    selected
+      .map((paper) => ({ id: paper.id, passages: paper.passages }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  );
+  function gapFor(finding: GapFinding): GapCheckGap {
+    return (
+      gapBindings[finding.id] ?? {
+        id: finding.id,
+        question: finding.question,
+        reason: `${finding.rationale} ${finding.unresolved}`.trim(),
+        evidence: finding.evidence,
+      }
+    );
+  }
+  const latestCheckContext = useRef({
+    brief,
+    selected,
+    findings,
+    sourceTextKey,
+  });
+  latestCheckContext.current = { brief, selected, findings, sourceTextKey };
+  function checkIsCurrent(finding: GapFinding, entry = gapChecks[finding.id]) {
+    return (
+      !!entry &&
+      entry.textKey === sourceTextKey &&
+      entry.result.scopeKey ===
+        gapCheckScopeKey(
+          brief,
+          selected.map((p) => p.id),
+          gapFor(finding),
+        )
+    );
+  }
+  function checkIsReviewed(finding: GapFinding) {
+    const entry = gapChecks[finding.id];
+    return (
+      checkIsCurrent(finding, entry) &&
+      entry.result.reviewed &&
+      (entry.result.aiCompleted || entry.result.assessmentNotNeeded === true) &&
+      entry.result.status !== 'Check incomplete or inconclusive'
+    );
+  }
+  function editGapQuestion(finding: GapFinding, question: string) {
+    setGapQuestions((items) => ({ ...items, [finding.id]: question }));
+    setGapBindings((items) => {
+      const next = { ...items };
+      delete next[finding.id];
+      return next;
+    });
+    gapCheckRuns.current.set(
+      finding.id,
+      (gapCheckRuns.current.get(finding.id) ?? 0) + 1,
+    );
+    setGapCheckBusy((items) => ({ ...items, [finding.id]: false }));
+    setGapReviewBusy((items) => ({ ...items, [finding.id]: false }));
+    setDevelopmentOpen(false);
+    if (analysisBusy) {
+      generation.current++;
+      analysisController.current?.abort();
+      setAnalysisBusy(false);
+      setAnalysisError(
+        'Gap wording changed during analysis. Check and review the updated question before developing it.',
+      );
+    }
+    invalidateGapDrafts(finding);
+  }
+  function invalidateGapDrafts(finding: GapFinding) {
+    const editedGapId = gapFor(finding).id;
+    for (const [id, draft] of drafts.current) {
+      const binding = draftGapBindings.current.get(id);
+      if (
+        binding &&
+        (binding.findingId === finding.id || binding.gapId === editedGapId)
+      ) {
+        const staleDraft = {
+          ...draft,
+          contextKey: `review:changed-gap:${finding.id}`,
+        };
+        drafts.current.set(id, staleDraft);
+        if (plan?.id === id) setPlan(staleDraft);
+      }
+    }
+  }
+  async function checkGap(finding: GapFinding) {
+    invalidateGapDrafts(finding);
+    const gap = gapFor(finding);
+    const body = { brief, paperIds: selected.map((p) => p.id), gap };
+    const scopeKey = gapCheckScopeKey(brief, body.paperIds, gap);
+    const textKey = sourceTextKey;
+    const run = (gapCheckRuns.current.get(finding.id) ?? 0) + 1;
+    gapCheckRuns.current.set(finding.id, run);
+    setGapCheckBusy((items) => ({ ...items, [finding.id]: true }));
+    setGapCheckErrors((items) => ({ ...items, [finding.id]: '' }));
+    setGapChecks((items) => {
+      const next = { ...items };
+      delete next[finding.id];
+      return next;
+    });
+    const runId = crypto.randomUUID();
+    setUsageEntries((items) => [
+      ...items,
+      {
+        id: runId,
+        time: new Date().toISOString(),
+        status: 'running',
+        cost: null,
+      },
+    ]);
+    try {
+      const result = await api<GapCheckResult>('/api/gap-check', body);
+      setUsageEntries((items) =>
+        items.map((entry) =>
+          entry.id === runId
+            ? { ...entry, status: 'complete', cost: result.cost ?? null }
+            : entry,
+        ),
+      );
+      const latest = latestCheckContext.current;
+      const latestFinding = latest.findings.find(
+        (item) => item.id === finding.id,
+      );
+      const latestGap =
+        latestFinding &&
+        (gapBindings[finding.id] ?? {
+          id: latestFinding.id,
+          question: latestFinding.question,
+          reason:
+            `${latestFinding.rationale} ${latestFinding.unresolved}`.trim(),
+          evidence: latestFinding.evidence,
+        });
+      if (
+        gapCheckRuns.current.get(finding.id) !== run ||
+        !latestGap ||
+        latest.sourceTextKey !== textKey ||
+        gapCheckScopeKey(
+          latest.brief,
+          latest.selected.map((p) => p.id),
+          latestGap,
+        ) !== scopeKey
+      )
+        return;
+      setGapChecks((items) => ({
+        ...items,
+        [finding.id]: { result, textKey },
+      }));
+    } catch (error) {
+      setUsageEntries((items) =>
+        items.map((entry) =>
+          entry.id === runId
+            ? {
+                ...entry,
+                status: 'error',
+                cost: error instanceof ApiError ? (error.cost ?? null) : null,
+              }
+            : entry,
+        ),
+      );
+      if (gapCheckRuns.current.get(finding.id) === run)
+        setGapCheckErrors((items) => ({
+          ...items,
+          [finding.id]:
+            error instanceof Error
+              ? error.message
+              : 'Existing research check failed.',
+        }));
+    } finally {
+      if (gapCheckRuns.current.get(finding.id) === run)
+        setGapCheckBusy((items) => ({ ...items, [finding.id]: false }));
+    }
+  }
+  async function reviewGap(finding: GapFinding, decision: GapCheckDecision) {
+    const entry = gapChecks[finding.id];
+    if (!checkIsCurrent(finding, entry)) return;
+    const run = gapCheckRuns.current.get(finding.id) ?? 0;
+    setGapReviewBusy((items) => ({ ...items, [finding.id]: true }));
+    setGapCheckErrors((items) => ({ ...items, [finding.id]: '' }));
+    try {
+      const result = await api<GapCheckResult>(
+        `/api/gap-check/${entry.result.checkId}/review`,
+        {
+          brief,
+          paperIds: selected.map((p) => p.id),
+          gap: gapFor(finding),
+          decision,
+        },
+      );
+      const latest = latestCheckContext.current;
+      if (
+        gapCheckRuns.current.get(finding.id) === run &&
+        latest.sourceTextKey === entry.textKey &&
+        gapCheckScopeKey(
+          latest.brief,
+          latest.selected.map((p) => p.id),
+          result.gap,
+        ) === result.scopeKey &&
+        latest.findings.some(
+          (item) =>
+            item.id === finding.id && item.question === finding.question,
+        )
+      )
+        setGapChecks((items) => ({
+          ...items,
+          [finding.id]: { result, textKey: entry.textKey },
+        }));
+    } catch (error) {
+      if (gapCheckRuns.current.get(finding.id) === run)
+        setGapCheckErrors((items) => ({
+          ...items,
+          [finding.id]:
+            error instanceof Error
+              ? error.message
+              : 'Review could not be saved.',
+        }));
+    } finally {
+      if (gapCheckRuns.current.get(finding.id) === run)
+        setGapReviewBusy((items) => ({ ...items, [finding.id]: false }));
+    }
+  }
   const selectedFinding =
     findings.find((item) => item.id === selectedFindingId) ??
     findings[0] ??
     null;
   function selectFinding(id: string) {
+    if (selectedFinding && selectedFinding.id !== id) {
+      const previous = selectedFinding.id;
+      gapCheckRuns.current.set(
+        previous,
+        (gapCheckRuns.current.get(previous) ?? 0) + 1,
+      );
+      setGapCheckBusy((items) => ({ ...items, [previous]: false }));
+      setGapReviewBusy((items) => ({ ...items, [previous]: false }));
+      setDevelopmentOpen(false);
+      if (analysisBusy) {
+        generation.current++;
+        analysisController.current?.abort();
+        setAnalysisBusy(false);
+      }
+    }
     setSelectedFindingId(id);
     const finding = findings.find((item) => item.id === id);
     if (finding?.hypothesisId) choose(finding.hypothesisId, false);
   }
   function developFinding(finding: GapFinding) {
+    if (!checkIsReviewed(finding)) return;
+    setDevelopmentFindingId(finding.id);
     setSelectedFindingId(finding.id);
     startDiscoveryHypothesis({
       id: finding.id,
@@ -255,7 +531,15 @@ export default function App() {
     setDevelopmentOpen(true);
   }
   function planFinding(finding: GapFinding) {
+    if (!checkIsReviewed(finding)) return;
     setSelectedFindingId(finding.id);
+    const draftId = finding.hypothesisId
+      ? `${analysisId}:hypothesis:${finding.hypothesisId}`
+      : `discovery:${finding.id}`;
+    draftGapBindings.current.set(draftId, {
+      findingId: finding.id,
+      gapId: gapFor(finding).id,
+    });
     if (finding.hypothesisId) startHypothesisPlan(finding.hypothesisId);
     else
       startDiscoveryPlan({
@@ -355,6 +639,10 @@ export default function App() {
     return () => controller.abort();
   }, [exampleMode]);
   function clearAnalysis() {
+    for (const [id, run] of gapCheckRuns.current)
+      gapCheckRuns.current.set(id, run + 1);
+    setGapCheckBusy({});
+    setGapReviewBusy({});
     generation.current++;
     analysisController.current?.abort();
     priorController.current?.abort();
@@ -587,6 +875,20 @@ export default function App() {
     );
   }
   async function runAnalysis() {
+    const finding = findings.find((item) => item.id === developmentFindingId);
+    if (
+      !finding ||
+      !checkIsReviewed(finding) ||
+      gapCheckBusy[finding.id] ||
+      gapReviewBusy[finding.id]
+    ) {
+      setAnalysisError(
+        'Select a gap, check existing research and review the current matches before developing a hypothesis.',
+      );
+      return;
+    }
+    const checked = gapChecks[finding.id];
+    const gap = gapFor(finding);
     const runId = crypto.randomUUID();
     setUsageEntries((items) => [
       ...items,
@@ -628,16 +930,8 @@ export default function App() {
         {
           brief,
           paperIds: selected.map((p) => p.id),
-          ...(researchLead &&
-          researchLead.contextKey === planContextKey(brief, selected)
-            ? {
-                lead: {
-                  question: researchLead.lead.question,
-                  reason: researchLead.lead.reason,
-                  evidence: researchLead.lead.sources,
-                } satisfies ResearchLeadContext,
-              }
-            : {}),
+          checkId: checked.result.checkId,
+          gap,
         },
         controller.signal,
       );
@@ -648,6 +942,11 @@ export default function App() {
         setAnalysisResourceRevision(resourceRevision);
         setAnalysisId(result.analysisId);
         setActiveId(result.result.hypotheses[0]?.id ?? null);
+        for (const hypothesis of result.result.hypotheses) {
+          const findingId = `${result.analysisId}:hypothesis:${hypothesis.id}`;
+          setGapBindings((items) => ({ ...items, [findingId]: gap }));
+          setGapChecks((items) => ({ ...items, [findingId]: checked }));
+        }
         setSelectedFindingId(
           result.result.hypotheses[0]
             ? `${result.analysisId}:hypothesis:${result.result.hypotheses[0].id}`
@@ -672,6 +971,7 @@ export default function App() {
     assessmentIsCurrent(assessment?.revision ?? null, resourceRevision);
   function choose(id: string, inspect = true) {
     if (inspect) setEvidenceOpen(true);
+    setResearchInspectionPapers([]);
     setInspection(null);
     priorController.current?.abort();
     setPriorBusy(false);
@@ -725,6 +1025,7 @@ export default function App() {
             selectedResearchLead: researchLead,
             aiUsage: usageEntries,
             priorWork: prior,
+            gapResearchChecks: gapChecks,
             resourceAssessment: fitCurrent ? assessment?.value : null,
             limitations:
               'Coverage is labelled per source. Retrieved body text excludes figures, tables and supplements. Hypotheses and experiment plans are untested proposals.',
@@ -1012,6 +1313,41 @@ export default function App() {
           >
             <GapFindings
               findings={findings}
+              researchCheck={
+                selectedFinding ? (
+                  <GapResearchCheck
+                    finding={selectedFinding}
+                    question={selectedFinding.question}
+                    onQuestionChange={(question) =>
+                      editGapQuestion(selectedFinding, question)
+                    }
+                    result={gapChecks[selectedFinding.id]?.result ?? null}
+                    stale={
+                      !!gapChecks[selectedFinding.id] &&
+                      !checkIsCurrent(selectedFinding)
+                    }
+                    busy={!!gapCheckBusy[selectedFinding.id]}
+                    reviewBusy={!!gapReviewBusy[selectedFinding.id]}
+                    error={gapCheckErrors[selectedFinding.id]}
+                    onCheck={() => void checkGap(selectedFinding)}
+                    onReview={(decision) =>
+                      void reviewGap(selectedFinding, decision)
+                    }
+                    onDevelop={() => developFinding(selectedFinding)}
+                    onPlan={() => planFinding(selectedFinding)}
+                    aiAvailable={health?.analysisAvailable === true}
+                    onInspect={(reference) => {
+                      openEvidence(
+                        reference,
+                        'Existing research supporting passage',
+                      );
+                      setResearchInspectionPapers(
+                        gapChecks[selectedFinding.id]?.result.candidates ?? [],
+                      );
+                    }}
+                  />
+                ) : null
+              }
               papers={selected}
               selectedId={selectedFinding?.id ?? null}
               onSelect={selectFinding}
@@ -1078,7 +1414,19 @@ export default function App() {
                   ) : null}
                   <button
                     className="text-button"
-                    onClick={() => startDiscoveryPlan(researchLead.lead)}
+                    onClick={() => {
+                      const finding = findings.find(
+                        (item) => item.id === developmentFindingId,
+                      );
+                      if (finding) planFinding(finding);
+                    }}
+                    disabled={
+                      !findings.some(
+                        (item) =>
+                          item.id === developmentFindingId &&
+                          checkIsReviewed(item),
+                      )
+                    }
                   >
                     Draft an experiment without AI
                   </button>
@@ -1099,6 +1447,13 @@ export default function App() {
               </details>
               <ConnectionPanel
                 generationOnly
+                researchCheckReady={
+                  !!developmentFindingId &&
+                  !!findings.find(
+                    (item) =>
+                      item.id === developmentFindingId && checkIsReviewed(item),
+                  )
+                }
                 brief={brief}
                 analysis={analysis}
                 activeId={activeId}
@@ -1115,8 +1470,8 @@ export default function App() {
                   !!analysis && analysisResourceRevision !== resourceRevision
                 }
               />
-              <CostPanel entries={usageEntries} />
             </details>
+            <CostPanel entries={usageEntries} />
           </div>
           <div
             className="workflow-panel"
@@ -1160,6 +1515,14 @@ export default function App() {
                   : null
               }
               papers={[
+                ...researchInspectionPapers,
+                ...Object.values(gapChecks)
+                  .flatMap((entry) => entry.result.candidates)
+                  .filter(
+                    (paper, index, all) =>
+                      all.findIndex((item) => item.id === paper.id) === index &&
+                      !selected.some((item) => item.id === paper.id),
+                  ),
                 ...planSources.filter(
                   (p) =>
                     !selected.some((s) => s.id === p.id) &&

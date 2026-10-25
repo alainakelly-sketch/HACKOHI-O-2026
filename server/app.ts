@@ -1,4 +1,11 @@
 import express from 'express';
+import { performGapCheck, sourceDigest, type GapAssessor } from './gap-check';
+import {
+  gapCheckScopeKey,
+  type GapCheckResult,
+  type GapCheckContext,
+} from '../shared/gap-check';
+import { noRequestCost } from './analysis-cost';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
@@ -62,6 +69,30 @@ const selectionSchema = z
     (x) => new Set(x.paperIds).size === x.paperIds.length,
     'Select distinct papers.',
   );
+const gapSchema = z.object({
+  id: z.string().min(1).max(250),
+  question: short.min(5),
+  reason: z.string().max(4000),
+  evidence: z
+    .array(
+      z.object({
+        paperId: z.string().min(1).max(120),
+        passageId: z.string().min(1).max(250),
+      }),
+    )
+    .min(1)
+    .max(12),
+});
+const checkSchema = z
+  .object({
+    brief: briefSchema,
+    paperIds: z
+      .array(z.string().regex(/^[A-Za-z0-9_.:-]{1,120}$/))
+      .min(1)
+      .max(6),
+    gap: gapSchema,
+  })
+  .refine((x) => new Set(x.paperIds).size === x.paperIds.length);
 export function createApp(
   deps: {
     search?: (q: string, options?: SearchOptions) => Promise<SearchResult>;
@@ -69,7 +100,9 @@ export function createApp(
       brief: Brief,
       papers: Paper[],
       lead?: ResearchLeadContext,
+      relatedWork?: GapCheckContext,
     ) => Promise<Analysis>;
+    assessGap?: GapAssessor;
     retrieveFullText?: (paper: Paper) => Promise<Paper>;
     development?: boolean;
   } = {},
@@ -81,6 +114,10 @@ export function createApp(
   const analyses = new Map<
     string,
     { result: Analysis; brief: Brief; expires: number }
+  >();
+  const gapChecks = new Map<
+    string,
+    { result: GapCheckResult; digest: string; expires: number }
   >();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
@@ -216,23 +253,119 @@ export function createApp(
       if (fullTextRequests.get(id) === pending) fullTextRequests.delete(id);
     }
   });
-  app.post('/api/analyze', async (req, res) => {
-    const { brief, paperIds, lead } = selectionSchema.parse(req.body);
-    const papers = paperStore.get(paperIds);
-    if (lead) {
-      try {
-        for (const reference of lead.evidence) {
-          const { passage } = resolveCitation(reference, papers);
-          if (!passage.text.trim()) throw new Error('Empty source text');
-        }
-      } catch {
-        throw new AppError(
-          400,
-          'The research lead references unavailable or unselected source text. Select its source papers again before developing a hypothesis.',
-        );
-      }
+  function validateGapEvidence(
+    gap: z.infer<typeof gapSchema>,
+    papers: Paper[],
+  ) {
+    try {
+      for (const ref of gap.evidence)
+        if (!resolveCitation(ref, papers).passage.text.trim())
+          throw new Error();
+    } catch {
+      throw new AppError(
+        400,
+        'The chosen gap references unavailable or unselected source text.',
+        noRequestCost(),
+      );
     }
-    const result = await (deps.analyze ?? analyze)(brief, papers, lead);
+  }
+  function checkedRecord(input: z.infer<typeof checkSchema>, checkId: string) {
+    const record = gapChecks.get(checkId);
+    if (!record || record.expires < Date.now())
+      throw new AppError(
+        409,
+        'This research check expired or was lost. Check the chosen gap again.',
+        noRequestCost(),
+      );
+    const papers = paperStore.get(input.paperIds);
+    if (
+      record.result.scopeKey !==
+        gapCheckScopeKey(input.brief, input.paperIds, input.gap) ||
+      record.digest !== sourceDigest(papers)
+    )
+      throw new AppError(
+        409,
+        'The gap, research focus, selected papers or source text changed. Run the research check again.',
+        noRequestCost(),
+      );
+    return record;
+  }
+  app.post('/api/gap-check', async (req, res) => {
+    const input = checkSchema.parse(req.body);
+    const papers = paperStore.get(input.paperIds);
+    validateGapEvidence(input.gap, papers);
+    const result = await performGapCheck(
+      input.brief,
+      input.paperIds,
+      input.gap,
+      search,
+      deps.assessGap,
+    );
+    if (gapChecks.size >= 100) gapChecks.delete(gapChecks.keys().next().value!);
+    gapChecks.set(result.checkId, {
+      result,
+      digest: sourceDigest(papers),
+      expires: Date.now() + 3600000,
+    });
+    res.json(result);
+  });
+  app.post('/api/gap-check/:id/review', async (req, res) => {
+    const input = checkSchema.parse(req.body);
+    const decision = z
+      .enum(['continue', 'replication', 'extension'])
+      .parse(req.body.decision);
+    const record = checkedRecord(input, z.string().uuid().parse(req.params.id));
+    if (
+      (!record.result.aiCompleted && !record.result.assessmentNotNeeded) ||
+      record.result.status === 'Check incomplete or inconclusive'
+    )
+      throw new AppError(
+        409,
+        'This check is incomplete. Review the available candidates, then complete the check before developing a hypothesis.',
+        noRequestCost(),
+      );
+    if (
+      record.result.status === 'Existing research may address this gap' &&
+      decision === 'continue'
+    )
+      throw new AppError(
+        409,
+        'Existing work may address this question. Choose an explicit replication or extension, or revise the gap and check again.',
+        noRequestCost(),
+      );
+    record.result = { ...record.result, reviewed: true, decision };
+    res.json(record.result);
+  });
+  app.post('/api/analyze', async (req, res) => {
+    const { brief, paperIds } = selectionSchema.parse(req.body);
+    const checkId = z.string().uuid().safeParse(req.body.checkId);
+    if (!checkId.success)
+      throw new AppError(
+        409,
+        'Check existing research for your chosen gap and review the matches before developing a hypothesis.',
+        noRequestCost(),
+      );
+    const input = checkSchema.parse(req.body);
+    const record = checkedRecord(input, checkId.data);
+    if (
+      !record.result.reviewed ||
+      (!record.result.aiCompleted && !record.result.assessmentNotNeeded) ||
+      record.result.status === 'Check incomplete or inconclusive'
+    )
+      throw new AppError(
+        409,
+        'Complete and review the chosen gap research check before developing a hypothesis.',
+        noRequestCost(),
+      );
+    const papers = paperStore.get(paperIds);
+    const lead = record.result.gap;
+    validateGapEvidence(lead, papers);
+    const result = await (deps.analyze ?? analyze)(
+      brief,
+      papers,
+      lead,
+      record.result,
+    );
     const analysisId = crypto.randomUUID();
     if (analyses.size >= 100) analyses.delete(analyses.keys().next().value!);
     analyses.set(analysisId, { result, brief, expires: Date.now() + 3600000 });

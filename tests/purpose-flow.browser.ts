@@ -1,3 +1,4 @@
+import { gapCheckScopeKey, type GapCheckResult } from '../shared/gap-check';
 /** SYNTHETIC FIXTURES ONLY. All API responses mocked; no paid API calls. */
 import { chromium, type Locator, type Page } from 'playwright';
 import assert from 'node:assert/strict';
@@ -100,8 +101,44 @@ page.on('pageerror', (error) => errors.push(error.message));
 page.on('console', (message) => {
   if (message.type() === 'error') errors.push(message.text());
 });
+const checks = new Map<string, GapCheckResult>();
 await page.route('**/api/**', async (route) => {
   const path = new URL(route.request().url()).pathname;
+  if (path === '/api/gap-check') {
+    const body = route.request().postDataJSON();
+    const result: GapCheckResult = {
+      checkId: `synthetic-check-${checks.size + 1}`,
+      gap: body.gap,
+      scopeKey: gapCheckScopeKey(body.brief, body.paperIds, body.gap),
+      status: 'No close match found in the searches completed',
+      summary:
+        'SYNTHETIC check found no close answer; novelty remains unproven.',
+      candidates: [],
+      matches: [],
+      searches: [
+        { query: 'SYNTHETIC focused gap question search', error: null },
+      ],
+      sourceStatuses: [],
+      checkedAt: '2026-10-25T00:00:00Z',
+      aiCompleted: true,
+      reviewed: false,
+      decision: null,
+    };
+    checks.set(result.checkId, result);
+    await route.fulfill({ json: result });
+    return;
+  }
+  if (/^\/api\/gap-check\/[^/]+\/review$/.test(path)) {
+    const id = path.split('/')[3];
+    const previous = checks.get(id);
+    assert.ok(previous, 'Only an existing check can be reviewed');
+    const body = route.request().postDataJSON();
+    const result = { ...previous, reviewed: true, decision: body.decision };
+    checks.set(id, result);
+    await route.fulfill({ json: result });
+    return;
+  }
+
   if (path === '/api/health')
     await route.fulfill({
       json: {
@@ -122,6 +159,11 @@ await page.route('**/api/**', async (route) => {
       },
     });
   } else if (path === '/api/analyze') {
+    const checked = checks.get(route.request().postDataJSON().checkId);
+    assert.ok(
+      checked?.reviewed,
+      'AI development requires an explicitly reviewed real-search result',
+    );
     calls.analysis++;
     await route.fulfill({
       json: {
@@ -189,6 +231,28 @@ async function noOverflow() {
 }
 const output = '/tmp/paperbridge-purpose';
 await mkdir(output, { recursive: true });
+async function checkAndReviewSelectedGap() {
+  await page
+    .getByRole('button', { name: 'Check existing research', exact: true })
+    .click();
+  await page
+    .getByText('No close match found in the searches completed', {
+      exact: true,
+    })
+    .waitFor();
+  await page
+    .getByLabel('How will you use this check?', { exact: true })
+    .selectOption('continue');
+  await page
+    .getByRole('button', { name: 'I have reviewed this check', exact: true })
+    .click();
+  await page
+    .getByText('Reviewed · candidate follow-up, novelty not established.', {
+      exact: true,
+    })
+    .waitFor();
+}
+
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   assert.match(await page.title(), /PaperBridge/);
@@ -224,11 +288,13 @@ try {
   const font = await page
     .locator('h1')
     .evaluate((e) => getComputedStyle(e).fontFamily);
-  assert.match(font, /Manrope/);
+  assert.match(font, /Playfair Display/);
   assert.doesNotMatch(font, /Newsreader/);
   await page.evaluate(() => document.fonts.ready);
   assert.equal(
-    await page.evaluate(() => document.fonts.check('400 16px "Manrope"')),
+    await page.evaluate(() =>
+      document.fonts.check('400 16px "Playfair Display"'),
+    ),
     true,
   );
   const brandProof = await page.evaluate(() => {
@@ -319,7 +385,10 @@ try {
     await selected.locator('.finding-origin').innerText(),
     /Author-stated/,
   );
-  assert.equal(await selected.locator('.finding-next').count(), 1);
+  assert.equal(await selected.locator('.finding-next').count(), 0);
+  await selected
+    .getByRole('button', { name: 'Check existing research', exact: true })
+    .waitFor();
   const selectedQuestion = (
     await selected.locator(':scope > h3').innerText()
   ).replace(/[.!?]+$/, '');
@@ -415,8 +484,9 @@ try {
   await page.getByRole('tab', { name: 'Gap findings', exact: true }).click();
   assert.equal(await selected.getAttribute('data-finding-id'), selectedId);
   // AI development remains an explicit, separately billed action, mocked here.
+  await checkAndReviewSelectedGap();
   const develop = selected.getByRole('button', {
-    name: 'Develop this gap',
+    name: 'Develop hypothesis',
     exact: true,
   });
   await develop.click();
@@ -604,7 +674,7 @@ try {
   assert.deepEqual(unexpected, []);
   assert.deepEqual(errors, []);
   console.log(
-    'PASS: Focus/Papers/Find gaps/Experiment; default readable findings; canonical selected-gap map; independent no-jump branches; comparison only in Papers; explicit mocked AI development; full hypothesis inspector/resource fit/prior work; edited plan/evidence/tab state; logo and sans typography; laptop/narrow. No paid requests.',
+    'PASS: Focus/Papers/Find gaps/Experiment; default readable findings; canonical selected-gap map; independent no-jump branches; comparison only in Papers; explicit mocked AI development; full hypothesis inspector/resource fit/prior work; edited plan/evidence/tab state; logo and Playfair typography; laptop/narrow. No paid requests.',
   );
 } finally {
   await browser.close();

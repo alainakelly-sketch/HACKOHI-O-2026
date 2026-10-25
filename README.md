@@ -102,7 +102,7 @@ Open the separate **Resources** tab before **AI hypotheses** to add optional pla
 
 The **AI hypotheses** tab shows the resources guiding the next explicit generation. Model instructions use these notes to tailor the proposed hypothesis, approach and first experiment: prefer accessible data and available tools/skills, respect explicit exclusions such as “no GPU,” and scope the test cautiously to the deadline. Source-supported requirements that cannot be met remain explicit incompatibilities or unknowns; the app does not dismiss scientific evidence or invent a feasible protocol. Blank notes impose no invented resource restriction.
 
-New manual, gap-led and AI experiment drafts carry clearly labelled **user-stated resources and limits** into their constraints. **Plan around your resources** shows current notes separately from the creation-time snapshot. Changing notes preserves edits, flags older hypotheses/plans for review, and makes no automatic model request. **Add current resource notes to this plan · free** appends the latest notes without overwriting your method or other fields. Only an explicit AI generation can incur an OpenAI charge.
+New manual, gap-led and AI experiment drafts carry clearly labelled **user-stated resources and limits** into their constraints. **Plan around your resources** shows current notes separately from the creation-time snapshot. Changing notes preserves edits, flags older hypotheses/plans for review, and makes no automatic model request. **Add current resource notes to this plan · free** appends the latest notes without overwriting your method or other fields. Only an explicit AI assessment or generation can incur an OpenAI charge.
 
 ### What “full text” means here
 
@@ -250,7 +250,7 @@ Coordinate before editing `shared/types.ts`, `server/app.ts` or `src/App.tsx`, w
 
 ## Brand assets
 
-The header uses the exact original `public/paperbridge-logo.png` asset, including its embedded purple/blue bridge and lettering, unchanged from its first asset commit `acba703`. The favicon is unchanged. Brand colors are recovered from the pre-editorial Git history, with the current layout and workflow preserved. Website typography uses self-hosted Manrope: regular body text and medium/semibold headings. Font styling does not change lettering inside the logo image.
+The header uses the exact original `public/paperbridge-logo.png` asset, including its embedded purple/blue bridge and lettering, unchanged from its first asset commit `acba703`. The favicon is unchanged. Brand colors are recovered from the pre-editorial Git history, with the current layout and workflow preserved. Website typography uses self-hosted Playfair Display: regular 400 body text and real bold 700 headings. Font styling does not change lettering inside the logo image.
 
 `src/design-tokens.css` and component styles retain readable controls, consistent spacing, open sections and thin dividers. Font licenses remain in `public/fonts/`; no font CDN is needed at runtime. See [purpose-focused workspace checks](docs/PURPOSE-WORKSPACE.md).
 
@@ -260,8 +260,18 @@ Only four primary steps are visible: Focus, Papers, Find gaps and Experiment. Pa
 
 ## Summary-first layout
 
-- **Search:** numbered reading-list entries show publication title, authors, year, coverage and selection. **Paper details** reveals abstracts, metadata and source links. Collection diagnostics and advanced filters stay collapsed.
-- **Find gaps:** one selected finding leads with **Develop this gap** or **Plan experiment**, according to its origin/state. Analysis notes, maps, study profiles, context and secondary citations are disclosed only when requested. **Inspect evidence & limitations** opens an accessible evidence dialog; Close or Escape returns to the same work without clearing it.
+- **Search:** compact paper cards show publication title, year, coverage and an obvious selection checkbox. Reading is a separate action; a removable summary retains selections across searches and tabs. **Paper details** reveals abstracts, metadata and source links. Collection diagnostics and advanced filters stay collapsed.
+- **Find gaps:** one selected finding leads with **Check existing research**. Review the retrieved matches before developing a hypothesis or planning from a checked finding. Analysis notes, maps, study profiles, context and secondary citations are disclosed only when requested. **Inspect evidence & limitations** opens an accessible evidence dialog; Close or Escape returns to the same work without clearing it.
 - **Experiment:** question, method and evaluation measure are the three visible essentials. **Design details**, **Success & failure criteria**, **Constraints & open questions**, **Planning resources**, and **Sources & draft context** contain the remaining editable material. Related work is a distinct card; abstracts, overlap explanations and search limits stay expandable.
 
-All existing data remains in session state. Opening details, changing stages or viewing evidence does not search or call OpenAI. Live AI generation remains an explicit paid action; examples, unknown costs, unavailable body text and stale resource warnings remain labelled.
+All existing data remains in session state. Opening details, changing stages or viewing evidence does not search or call OpenAI. Live AI assessment and hypothesis generation remain explicit paid actions; examples, unknown costs, unavailable body text and stale resource warnings remain labelled.
+
+## Check a chosen gap before developing a hypothesis
+
+In **Find gaps → Gap findings**, select a candidate and review its question. Choose **Check existing research** to search beyond your selected papers. Relevant abstract-only and metadata-only candidates remain visible. With authorized AI configured, this explicit action also assesses the retrieved evidence and may incur an API charge; opening tabs or details does not.
+
+Read the status and closest studies, expand supporting passages, then choose how to use the check and confirm that you reviewed it. A study that may already address the question requires an explicit replication or extension choice. A no-close-match result is limited to the completed searches and does not establish novelty. Missing providers, text or AI assessment remain incomplete. A fully successful search with zero candidates needs no paid assessment.
+
+After review, develop the hypothesis. The backend requires the matching reviewed check and includes its assessment in generation. Editing the gap or research scope requires another check; checks also expire and are invalidated by changed source text. Resource notes guide planning without restarting literature discovery. Existing experiment edits remain available, with affected drafts flagged for review.
+
+Research checks are held in server memory and drafts in browser session state. Export your work before refreshing or restarting. No new account, database or billing setup is required.

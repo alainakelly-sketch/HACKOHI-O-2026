@@ -1,3 +1,4 @@
+import { gapCheckScopeKey, type GapCheckResult } from '../shared/gap-check';
 /** Automated browser test. All paper/AI responses below are SYNTHETIC MOCKS.
  * No external literature or model provider is contacted. Start npm run dev first.
  * Run: npx tsx tests/workflow.browser.ts
@@ -94,8 +95,49 @@ let ready = false,
   mode = 'success',
   analysisCalls = 0,
   searchCalls = 0;
+const checks = new Map<string, GapCheckResult>();
 await page.route('**/api/**', async (route) => {
   const path = new URL(route.request().url()).pathname;
+  if (path === '/api/gap-check') {
+    const body = route.request().postDataJSON();
+    const result: GapCheckResult = {
+      checkId: `synthetic-check-${checks.size + 1}`,
+      gap: body.gap,
+      scopeKey: gapCheckScopeKey(body.brief, body.paperIds, body.gap),
+      status: 'No close match found in the searches completed',
+      summary:
+        'SYNTHETIC check found no close answer; novelty remains unproven.',
+      candidates: [],
+      matches: [],
+      searches: [
+        { query: 'SYNTHETIC focused gap question search', error: null },
+      ],
+      sourceStatuses: [],
+      checkedAt: '2026-10-25T00:00:00Z',
+      aiCompleted: true,
+      reviewed: false,
+      decision: null,
+      cost: estimateAnalysisCost('gpt-4.1-mini', {
+        input_tokens: 0,
+        input_tokens_details: { cached_tokens: 0 },
+        output_tokens: 0,
+      }),
+    };
+    checks.set(result.checkId, result);
+    await route.fulfill({ json: result });
+    return;
+  }
+  if (/^\/api\/gap-check\/[^/]+\/review$/.test(path)) {
+    const id = path.split('/')[3];
+    const previous = checks.get(id);
+    assert.ok(previous, 'Only an existing check can be reviewed');
+    const body = route.request().postDataJSON();
+    const result = { ...previous, reviewed: true, decision: body.decision };
+    checks.set(id, result);
+    await route.fulfill({ json: result });
+    return;
+  }
+
   if (path === '/api/health' && healthFailure) {
     await route.abort();
     return;
@@ -120,6 +162,11 @@ await page.route('**/api/**', async (route) => {
       sourceStatuses: [],
     };
   } else if (path === '/api/analyze') {
+    const checked = checks.get(route.request().postDataJSON().checkId);
+    assert.ok(
+      checked?.reviewed,
+      'AI development requires an explicitly reviewed real-search result',
+    );
     analysisCalls++;
     const payload = route.request().postDataJSON();
     assert.equal(payload.paperIds.length, 4);
@@ -205,6 +252,36 @@ async function generate(name: string) {
   await button.click();
 }
 
+async function checkAndReviewSelectedGap() {
+  if (
+    await page
+      .getByText('Reviewed · candidate follow-up, novelty not established.', {
+        exact: true,
+      })
+      .isVisible()
+  )
+    return;
+  await page
+    .getByRole('button', { name: 'Check existing research', exact: true })
+    .click();
+  await page
+    .getByText('No close match found in the searches completed', {
+      exact: true,
+    })
+    .waitFor();
+  await page
+    .getByLabel('How will you use this check?', { exact: true })
+    .selectOption('continue');
+  await page
+    .getByRole('button', { name: 'I have reviewed this check', exact: true })
+    .click();
+  await page
+    .getByText('Reviewed · candidate follow-up, novelty not established.', {
+      exact: true,
+    })
+    .waitFor();
+}
+
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   assert.match(await page.title(), /PaperBridge/);
@@ -284,6 +361,10 @@ try {
   healthFailure = false;
   ready = true;
   await page.getByRole('button', { name: 'Recheck server readiness' }).click();
+  await checkAndReviewSelectedGap();
+  await page
+    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .click();
   mode = 'error';
   await generate('Develop AI gap hypotheses');
   await page
@@ -298,7 +379,7 @@ try {
     .getByRole('region', { name: 'Selected gap finding' })
     .getByRole('heading', { name: 'Synthetic test hypothesis', exact: true })
     .waitFor();
-  await page.getByText('Cost of each AI run (3)', { exact: true }).click();
+  await page.getByText('Cost of each AI run (4)', { exact: true }).click();
   await page
     .getByText('Estimated $0.0072 USD', { exact: true })
     .first()
@@ -392,8 +473,9 @@ try {
     })
     .first()
     .check();
+  await checkAndReviewSelectedGap();
   await page
-    .getByRole('button', { name: 'Develop this gap', exact: true })
+    .getByRole('button', { name: 'Develop hypothesis', exact: true })
     .click();
   await page
     .getByRole('button', {
