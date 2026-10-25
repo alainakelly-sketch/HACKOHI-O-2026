@@ -354,3 +354,72 @@
     padding: 16px;
   }
 }
+
+/* A single, source-first map replaces the repeated candidate-card list. */
+.mind-map-focus {
+  max-width: 640px;
+  margin: 12px auto 24px;
+  padding: 20px;
+  border: 1px solid #c8c6f8;
+  border-radius: 16px;
+  background: #f4f3ff;
+  text-align: center;
+  font-weight: 600;
+  color: var(--ink);
+}
+.discovery-map-disclosure > h3 {
+  text-align: center;
+}
+.discovery-map-disclosure .discovery-map {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  position: relative;
+  gap: 28px;
+  padding: 24px;
+}
+.discovery-map-lane + .discovery-map-lane {
+  border-left: 2px solid #dddaf6;
+  padding-left: 24px;
+}
+.discovery-node {
+  border-radius: 12px;
+  padding: 14px;
+}
+.discovery-node.active,
+.discovery-node.linked {
+  border-color: var(--accent);
+  background: #f3f2ff;
+}
+.discovery-summary {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  background: transparent;
+  border: 0;
+}
+.discovery-selection {
+  margin-top: 24px;
+}
+@media (max-width: 700px) {
+  .discovery-map-disclosure .discovery-map {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    gap: 18px;
+  }
+  .discovery-map-lane + .discovery-map-lane {
+    border-left: 0;
+    border-top: 2px solid #dddaf6;
+    padding-left: 0;
+    padding-top: 14px;
+  }
+}
+.mind-map-branches {
+  display: block;
+  width: 100%;
+  height: 40px;
+  color: #c8c6f8;
+}
+@media (max-width: 700px) {
+  .mind-map-branches {
+    display: none;
+  }
+}

@@ -4,7 +4,6 @@ import type { Citation, Paper } from '../../shared/types';
 import { buildDiscoveryReport } from '../../shared/discovery';
 import type { DiscoveryEvidence } from '../../shared/discovery';
 import { scanGapLeads } from '../../shared/gaps';
-import { PriorWorkCheck } from './PriorWorkCheck';
 import { Notice } from './Primitives';
 import './discovery.css';
 
@@ -134,36 +133,6 @@ export function DiscoveryPanel({
   }
   const clip = (text: string, limit = 160) =>
     text.length > limit ? `${text.slice(0, limit)}…` : text;
-  const candidateButtons = () => (
-    <>
-      {report.tensions.map((item) => (
-        <button
-          key={item.id}
-          className={`discovery-candidate tension ${tension?.id === item.id ? 'active' : ''}`}
-          aria-pressed={tension?.id === item.id}
-          onClick={() => choose({ kind: 'tension', id: item.id })}
-        >
-          <span className="candidate-kind">
-            Possible finding tension · {item.claims.length} sources
-          </span>
-          <strong>{item.label}</strong>
-          <span>Compare findings and study context</span>
-        </button>
-      ))}
-      {gaps.map((item) => (
-        <button
-          key={item.id}
-          className={`discovery-candidate gap ${gap?.id === item.id ? 'active' : ''}`}
-          aria-pressed={gap?.id === item.id}
-          onClick={() => choose({ kind: 'gap', id: item.id })}
-        >
-          <span className="candidate-kind">{item.label} · article body</span>
-          <strong>{clip(item.signalText)}</strong>
-          <span>{title(item.paperId)}</span>
-        </button>
-      ))}
-    </>
-  );
   return (
     <section
       className="panel discovery-panel"
@@ -171,9 +140,9 @@ export function DiscoveryPanel({
     >
       <div className="panel-heading">
         <div>
-          <h2 id="discovery-title">Follow the evidence</h2>
+          <h2 id="discovery-title">Evidence mind map</h2>
           <p className="muted">
-            Choose a lead, inspect its basis, then plan a test.
+            Explore first. Choose one direction to develop.
           </p>
         </div>
         <GitBranch size={20} aria-hidden="true" />
@@ -194,175 +163,31 @@ export function DiscoveryPanel({
             Selected sources only · leads require review, not confirmed gaps or
             contradictions.
           </p>
-          {report.tensions.length || gaps.length ? (
-            <div
-              className="discovery-candidates"
-              aria-label="Candidate research leads"
-            >
-              {candidateButtons()}
-            </div>
-          ) : (
-            <Notice>
-              No explicit lead was detected in these passages. Compare the
-              sources or retrieve more article text; this does not establish
-              agreement or absence of a gap.
-            </Notice>
-          )}
-          {lead ? (
-            <section
-              className="discovery-selection"
-              aria-label="Selected research lead"
-            >
-              <span className="source-label">
-                {tension
-                  ? 'PAPERBRIDGE CANDIDATE · NOT A CONFIRMED CONTRADICTION'
-                  : 'AUTHOR-STATED ISSUE · NOT A CONFIRMED FIELD-WIDE GAP'}
-              </span>
-              <h3>Question to investigate</h3>
-              <p className="discovery-question">{lead.question}</p>
-              <div className="discovery-actions">
-                <button className="primary" onClick={() => onPlan(lead)}>
-                  <FlaskConical size={15} />
-                  Draft an experiment · free
-                </button>
-                <button
-                  className="secondary"
-                  onClick={() => onHypothesis(lead)}
-                >
-                  Use this question in AI hypotheses
-                </button>
-              </div>
-              <p className="panel-footnote">
-                Drafting and opening the AI step are free. Only explicit AI
-                generation can incur a charge.
-              </p>
-              <details>
-                <summary>
-                  Supporting evidence · {lead.sources.length} source{' '}
-                  {lead.sources.length === 1 ? 'passage' : 'passages'}
-                </summary>
-                {tension ? (
-                  <>
-                    <div className="discovery-claim-pair">
-                      {tension.claims.map((claim, index) => (
-                        <article
-                          key={`${claim.reference.paperId}:${claim.reference.passageId}`}
-                        >
-                          <h4>Finding {index + 1}</h4>
-                          <p>{title(claim.reference.paperId)}</p>
-                          {quote(claim, 'Possible finding tension')}
-                        </article>
-                      ))}
-                    </div>
-                    <details>
-                      <summary>
-                        Could population, dataset, or method differences explain
-                        this?
-                      </summary>
-                      {tension.context.map((context) => (
-                        <div key={context.field} className="discovery-context">
-                          <h4>{fieldLabels[context.field]}</h4>
-                          <div className="discovery-claim-pair">
-                            {[context.left, context.right].map(
-                              (evidence, index) => (
-                                <div key={index}>
-                                  <strong>Finding {index + 1} source</strong>
-                                  {evidence ? (
-                                    quote(evidence)
-                                  ) : (
-                                    <p className="muted">
-                                      Context unknown from retrieved text.
-                                    </p>
-                                  )}
-                                </div>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </details>
-                  </>
-                ) : gap ? (
-                  <>
-                    <h4>{title(gap.paperId)}</h4>
-                    <div className="discovery-quote">
-                      <span className="source-label">
-                        SOURCE STATES · ARTICLE BODY · {gap.section}
-                      </span>
-                      <blockquote>{gap.signalText}</blockquote>
-                      <button
-                        className="text-button"
-                        onClick={() => onInspect(lead.sources[0], gap.label)}
-                      >
-                        Inspect complete source passage
-                      </button>
-                    </div>
-                  </>
-                ) : null}
-              </details>
-              <details>
-                <summary>Why this is a lead</summary>
-                <p>{lead.reason}</p>
-                <p className="muted">
-                  The question is a planning prompt. Check related work and
-                  feasibility before treating it as open.
-                </p>
-              </details>
-              <PriorWorkCheck
-                key={lead.id}
-                initialQuery={lead.searchQuery}
-                field={focus.field}
-              />
-            </section>
-          ) : null}
-          {selectedPaper && profile ? (
-            <section
-              className="discovery-selection"
-              aria-label="Selected paper details"
-            >
-              <h3>{selectedPaper.title}</h3>
-              <p className="muted">
-                {selectedPaper.year ?? 'Year unavailable'} ·{' '}
-                {selectedPaper.coverage} ·{' '}
-                <a href={selectedPaper.url} target="_blank" rel="noreferrer">
-                  Original source
-                </a>
-              </p>
-              <div className="discovery-profile">
-                {Object.entries(fieldLabels).map(([field, label]) => {
-                  const evidence =
-                    profile.fields[field as keyof typeof fieldLabels];
-                  return (
-                    <details key={field}>
-                      <summary>
-                        {label}{' '}
-                        <span className="muted">
-                          ·{' '}
-                          {evidence
-                            ? 'Source statement available'
-                            : 'Not identified'}
-                        </span>
-                      </summary>
-                      {evidence ? (
-                        quote(evidence, label)
-                      ) : (
-                        <p className="muted">
-                          Not identified in retrieved text; check the original
-                          paper.
-                        </p>
-                      )}
-                    </details>
-                  );
-                })}
-              </div>
-            </section>
-          ) : null}
-          <details className="discovery-map-disclosure">
-            <summary>Explore evidence map</summary>
-            <p className="muted">
-              Choose a source or lead. Highlighted papers support the selected
-              lead; missing connections do not establish a gap.
+          <section
+            className="discovery-map-disclosure"
+            aria-label="Evidence mind map"
+          >
+            <h3>Research focus</h3>
+            <p className="mind-map-focus">
+              {focus.question || focus.field || 'Your selected evidence'}
             </p>
+            <p className="muted">
+              Papers → source-supported leads → a question to test. Select a
+              node to see its evidence.
+            </p>
+            <svg
+              className="mind-map-branches"
+              viewBox="0 0 900 50"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M450 0 V20 M150 50 V20 H750 V50 M450 20 V50"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+            </svg>
             <div className="discovery-map">
               <div className="discovery-map-lane">
                 <h4>
@@ -457,7 +282,151 @@ export function DiscoveryPanel({
                 ))}
               </div>
             </details>
-          </details>
+          </section>
+          {lead ? (
+            <section
+              className="discovery-selection"
+              aria-label="Selected research lead"
+            >
+              <span className="source-label">
+                {tension
+                  ? 'PAPERBRIDGE CANDIDATE · NOT A CONFIRMED CONTRADICTION'
+                  : 'AUTHOR-STATED ISSUE · NOT A CONFIRMED FIELD-WIDE GAP'}
+              </span>
+              <h3>Question to investigate</h3>
+              <p className="discovery-question">{lead.question}</p>
+              <div className="discovery-actions">
+                <button className="primary" onClick={() => onPlan(lead)}>
+                  <FlaskConical size={15} />
+                  Draft an experiment · free
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => onHypothesis(lead)}
+                >
+                  Develop this hypothesis
+                </button>
+              </div>
+              <p className="panel-footnote">
+                Drafting and opening the AI step are free. Only explicit AI
+                generation can incur a charge.
+              </p>
+              <details>
+                <summary>
+                  Supporting evidence · {lead.sources.length} source{' '}
+                  {lead.sources.length === 1 ? 'passage' : 'passages'}
+                </summary>
+                {tension ? (
+                  <>
+                    <div className="discovery-claim-pair">
+                      {tension.claims.map((claim, index) => (
+                        <article
+                          key={`${claim.reference.paperId}:${claim.reference.passageId}`}
+                        >
+                          <h4>Finding {index + 1}</h4>
+                          <p>{title(claim.reference.paperId)}</p>
+                          {quote(claim, 'Possible finding tension')}
+                        </article>
+                      ))}
+                    </div>
+                    <details>
+                      <summary>
+                        Could population, dataset, or method differences explain
+                        this?
+                      </summary>
+                      {tension.context.map((context) => (
+                        <div key={context.field} className="discovery-context">
+                          <h4>{fieldLabels[context.field]}</h4>
+                          <div className="discovery-claim-pair">
+                            {[context.left, context.right].map(
+                              (evidence, index) => (
+                                <div key={index}>
+                                  <strong>Finding {index + 1} source</strong>
+                                  {evidence ? (
+                                    quote(evidence)
+                                  ) : (
+                                    <p className="muted">
+                                      Context unknown from retrieved text.
+                                    </p>
+                                  )}
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </details>
+                  </>
+                ) : gap ? (
+                  <>
+                    <h4>{title(gap.paperId)}</h4>
+                    <div className="discovery-quote">
+                      <span className="source-label">
+                        SOURCE STATES · ARTICLE BODY · {gap.section}
+                      </span>
+                      <blockquote>{gap.signalText}</blockquote>
+                      <button
+                        className="text-button"
+                        onClick={() => onInspect(lead.sources[0], gap.label)}
+                      >
+                        Inspect complete source passage
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </details>
+              <details>
+                <summary>Why this is a lead</summary>
+                <p>{lead.reason}</p>
+                <p className="muted">
+                  The question is a planning prompt. Check related work and
+                  feasibility before treating it as open.
+                </p>
+              </details>
+            </section>
+          ) : null}
+          {selectedPaper && profile ? (
+            <section
+              className="discovery-selection"
+              aria-label="Selected paper details"
+            >
+              <h3>{selectedPaper.title}</h3>
+              <p className="muted">
+                {selectedPaper.year ?? 'Year unavailable'} ·{' '}
+                {selectedPaper.coverage} ·{' '}
+                <a href={selectedPaper.url} target="_blank" rel="noreferrer">
+                  Original source
+                </a>
+              </p>
+              <div className="discovery-profile">
+                {Object.entries(fieldLabels).map(([field, label]) => {
+                  const evidence =
+                    profile.fields[field as keyof typeof fieldLabels];
+                  return (
+                    <details key={field}>
+                      <summary>
+                        {label}{' '}
+                        <span className="muted">
+                          ·{' '}
+                          {evidence
+                            ? 'Source statement available'
+                            : 'Not identified'}
+                        </span>
+                      </summary>
+                      {evidence ? (
+                        quote(evidence, label)
+                      ) : (
+                        <p className="muted">
+                          Not identified in retrieved text; check the original
+                          paper.
+                        </p>
+                      )}
+                    </details>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
           <details className="discovery-patterns">
             <summary>Reporting patterns & missing details</summary>
             <p className="muted">

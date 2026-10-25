@@ -49,9 +49,10 @@ import {
   planContextKey,
 } from '../shared/experiment-plan';
 import type { ExperimentDraft } from '../shared/experiment-plan';
-type Stage = 'search' | 'hypothesis' | 'experiment';
+type Stage = 'search' | 'map' | 'hypothesis' | 'experiment';
 const pipeline: { id: Stage; label: string; description: string }[] = [
   { id: 'search', label: 'Search', description: 'Choose your evidence' },
+  { id: 'map', label: 'Mind map', description: 'Explore the evidence' },
   {
     id: 'hypothesis',
     label: 'Hypothesis',
@@ -63,7 +64,7 @@ const nav = [
   { id: 'question', label: 'Focus', stage: 'search' },
   { id: 'papers', label: 'Papers', stage: 'search' },
   { id: 'comparison', label: 'Compare', stage: 'search' },
-  { id: 'gaps', label: 'Gap leads', stage: 'hypothesis' },
+  { id: 'gaps', label: 'Mind map', stage: 'map' },
   { id: 'resources', label: 'Resources', stage: 'hypothesis' },
   { id: 'connections', label: 'AI hypotheses', stage: 'hypothesis' },
   { id: 'experiment', label: 'Experiment', stage: 'experiment' },
@@ -85,9 +86,9 @@ const workflowHeadings: Record<string, { title: string; description: string }> =
         'Read similarities, differences and the passages behind them.',
     },
     gaps: {
-      title: 'Explore research leads',
+      title: 'Connect the evidence',
       description:
-        'Inspect an author-stated limitation or possible disagreement before planning a test.',
+        'Select a paper or a lead, inspect its evidence, then take a question into your hypothesis.',
     },
     resources: {
       title: 'Make the hypothesis fit your resources',
@@ -217,7 +218,8 @@ export default function App() {
   const stageIndex = pipeline.findIndex((item) => item.id === stage);
   const lastViews = useRef<Record<Stage, string>>({
     search: 'question',
-    hypothesis: 'gaps',
+    map: 'gaps',
+    hypothesis: 'connections',
     experiment: 'experiment',
   });
   useEffect(() => {
@@ -914,7 +916,7 @@ export default function App() {
               onHypothesis={startDiscoveryHypothesis}
             />
             <details className="author-lead-scan">
-              <summary>Scan author-stated limitations and future work</summary>
+              <summary>Advanced: scan settings and abstract-only leads</summary>
               <GapPanel
                 papers={selected}
                 question={brief.question}
