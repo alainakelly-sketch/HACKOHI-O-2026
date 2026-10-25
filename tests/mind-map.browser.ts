@@ -139,13 +139,9 @@ async function prepare(page: Page, papers: Paper[]) {
     await page.getByLabel(`Select ${paper.title}`, { exact: true }).check();
   await page
     .getByRole('navigation', { name: 'Research pipeline' })
-    .getByRole('button', { name: 'Mind map', exact: true })
+    .getByRole('button', { name: 'Find gaps', exact: true })
     .click();
-  await page.getByRole('tab', { name: 'Gap leads', exact: true }).click();
-  await page.locator('.explore-connections > summary').click();
-  await page
-    .getByRole('heading', { name: 'Theme overlap map', exact: true })
-    .waitFor();
+  await page.getByRole('heading', { name: 'Find gaps', exact: true }).waitFor();
   return { errors, consoleErrors, counts };
 }
 function verifyQuotes(quotes: string[], papers: Paper[]) {
@@ -161,140 +157,87 @@ function verifyQuotes(quotes: string[], papers: Paper[]) {
       `Quote not found in selected source text: ${quote}`,
     );
 }
-async function revealEvidence(detail: import('playwright').Locator) {
-  const summary = detail
-    .locator('summary')
-    .filter({ hasText: /supporting.*passages|evidence/i })
-    .first();
-  if (
-    (await summary.count()) &&
-    !(await summary
-      .locator('..')
-      .evaluate((element) => (element as HTMLDetailsElement).open))
-  )
-    await summary.click();
-}
 try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   });
   const page = await context.newPage();
-  const { errors, consoleErrors, counts } = await prepare(page, related);
-  const map = page.locator('.explore-connections');
-  const themes = map.getByRole('button', { name: /^Explore theme: / });
-  const themeCount = await themes.count();
-  assert.ok(
-    themeCount >= 3 && themeCount <= 5,
-    `Expected 3–5 supported themes, got ${themeCount}`,
-  );
-  for (let index = 0; index < themeCount; index++) {
-    assert.match(await themes.nth(index).innerText(), /4 papers/);
-    assert.equal(
-      await themes.nth(index).getAttribute('aria-expanded'),
-      'false',
+  const state = await prepare(page, related);
+  const detail = page.getByRole('region', { name: 'Selected gap finding' });
+  await detail.waitFor();
+  const id = await detail.getAttribute('data-finding-id');
+  assert.ok(id);
+  await detail.locator('.finding-evidence > summary').click();
+  const expectedRefs = await detail
+    .locator('.finding-source')
+    .evaluateAll((nodes) =>
+      nodes
+        .map((n) =>
+          [
+            n.getAttribute('data-paper-id'),
+            n.getAttribute('data-passage-id'),
+          ].join(':'),
+        )
+        .sort(),
     );
-  }
+  verifyQuotes(await detail.locator('blockquote').allTextContents(), related);
+  await page.getByRole('tab', { name: 'Visual map', exact: true }).click();
+  const map = page.locator('.gap-visual-map');
+  assert.equal(await map.getAttribute('data-finding-id'), id);
   assert.equal(await map.locator('.concept-conflicts').count(), 0);
+  const sourceBranch = map.locator('.gap-map-source > button');
   assert.equal(
-    await page
-      .getByText('These papers may not strongly match your question.', {
-        exact: true,
-      })
-      .count(),
-    0,
+    await sourceBranch.count(),
+    1,
+    'Map should contain only sources supporting selected author issue',
   );
-  await map.locator('.concept-paper-fits > summary').click();
+  const relationship = map.locator('.relationship-node');
+  await relationship.click();
+  await sourceBranch.first().click();
+  const actualRefs = await map
+    .locator('.gap-map-evidence-node')
+    .evaluateAll((nodes) =>
+      nodes
+        .map((n) =>
+          [
+            n.getAttribute('data-paper-id'),
+            n.getAttribute('data-passage-id'),
+          ].join(':'),
+        )
+        .sort(),
+    );
+  assert.deepEqual(actualRefs, expectedRefs);
+  await map.locator('.gap-map-evidence-node').first().click();
+  const drawer = map.getByRole('region', { name: 'Map evidence details' });
+  await drawer.waitFor();
+  verifyQuotes(await drawer.locator('blockquote').allTextContents(), related);
+  await drawer
+    .getByRole('button', { name: 'Open evidence inspector', exact: true })
+    .click();
+  await page.getByRole('dialog').waitFor();
+  await page
+    .getByRole('button', { name: 'Close evidence', exact: true })
+    .click();
+  await drawer
+    .getByRole('button', { name: 'Close evidence details', exact: true })
+    .click();
   assert.equal(
-    await map.getByText('Strong fit', { exact: true }).count(),
-    related.length,
+    await sourceBranch.first().getAttribute('aria-expanded'),
+    'true',
   );
-  assert.equal(await page.locator('vite-error-overlay').count(), 0);
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  assert.equal(await relationship.getAttribute('aria-expanded'), 'true');
+  await page.getByRole('tab', { name: 'Gap findings', exact: true }).click();
+  assert.equal(await detail.getAttribute('data-finding-id'), id);
+  await page.getByRole('tab', { name: 'Visual map', exact: true }).click();
+  assert.equal(
+    await sourceBranch.first().getAttribute('aria-expanded'),
+    'true',
+  );
   await page.screenshot({
     path: `${output}/related-desktop.png`,
     fullPage: true,
   });
-  await themes.first().click();
-  const branch = themes
-    .first()
-    .locator('xpath=ancestor::article[contains(@class,"concept-branch")]');
-  const themeLabel = (await themes.first().getAttribute('aria-label'))!.replace(
-    'Explore theme: ',
-    '',
-  );
-  await branch
-    .getByRole('button', {
-      name: `How sources describe ${themeLabel}`,
-    })
-    .click();
-  let detail = map.getByRole('region', {
-    name: 'Concept details',
-    exact: true,
-  });
-  await detail
-    .getByRole('heading', { name: themeLabel, exact: true })
-    .waitFor();
-  await detail
-    .getByRole('heading', { name: 'What is known', exact: true })
-    .waitFor();
-  await detail
-    .getByRole('heading', { name: 'What is missing', exact: true })
-    .waitFor();
-  await revealEvidence(detail);
-  const quotes = await detail.locator('blockquote').allTextContents();
-  verifyQuotes(quotes, related);
-  assert.ok(
-    quotes.some((quote) =>
-      quote.toLowerCase().includes(themeLabel.toLowerCase()),
-    ),
-  );
-  await detail
-    .getByRole('button', {
-      name: 'Inspect complete source passage',
-      exact: true,
-    })
-    .first()
-    .click();
-  await page.getByRole('dialog').waitFor();
-  await page.getByRole('dialog').locator('.source-metadata > summary').click();
-  assert.match(
-    await page.getByRole('dialog').innerText(),
-    /SYNTHETIC Sleep duration/,
-  );
-  await page
-    .getByRole('button', { name: 'Close evidence', exact: true })
-    .click();
-  await detail
-    .getByRole('button', { name: 'Close details', exact: true })
-    .click();
-  const overlap = branch
-    .getByRole('button', { name: /^Explore overlap: / })
-    .first();
-  assert.ok(
-    (await overlap.count()) > 0,
-    'Related papers should produce source-backed overlap children',
-  );
-  const overlapLabel = (await overlap.getAttribute('aria-label'))!.replace(
-    'Explore overlap: ',
-    '',
-  );
-  await overlap.click();
-  detail = map.getByRole('region', { name: 'Concept details', exact: true });
-  await detail
-    .getByRole('heading', { name: overlapLabel, exact: true })
-    .waitFor();
-  await revealEvidence(detail);
-  verifyQuotes(await detail.locator('blockquote').allTextContents(), related);
-  await page.screenshot({
-    path: `${output}/overlap-detail.png`,
-    fullPage: true,
-  });
-  await detail
-    .getByRole('button', { name: 'Close details', exact: true })
-    .click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await page.screenshot({ path: `${output}/related-mobile-top.png` });
   await page.screenshot({
     path: `${output}/related-mobile.png`,
     fullPage: true,
@@ -305,31 +248,24 @@ try {
     ),
     false,
   );
-  assert.equal(counts.analysis, 0);
-  assert.deepEqual(errors, []);
-  assert.deepEqual(consoleErrors, []);
-  assert.deepEqual(counts.unexpected, []);
+  assert.equal(state.counts.analysis, 0);
+  assert.deepEqual(state.errors, []);
+  assert.deepEqual(state.consoleErrors, []);
+  assert.deepEqual(state.counts.unexpected, []);
   await context.close();
   const weakContext = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   });
   const weakPage = await weakContext.newPage();
   const weakState = await prepare(weakPage, weak);
-  await weakPage
-    .getByText('These papers may not strongly match your question.', {
-      exact: true,
-    })
-    .waitFor();
-  const weakMap = weakPage.locator('.explore-connections');
-  await weakMap.locator('.concept-paper-fits > summary').click();
+  await weakPage.getByText(/No supported candidate is available yet/).waitFor();
+  assert.equal(await weakPage.getByRole('radio').count(), 0);
+  await weakPage.getByRole('tab', { name: 'Visual map', exact: true }).click();
+  await weakPage.getByText(/No supported candidate is selected/).waitFor();
   assert.equal(
-    await weakMap.getByText('Weak fit', { exact: true }).count(),
-    weak.length,
-  );
-  assert.equal(await weakMap.locator('.concept-conflicts').count(), 0);
-  assert.equal(await weakPage.locator('vite-error-overlay').count(), 0);
-  await weakPage.evaluate(() =>
-    window.scrollTo({ top: 0, behavior: 'instant' }),
+    await weakPage.locator('.gap-map-question').count(),
+    0,
+    'No invented question when sources lack a defensible lead',
   );
   await weakPage.screenshot({
     path: `${output}/weak-desktop.png`,
@@ -341,7 +277,7 @@ try {
   assert.deepEqual(weakState.counts.unexpected, []);
   await weakContext.close();
   console.log(
-    'PASS: related expandable themes and overlap children; exact source evidence and dialog; weak-fit warning; no empty conflicts; desktop/mobile without overflow or page errors.',
+    'PASS: canonical selected-gap map and list share exact evidence; focused source branches and persistent state; no forced weak-source gap or empty conflict section; desktop/mobile. Synthetic mocks only.',
   );
 } finally {
   await browser.close();

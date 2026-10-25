@@ -139,15 +139,15 @@ await page.route('**/api/**', async (route) => {
   } else throw new Error(`Unexpected mock endpoint ${path}`);
   await route.fulfill({ status, json: data });
 });
-const tab = (name: string) => page.getByRole('tab', { name, exact: true });
-const stageFor = (name: string) =>
-  ['Focus', 'Papers', 'Compare'].includes(name)
-    ? 'Search'
-    : name === 'Gap leads'
-      ? 'Mind map'
-      : name === 'Experiment'
-        ? 'Experiment'
-        : 'Hypothesis';
+const aliases: Record<string, string> = {
+  Papers: 'Search & select',
+  Compare: 'Read & compare',
+  'Gap leads': 'Gap findings',
+  'AI hypotheses': 'Gap findings',
+  Resources: 'Gap findings',
+};
+const tab = (name: string) =>
+  page.getByRole('tab', { name: aliases[name] ?? name, exact: true });
 async function closeEvidence() {
   const close = page.getByRole('button', {
     name: 'Close evidence',
@@ -157,17 +157,32 @@ async function closeEvidence() {
 }
 async function open(name: string) {
   await closeEvidence();
+  const stageName =
+    name === 'Focus'
+      ? 'Focus'
+      : name === 'Experiment'
+        ? 'Experiment'
+        : ['Papers', 'Compare'].includes(name)
+          ? 'Papers'
+          : 'Find gaps';
   const stage = page
     .getByRole('navigation', { name: 'Research pipeline' })
-    .getByRole('button', { name: new RegExp(stageFor(name)) });
+    .getByRole('button', { name: stageName, exact: true });
   if ((await stage.getAttribute('aria-current')) !== 'step')
     await stage.click();
-  await tab(name).click();
+  if (!['Focus', 'Experiment'].includes(name)) await tab(name).click();
+  if (['AI hypotheses', 'Resources'].includes(name))
+    await expand('Develop a candidate with AI');
+  if (name === 'Resources') await expand('Planning resources · optional');
   assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
-  assert.ok((await page.getByRole('tab').count()) <= 3);
+  assert.ok((await page.getByRole('tab').count()) <= 2);
 }
 async function expand(text: string | RegExp) {
-  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const summary = page
+    .locator('[role=tabpanel]:visible')
+    .locator('summary')
+    .filter({ hasText: text })
+    .first();
   const details = summary.locator('xpath=ancestor::details');
   for (let i = 0; i < (await details.count()); i++) {
     const detail = details.nth(i);
@@ -229,9 +244,10 @@ try {
   );
   assert.equal(analysisCalls, 0);
   assert.equal(searchCalls, 0);
-  await tab('Focus').focus();
+  await open('Papers');
+  await tab('Papers').focus();
   await page.keyboard.press('ArrowRight');
-  assert.equal(await tab('Papers').getAttribute('aria-selected'), 'true');
+  assert.equal(await tab('Compare').getAttribute('aria-selected'), 'true');
   await open('Focus');
   await page
     .getByRole('button', { name: 'Find papers for this focus' })
@@ -275,10 +291,13 @@ try {
     .waitFor();
   mode = 'insufficient';
   await generate('Develop AI gap hypotheses');
-  await page.getByText('Insufficient evidence.', { exact: false }).waitFor();
+  await page.getByText('Insufficient evidence:', { exact: false }).waitFor();
   mode = 'success';
   await generate('Analyze again');
-  await page.getByText('Synthetic test hypothesis', { exact: true }).waitFor();
+  await page
+    .getByRole('region', { name: 'Selected gap finding' })
+    .getByRole('heading', { name: 'Synthetic test hypothesis', exact: true })
+    .waitFor();
   await page.getByText('Cost of each AI run (3)', { exact: true }).click();
   await page
     .getByText('Estimated $0.0072 USD', { exact: true })
@@ -307,9 +326,15 @@ try {
   );
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page
-    .getByRole('button', { name: 'Plan an experiment', exact: true })
+    .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
-  assert.equal(await tab('Experiment').getAttribute('aria-selected'), 'true');
+  assert.equal(
+    await page
+      .getByRole('navigation', { name: 'Research pipeline' })
+      .getByRole('button', { name: 'Experiment', exact: true })
+      .getAttribute('aria-current'),
+    'step',
+  );
   assert.equal(
     await page.locator('.experiment-panel textarea:visible').count(),
     3,
@@ -339,7 +364,7 @@ try {
   );
   await open('AI hypotheses');
   await page
-    .getByRole('button', { name: 'Plan an experiment', exact: true })
+    .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
@@ -354,7 +379,7 @@ try {
   await open('AI hypotheses');
   await generate('Analyze again');
   await page
-    .getByRole('button', { name: 'Plan an experiment', exact: true })
+    .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
@@ -362,8 +387,17 @@ try {
   );
   await open('Gap leads');
   await page
-    .getByRole('button', { name: 'Draft an experiment from this lead' })
+    .getByRole('radio', { name: /Select gap finding: Future work/ })
     .first()
+    .check();
+  await page
+    .getByRole('button', { name: 'Develop this gap', exact: true })
+    .click();
+  await page
+    .getByRole('button', {
+      name: 'Draft an experiment without AI',
+      exact: true,
+    })
     .click();
   await page
     .getByText('User-created draft · not AI-generated', { exact: true })

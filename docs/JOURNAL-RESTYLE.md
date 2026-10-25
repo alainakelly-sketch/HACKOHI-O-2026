@@ -1,5 +1,7 @@
 # PaperBridge journal restyle
 
+Historical change record: the later purpose-focused correction supersedes this orange/serif direction. Current branding and navigation are documented in `PURPOSE-WORKSPACE.md`.
+
 A scoped visual change on the existing feature branch. No search ranking, map relationships, evidence text, model configuration, spending gates, hypothesis state, experiment logic or export schema changed.
 
 ## Design system

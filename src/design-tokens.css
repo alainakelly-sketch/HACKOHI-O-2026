@@ -1,17 +1,19 @@
-/* PaperBridge journal system. Color, type and rhythm shared by every workspace. */
+/* PaperBridge original-brand workspace system. Color, type and rhythm shared by every workspace. */
 :root {
-  --font-editorial: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-editorial: var(--font-ui);
   --font-ui:
     'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --page: #faf9f6;
+  --page: #f8faff;
   --surface: #fff;
-  --ink: #242321;
-  --muted: #64615c;
-  --accent: #a63e2b;
-  --accent-hover: #883120;
-  --accent-surface: #f8eee9;
-  --line: #ddd9d2;
-  --soft: #f3f1ec;
+  --ink: #0b1c3d;
+  --muted: #596780;
+  --accent: #5147c9;
+  --accent-hover: #4037ad;
+  --brand-blue: #0878c8;
+  --brand-violet: #5558ef;
+  --accent-surface: #f2f0ff;
+  --line: #dce2ed;
+  --soft: #f4f6fa;
   --success: #2c6551;
   --success-surface: #eff6f0;
   --warning: #80551d;
@@ -29,9 +31,9 @@
   --space-12: 48px;
   --text-body: 16px;
   --text-control: 14px;
-  --text-title: clamp(32px, 3.2vw, 38px);
-  --text-section: 24px;
-  --text-publication: 21px;
-  --overlay-shadow: 0 16px 56px #24232126;
-  --control-border: #8d877e;
+  --text-title: clamp(28px, 3vw, 34px);
+  --text-section: 22px;
+  --text-publication: 20px;
+  --overlay-shadow: 0 16px 56px #0b1c3d26;
+  --control-border: #7d899d;
 }

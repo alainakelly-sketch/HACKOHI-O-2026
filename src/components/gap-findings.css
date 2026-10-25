@@ -1,0 +1,208 @@
+.gap-findings {
+  padding: var(--space-6) 0;
+}
+.gap-findings > h2 {
+  margin-bottom: var(--space-4);
+}
+.finding-choices {
+  display: grid;
+  gap: 0;
+  margin-bottom: var(--space-6);
+  border-top: 1px solid var(--line);
+}
+.finding-choice {
+  margin: 0;
+  cursor: pointer;
+  font-weight: 400;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  text-align: left;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-4);
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.finding-choice-copy > span,
+.finding-choice small,
+.finding-origin {
+  color: var(--muted);
+  font-size: var(--text-control);
+  font-weight: 400;
+}
+.finding-choice strong {
+  overflow-wrap: anywhere;
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.finding-choice.selected {
+  background: var(--accent-surface);
+  border-inline-start: 3px solid var(--accent);
+}
+.finding-detail {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-6);
+}
+.finding-detail h3 {
+  overflow-wrap: anywhere;
+  margin: var(--space-2) 0 var(--space-6);
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.finding-explanation {
+  margin: 0;
+  display: grid;
+  gap: var(--space-6);
+}
+.finding-explanation dt {
+  font-size: var(--text-body);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+.finding-explanation dd {
+  margin: 0;
+  line-height: 1.75;
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+.finding-question {
+  margin: var(--space-6) 0;
+  padding: var(--space-4);
+  background: var(--soft);
+  border-radius: var(--radius-sm);
+}
+.finding-question strong {
+  font-size: var(--text-control);
+  font-weight: 500;
+  display: block;
+  margin-bottom: var(--space-2);
+}
+.finding-question span {
+  overflow-wrap: anywhere;
+  display: block;
+  font-size: var(--text-body);
+  line-height: 1.7;
+}
+.finding-next {
+  margin-bottom: var(--space-4);
+}
+.finding-evidence,
+.finding-uncertainty,
+.finding-prior {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+}
+.finding-source {
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+.finding-source > a {
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.finding-source > p {
+  margin-top: var(--space-2);
+}
+.finding-source blockquote {
+  font-size: var(--text-body);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: var(--space-4) 0;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--line);
+}
+.finding-uncertainty li {
+  font-size: var(--text-body);
+  line-height: 1.7;
+  margin-bottom: var(--space-2);
+}
+@media (max-width: 650px) {
+  .finding-choice {
+    padding: var(--space-4) var(--space-3);
+  }
+  .finding-detail h3 {
+    overflow-wrap: anywhere;
+    font-size: 20px;
+  }
+}
+
+.finding-choice input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin: 4px 0 0;
+  accent-color: var(--accent);
+}
+.finding-choice-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.gap-source-settings,
+.gap-development,
+.gap-resources {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+  margin-top: var(--space-4);
+  min-width: 0;
+}
+.gap-source-settings > summary,
+.gap-development > summary,
+.gap-resources > summary {
+  padding: var(--space-2) 0;
+  font-size: var(--text-control);
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.gap-source-settings label {
+  font-size: var(--text-control);
+}
+.gap-source-settings select {
+  width: 100%;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-control);
+}
+.gap-source-settings > p,
+.gap-source-settings > button {
+  margin-top: var(--space-3);
+}
+.prepared-gap {
+  padding: var(--space-4) 0;
+}
+.prepared-gap > h3 {
+  font-size: var(--text-control);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+.prepared-gap > p {
+  max-width: 100%;
+  font-size: var(--text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prepared-gap > button {
+  margin-top: var(--space-3);
+}
+.gap-development .connection-panel {
+  padding: var(--space-4) 0;
+}

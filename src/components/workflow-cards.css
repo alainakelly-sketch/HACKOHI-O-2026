@@ -78,7 +78,7 @@
   cursor: pointer;
   color: var(--muted);
   font-size: var(--text-control);
-  font-weight: 550;
+  font-weight: 500;
 }
 .concise-hypotheses details p {
   font-size: var(--text-body);

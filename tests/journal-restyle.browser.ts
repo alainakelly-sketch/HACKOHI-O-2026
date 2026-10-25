@@ -1,5 +1,5 @@
-/** SYNTHETIC UI fixtures only. Fonts are local real assets; all API requests mocked. */
-import { chromium, type Page } from 'playwright';
+/** SYNTHETIC UI fixtures only. Brand uses original logo assets and local IBM fonts; all API requests mocked. */
+import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import type { Paper } from '../shared/types';
@@ -85,7 +85,7 @@ const papers: Paper[] = [
     passages: [],
   },
 ];
-const output = '/tmp/paperbridge-journal';
+const output = '/tmp/paperbridge-purpose-brand';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
@@ -129,19 +129,47 @@ await page.route('**/api/**', async (route) => {
   throw Error('Unexpected API request ' + url.pathname);
 });
 async function open(name: string) {
-  const stage = ['Focus', 'Papers', 'Compare'].includes(name)
-    ? 'Search'
-    : name === 'Gap leads'
-      ? 'Mind map'
-      : name === 'Experiment'
-        ? 'Experiment'
-        : 'Hypothesis';
+  const close = page.getByRole('button', {
+    name: 'Close evidence',
+    exact: true,
+  });
+  if (await close.isVisible()) await close.click();
+  const stage =
+    name === 'Focus'
+      ? 'Focus'
+      : ['Papers', 'Compare'].includes(name)
+        ? 'Papers'
+        : name === 'Experiment'
+          ? 'Experiment'
+          : 'Find gaps';
   await page
     .getByRole('navigation', { name: 'Research pipeline' })
     .getByRole('button', { name: stage, exact: true })
     .click();
-  await page.getByRole('tab', { name, exact: true }).click();
+  const child =
+    name === 'Papers'
+      ? 'Search & select'
+      : name === 'Compare'
+        ? 'Read & compare'
+        : name === 'Visual map'
+          ? 'Visual map'
+          : ['Gap leads', 'AI hypotheses', 'Resources'].includes(name)
+            ? 'Gap findings'
+            : null;
+  if (child) await page.getByRole('tab', { name: child, exact: true }).click();
+  if (['Resources', 'AI hypotheses'].includes(name)) {
+    const development = page.locator('.gap-development');
+    if (!(await development.evaluate((e: HTMLDetailsElement) => e.open)))
+      await development.locator(':scope > summary').click();
+    if (name === 'Resources') {
+      const resources = page.locator('.gap-resources');
+      if (!(await resources.evaluate((e: HTMLDetailsElement) => e.open)))
+        await resources.locator(':scope > summary').click();
+    }
+  }
+  assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
 }
+
 async function screenshot(name: string) {
   await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({ path: `${output}/${name}.png`, fullPage: true });
@@ -178,15 +206,13 @@ try {
   await page.locator('h1').waitFor();
   await page.evaluate(() => document.fonts.ready);
   for (const font of [
-    '400 36px Newsreader',
-    '500 21px Newsreader',
     '400 16px "IBM Plex Sans"',
+    '500 32px "IBM Plex Sans"',
     '600 14px "IBM Plex Sans"',
   ])
     assert.equal(
       await page.evaluate((font) => document.fonts.check(font), font),
       true,
-      `Font unavailable: ${font}`,
     );
   const h1 = await page
     .locator('h1')
@@ -196,8 +222,8 @@ try {
       size: parseFloat(getComputedStyle(e).fontSize),
       weight: parseFloat(getComputedStyle(e).fontWeight),
     }));
-  assert.match(h1.family, /Newsreader/);
-  assert.ok(h1.size >= 32 && h1.size <= 38);
+  assert.match(h1.family, /IBM Plex Sans/);
+  assert.ok(h1.size >= 28 && h1.size <= 38);
   assert.ok(h1.weight >= 400 && h1.weight <= 500);
   const ui = await page
     .getByLabel('Research question', { exact: true })
@@ -273,7 +299,7 @@ try {
       size: parseFloat(getComputedStyle(e).fontSize),
       weight: parseFloat(getComputedStyle(e).fontWeight),
     }));
-  assert.match(publication.family, /Newsreader/);
+  assert.match(publication.family, /IBM Plex Sans/);
   assert.ok(publication.size >= 19 && publication.size <= 22);
   assert.equal(publication.weight, 500);
   const metadata = await page
@@ -317,13 +343,13 @@ try {
   assert.ok(
     nodes[0].fonts.some(
       (font: any) =>
-        font.familyName.includes('Newsreader') && font.isCustomFont,
+        font.familyName.includes('IBM Plex Sans') && font.isCustomFont,
     ),
   );
   assert.ok(
     nodes[1].fonts.some(
       (font: any) =>
-        font.familyName.includes('Newsreader') && font.isCustomFont,
+        font.familyName.includes('IBM Plex Sans') && font.isCustomFont,
     ),
   );
   assert.ok(
@@ -364,31 +390,37 @@ try {
   await page.locator('.paper-row').first().waitFor();
   assert.equal((await page.locator('.selection-tray').count()) > 0, true);
   await open('Gap leads');
-  const map = page.locator('.explore-connections');
-  await map.locator(':scope > summary').click();
-  const themes = map.getByRole('button', { name: /Explore theme:/ });
-  await themes.first().click();
-  await themes.nth(1).click();
-  const mapNode = await themes.first().evaluate((e) => ({
-    family: getComputedStyle(e).fontFamily,
-    size: parseFloat(getComputedStyle(e).fontSize),
-  }));
-  assert.match(mapNode.family, /IBM Plex Sans/);
-  assert.ok(mapNode.size >= 14, 'Map node control readable');
-  await screenshot('after-map');
-  await noOverflow();
-  const gap = page.locator('.gap-panel [data-gap-id]').first();
-  await gap
+  const finding = page.getByRole('region', { name: 'Selected gap finding' });
+  await finding.locator('.finding-evidence > summary').click();
+  await finding
     .getByRole('button', { name: 'Inspect evidence', exact: true })
+    .first()
     .click();
   await page.getByRole('dialog').waitFor();
   await screenshot('after-evidence');
   await page
     .getByRole('button', { name: 'Close evidence', exact: true })
     .click();
-  await gap
+  await open('Visual map');
+  const map = page.locator('.gap-visual-map');
+  const branches = map.locator('button[aria-controls]');
+  await branches.first().click();
+  await branches.nth(1).click();
+  const mapNode = await branches.first().evaluate((e) => ({
+    family: getComputedStyle(e).fontFamily,
+    size: parseFloat(getComputedStyle(e).fontSize),
+  }));
+  assert.match(mapNode.family, /IBM Plex Sans/);
+  assert.ok(mapNode.size >= 14);
+  await screenshot('after-map');
+  await noOverflow();
+  await open('Gap leads');
+  await finding
+    .getByRole('button', { name: 'Develop this gap', exact: true })
+    .click();
+  await page
     .getByRole('button', {
-      name: 'Draft an experiment from this lead',
+      name: 'Draft an experiment without AI',
       exact: true,
     })
     .click();
@@ -398,7 +430,8 @@ try {
   await screenshot('after-experiment');
   await noOverflow();
   await open('Gap leads');
-  assert.equal(await themes.first().getAttribute('aria-expanded'), 'true');
+  await open('Visual map');
+  assert.equal(await branches.first().getAttribute('aria-expanded'), 'true');
   await open('Experiment');
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
@@ -407,7 +440,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await screenshot('after-experiment-mobile');
   await noOverflow();
-  await open('Gap leads');
+  await open('Visual map');
   await screenshot('after-map-mobile');
   await noOverflow();
   await open('Papers');
@@ -422,9 +455,9 @@ try {
       weight: parseFloat(getComputedStyle(e).fontWeight),
       family: getComputedStyle(e).fontFamily,
     }));
-  assert.match(mobileHeading.family, /Newsreader/);
-  assert.ok(mobileHeading.size >= 30 && mobileHeading.size <= 38);
-  assert.equal(mobileHeading.weight, 400);
+  assert.match(mobileHeading.family, /IBM Plex Sans/);
+  assert.ok(mobileHeading.size >= 28 && mobileHeading.size <= 38);
+  assert.equal(mobileHeading.weight, 500);
   await screenshot('after-focus-mobile');
   await noOverflow();
   assert.equal(modelCalls, 0);
@@ -460,7 +493,7 @@ try {
     ),
   );
   console.log(
-    'PASS: actual rendered fonts, title weights/sizes, primary contrast, focus; Focus/Papers/error/map/evidence/editable Experiment, selection/tab state, desktop1366+narrow390, no page errors or model calls.',
+    'PASS: original-brand IBM typography, title sizes, primary contrast, focus; Focus/Papers/error/map/evidence/editable Experiment, selection/tab state, desktop1366+narrow390, no page errors or model calls.',
   );
 } finally {
   await browser.close();

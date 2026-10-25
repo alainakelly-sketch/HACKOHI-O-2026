@@ -139,19 +139,47 @@ await page.route('**/api/**', async (route) => {
   }
 });
 async function open(name: string) {
-  const stage = ['Focus', 'Papers', 'Compare'].includes(name)
-    ? 'Search'
-    : name === 'Gap leads'
-      ? 'Mind map'
-      : name === 'Experiment'
-        ? 'Experiment'
-        : 'Hypothesis';
+  const close = page.getByRole('button', {
+    name: 'Close evidence',
+    exact: true,
+  });
+  if (await close.isVisible()) await close.click();
+  const stage =
+    name === 'Focus'
+      ? 'Focus'
+      : ['Papers', 'Compare'].includes(name)
+        ? 'Papers'
+        : name === 'Experiment'
+          ? 'Experiment'
+          : 'Find gaps';
   await page
     .getByRole('navigation', { name: 'Research pipeline' })
     .getByRole('button', { name: stage, exact: true })
     .click();
-  await page.getByRole('tab', { name, exact: true }).click();
+  const child =
+    name === 'Papers'
+      ? 'Search & select'
+      : name === 'Compare'
+        ? 'Read & compare'
+        : name === 'Visual map'
+          ? 'Visual map'
+          : ['Gap leads', 'AI hypotheses', 'Resources'].includes(name)
+            ? 'Gap findings'
+            : null;
+  if (child) await page.getByRole('tab', { name: child, exact: true }).click();
+  if (['Resources', 'AI hypotheses'].includes(name)) {
+    const development = page.locator('.gap-development');
+    if (!(await development.evaluate((e: HTMLDetailsElement) => e.open)))
+      await development.locator(':scope > summary').click();
+    if (name === 'Resources') {
+      const resources = page.locator('.gap-resources');
+      if (!(await resources.evaluate((e: HTMLDetailsElement) => e.open)))
+        await resources.locator(':scope > summary').click();
+    }
+  }
+  assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
 }
+
 async function expandDetails(summary: Locator) {
   const parent = summary.locator('..');
   if (!(await parent.evaluate((e) => (e as HTMLDetailsElement).open)))
@@ -173,6 +201,7 @@ async function generate() {
   const button = page.getByRole('button', {
     name: 'Develop AI gap hypotheses',
     exact: true,
+    includeHidden: true,
   });
   const ancestors = button.locator('xpath=ancestor::details');
   for (let i = 0; i < (await ancestors.count()); i++) {
@@ -195,256 +224,175 @@ try {
   for (const paper of papers)
     await page.getByLabel(`Select ${paper.title}`, { exact: true }).check();
   await open('Gap leads');
-  const list = page.locator('.gap-panel');
-  await list
-    .getByRole('heading', { name: 'Research gap leads', exact: true })
-    .waitFor();
-  const gapRows = list.locator('[data-gap-id]');
-  assert.ok(
-    (await gapRows.count()) > 0,
-    'Independent gap list should have normal results',
-  );
-  const map = page.locator('.explore-connections');
-  const mapSummary = map.locator(':scope > summary');
-  if (await map.evaluate((e) => (e as HTMLDetailsElement).open))
-    await mapSummary.click();
+  const finding = page.getByRole('region', { name: 'Selected gap finding' });
+  await finding.waitFor();
+  const expectedGapId = await finding.getAttribute('data-finding-id');
+  assert.ok(expectedGapId);
   assert.equal(
-    await map.evaluate((e) => (e as HTMLDetailsElement).open),
-    false,
-  );
-  assert.equal(
-    await gapRows.first().isVisible(),
-    true,
-    'Gap results must remain available while map is collapsed',
-  );
-  const expectedGapId =
-    (await gapRows
-      .filter({
-        has: page.getByText(
-          'Future work should test sleep duration and memory recall in shift workers.',
-          { exact: false },
-        ),
-      })
-      .first()
-      .getAttribute('data-gap-id')) ||
-    (await gapRows.first().getAttribute('data-gap-id'));
-  await mapSummary.click();
-  const themes = map.locator('button[aria-expanded][aria-controls]');
-  assert.ok(
-    (await themes.count()) >= 2,
-    'Need independently expandable theme branches',
-  );
-  const first = themes.nth(0),
-    second = themes.nth(1);
-  await noJump(first);
-  assert.equal(await first.getAttribute('aria-expanded'), 'true');
-  const firstControl = await first.getAttribute('aria-controls');
-  await page.locator(`[id="${firstControl}"]`).waitFor();
-  await noJump(second);
-  assert.equal(await second.getAttribute('aria-expanded'), 'true');
-  await noJump(first);
-  assert.equal(await first.getAttribute('aria-expanded'), 'false');
-  assert.equal(
-    await second.getAttribute('aria-expanded'),
+    await page
+      .getByRole('tab', { name: 'Gap findings', exact: true })
+      .getAttribute('aria-selected'),
     'true',
-    'Collapsing one branch must preserve another',
   );
-  await noJump(first);
+  await expandDetails(finding.locator('.finding-evidence > summary'));
+  const reference = await finding
+    .locator('.finding-source')
+    .first()
+    .evaluate((e) => ({
+      paperId: e.getAttribute('data-paper-id'),
+      passageId: e.getAttribute('data-passage-id'),
+    }));
+  const expectedPaper = papers.find((p) => p.id === reference.paperId)!;
+  assert.ok(expectedPaper);
+  await open('Visual map');
+  const map = page.locator('.gap-visual-map');
+  assert.equal(await map.getAttribute('data-finding-id'), expectedGapId);
+  const sources = map.locator('.gap-map-source > button');
+  const relationship = map.locator('.relationship-node');
+  const unresolved = map.locator('.unresolved-node');
+  await noJump(sources.first());
+  await noJump(relationship);
+  assert.equal(await sources.first().getAttribute('aria-expanded'), 'true');
+  assert.equal(await relationship.getAttribute('aria-expanded'), 'true');
+  await noJump(sources.first());
+  assert.equal(await sources.first().getAttribute('aria-expanded'), 'false');
+  assert.equal(await relationship.getAttribute('aria-expanded'), 'true');
+  await noJump(sources.first());
   await open('Compare');
-  await open('Gap leads');
-  assert.equal(
-    await first.getAttribute('aria-expanded'),
-    'true',
-    'Workflow changes must preserve expansion',
+  await open('Visual map');
+  assert.equal(await sources.first().getAttribute('aria-expanded'), 'true');
+  assert.equal(await relationship.getAttribute('aria-expanded'), 'true');
+  const leaf = map.locator(
+    `.gap-map-evidence-node[data-paper-id="${reference.paperId}"][data-passage-id="${reference.passageId}"]`,
   );
-  assert.equal(await second.getAttribute('aria-expanded'), 'true');
-  // Exact gap IDs shared by map children and independent readable list.
-  const mapGap = map.locator(`button[data-gap-id="${expectedGapId}"]`).first();
-  if (!(await mapGap.isVisible())) {
-    for (let i = 0; i < (await themes.count()); i++)
-      if ((await themes.nth(i).getAttribute('aria-expanded')) === 'false')
-        await themes.nth(i).click();
-  }
-  await mapGap.waitFor();
-  await noJump(mapGap);
-  const drawer = map.getByRole('region', {
-    name: 'Concept details',
-    exact: true,
-  });
+  await noJump(leaf);
+  const drawer = map.getByRole('region', { name: 'Map evidence details' });
   await drawer.waitFor();
-  assert.equal(await drawer.getAttribute('data-gap-id'), expectedGapId);
-  await drawer
-    .getByRole('heading', { name: 'What is known', exact: true })
-    .waitFor();
-  await drawer
-    .getByRole('heading', { name: 'What is missing', exact: true })
-    .waitFor();
-  const evidenceSummary = drawer
-    .locator('summary')
-    .filter({ hasText: /supporting.*passages|evidence/i })
-    .first();
-  if (await evidenceSummary.count()) await expandDetails(evidenceSummary);
-  const expectedRow = list.locator(`[data-gap-id="${expectedGapId}"]`);
-  const expectedPaperId = await expectedRow.getAttribute('data-paper-id');
-  const expectedPaper = papers.find((p) => p.id === expectedPaperId)!;
-  assert.ok(expectedPaper, 'Gap row must preserve selected source identity');
+  assert.equal(await drawer.getAttribute('data-paper-id'), reference.paperId);
+  assert.equal(
+    await drawer.getAttribute('data-passage-id'),
+    reference.passageId,
+  );
   for (const quote of await drawer.locator('blockquote').allTextContents())
     assert.ok(
       expectedPaper.passages.some((p) => p.text.includes(quote.trim())),
-      'Map and list must use the same actual source text',
     );
   await drawer
-    .getByRole('button', {
-      name: 'Inspect complete source passage',
-      exact: true,
-    })
-    .first()
+    .getByRole('button', { name: 'Open evidence inspector', exact: true })
     .click();
-  const dialog = page.getByRole('dialog');
-  await dialog.waitFor();
-  const metadata = dialog.locator('.source-metadata > summary').first();
-  if (await metadata.count()) await expandDetails(metadata);
-  assert.ok((await dialog.innerText()).includes(expectedPaper.passages[2].id));
+  await page.getByRole('dialog').waitFor();
+  const metadata = page
+    .getByRole('dialog')
+    .locator('.source-metadata > summary');
+  await expandDetails(metadata);
+  assert.ok(
+    (await page.getByRole('dialog').innerText()).includes(reference.passageId!),
+  );
   await page
     .getByRole('button', { name: 'Close evidence', exact: true })
     .click();
   await drawer
-    .getByRole('button', { name: 'Close details', exact: true })
+    .getByRole('button', { name: 'Close evidence details', exact: true })
     .click();
-  assert.equal(
-    await first.getAttribute('aria-expanded'),
-    'true',
-    'Closing details preserves expanded branches',
-  );
-  assert.equal(calls.analysis, 0);
-  assert.equal(calls.search, 1, 'Map display actions do not rerun retrieval');
+  assert.equal(await sources.first().getAttribute('aria-expanded'), 'true');
   await map.getByRole('button', { name: 'Collapse all', exact: true }).click();
-  for (let i = 0; i < (await themes.count()); i++)
-    assert.equal(await themes.nth(i).getAttribute('aria-expanded'), 'false');
-  await map.getByRole('button', { name: 'Fit map', exact: true }).click();
-  await map
-    .getByRole('button', { name: 'Restore spacing', exact: true })
-    .waitFor();
-  await first.focus();
-  await first.press('Enter');
-  assert.equal(await first.getAttribute('aria-expanded'), 'true');
-  await first.press('Space');
-  assert.equal(await first.getAttribute('aria-expanded'), 'false');
-  await noJump(first);
-  await noJump(second);
-  // Keep a selected hypothesis and an edited plan while inspecting gap evidence.
+  assert.equal(await sources.first().getAttribute('aria-expanded'), 'false');
+  assert.equal(await relationship.getAttribute('aria-expanded'), 'false');
+  await sources.first().focus();
+  await sources.first().press('Enter');
+  assert.equal(await sources.first().getAttribute('aria-expanded'), 'true');
+  await sources.first().press('Space');
+  assert.equal(await sources.first().getAttribute('aria-expanded'), 'false');
+  await noJump(sources.first());
+  await noJump(unresolved);
+  assert.equal(calls.analysis, 0);
+  assert.equal(calls.search, 1);
   await open('AI hypotheses');
   await generate();
   await page
-    .getByText('SYNTHETIC selected hypothesis', { exact: true })
-    .first()
+    .getByRole('region', { name: 'Selected gap finding' })
+    .getByRole('heading', {
+      name: 'SYNTHETIC selected hypothesis',
+      exact: true,
+    })
     .waitFor();
   await page
-    .getByRole('button', { name: 'Plan an experiment', exact: true })
-    .first()
+    .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   await page
     .getByLabel('Proposed method', { exact: true })
     .fill('User-edited method survives source inspection.');
   await open('Gap leads');
-  await list
-    .locator(`[data-gap-id="${expectedGapId}"]`)
-    .getByRole('button', { name: 'Inspect evidence', exact: true })
-    .click();
-  await page.getByRole('dialog').waitFor();
   await page
-    .getByRole('button', { name: 'Close evidence', exact: true })
-    .click();
-  await mapGap.click();
-  const currentDrawer = map.getByRole('region', {
-    name: 'Concept details',
-    exact: true,
-  });
-  const currentEvidence = currentDrawer
-    .locator('summary')
-    .filter({ hasText: /supporting.*passages|evidence/i })
-    .first();
-  if (await currentEvidence.count()) await expandDetails(currentEvidence);
-  await currentDrawer
-    .getByRole('button', {
-      name: 'Inspect complete source passage',
-      exact: true,
-    })
+    .locator(`.finding-choice[data-finding-id="${expectedGapId}"]`)
+    .getByRole('radio')
+    .check();
+  assert.equal(await finding.getAttribute('data-finding-id'), expectedGapId);
+  await expandDetails(finding.locator('.finding-evidence > summary'));
+  await finding
+    .getByRole('button', { name: 'Inspect evidence', exact: true })
     .first()
     .click();
   await page.getByRole('dialog').waitFor();
   await page
     .getByRole('button', { name: 'Close evidence', exact: true })
     .click();
-  await open('AI hypotheses');
+  await open('Visual map');
+  assert.equal(await map.getAttribute('data-finding-id'), expectedGapId);
+  await leaf.click();
+  await drawer
+    .getByRole('button', { name: 'Open evidence inspector', exact: true })
+    .click();
+  await page.getByRole('dialog').waitFor();
   await page
-    .locator('.hypothesis-result-card.selected')
-    .getByText('SYNTHETIC selected hypothesis', { exact: true })
-    .waitFor();
+    .getByRole('button', { name: 'Close evidence', exact: true })
+    .click();
   await open('Experiment');
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
     'User-edited method survives source inspection.',
   );
-  // Source removal invalidates current gap details while retaining user plan edits.
   await open('Papers');
   await page
     .getByLabel(`Select ${expectedPaper.title}`, { exact: true })
     .uncheck();
   await open('Gap leads');
   assert.equal(
-    await list.locator(`[data-gap-id="${expectedGapId}"]`).count(),
+    await page
+      .locator(`.finding-choices [data-finding-id="${expectedGapId}"]`)
+      .count(),
     0,
   );
+  await open('Visual map');
+  assert.notEqual(await map.getAttribute('data-finding-id'), expectedGapId);
   assert.equal(
-    await map.locator(`button[data-gap-id="${expectedGapId}"]`).count(),
+    await map.getByRole('region', { name: 'Map evidence details' }).count(),
     0,
-  );
-  assert.equal(
-    await map.locator(`[data-gap-id="${expectedGapId}"][role=region]`).count(),
-    0,
-    'Removed source evidence must not remain current',
   );
   await open('Experiment');
   assert.equal(
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
     'User-edited method survives source inspection.',
   );
-  await open('Gap leads');
+  await open('Visual map');
   const output = '/tmp/paperbridge-expand';
   await mkdir(output, { recursive: true });
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await map.locator('.concept-map-viewport').evaluate((element) => {
-    element.scrollTop = 0;
-    element.scrollLeft = 0;
-  });
   await page.screenshot({ path: `${output}/laptop.png`, fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  for (let i = 0; i < (await themes.count()); i++)
-    if ((await themes.nth(i).getAttribute('aria-expanded')) === 'false')
-      await themes.nth(i).click();
+  await page.screenshot({ path: `${output}/narrow.png`, fullPage: true });
   assert.equal(
     await page.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,
     ),
     false,
   );
-  await map.locator('.concept-map-viewport').evaluate((element) => {
-    element.scrollTop = 0;
-    element.scrollLeft = 0;
-  });
-  await page.screenshot({ path: `${output}/narrow.png`, fullPage: true });
   assert.equal(await page.locator('vite-error-overlay').count(), 0);
   assert.deepEqual(errors, []);
   assert.deepEqual(unexpected, []);
   assert.equal(calls.search, 1);
-  assert.equal(
-    calls.analysis,
-    1,
-    'Only the explicit synthetic generation request is allowed',
-  );
+  assert.equal(calls.analysis, 1);
   console.log(
-    'PASS: independent gap list; expandable independent branches; inline no-jump details; shared gap IDs/evidence; retained hypothesis/edited plan; tab/source updates; laptop/narrow layout; no automatic retrieval or model calls.',
+    'PASS: selected canonical gap, independent inline branches/evidence, shared source IDs, selected hypothesis/edited plan retention, tab/source updates and keyboard/mobile behavior. Synthetic mocked generation only.',
   );
 } finally {
   await browser.close();

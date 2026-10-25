@@ -80,15 +80,15 @@ await page.route('**/api/**', async (route) => {
   } else
     throw new Error(`Unexpected request ${path}; no model calls permitted.`);
 });
-const tab = (name: string) => page.getByRole('tab', { name, exact: true });
-const stageFor = (name: string) =>
-  ['Focus', 'Papers', 'Compare'].includes(name)
-    ? 'Search'
-    : name === 'Gap leads'
-      ? 'Mind map'
-      : name === 'Experiment'
-        ? 'Experiment'
-        : 'Hypothesis';
+const aliases: Record<string, string> = {
+  Papers: 'Search & select',
+  Compare: 'Read & compare',
+  'Gap leads': 'Gap findings',
+  'AI hypotheses': 'Gap findings',
+  Resources: 'Gap findings',
+};
+const tab = (name: string) =>
+  page.getByRole('tab', { name: aliases[name] ?? name, exact: true });
 async function closeEvidence() {
   const close = page.getByRole('button', {
     name: 'Close evidence',
@@ -98,17 +98,32 @@ async function closeEvidence() {
 }
 async function open(name: string) {
   await closeEvidence();
+  const stageName =
+    name === 'Focus'
+      ? 'Focus'
+      : name === 'Experiment'
+        ? 'Experiment'
+        : ['Papers', 'Compare'].includes(name)
+          ? 'Papers'
+          : 'Find gaps';
   const stage = page
     .getByRole('navigation', { name: 'Research pipeline' })
-    .getByRole('button', { name: new RegExp(stageFor(name)) });
+    .getByRole('button', { name: stageName, exact: true });
   if ((await stage.getAttribute('aria-current')) !== 'step')
     await stage.click();
-  await tab(name).click();
+  if (!['Focus', 'Experiment'].includes(name)) await tab(name).click();
+  if (['AI hypotheses', 'Resources'].includes(name))
+    await expand('Develop a candidate with AI');
+  if (name === 'Resources') await expand('Planning resources · optional');
   assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
-  assert.ok((await page.getByRole('tab').count()) <= 3);
+  assert.ok((await page.getByRole('tab').count()) <= 2);
 }
 async function expand(text: string | RegExp) {
-  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const summary = page
+    .locator('[role=tabpanel]:visible')
+    .locator('summary')
+    .filter({ hasText: text })
+    .first();
   const details = summary.locator('xpath=ancestor::details');
   for (let i = 0; i < (await details.count()); i++) {
     const detail = details.nth(i);

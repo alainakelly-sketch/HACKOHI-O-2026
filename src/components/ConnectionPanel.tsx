@@ -9,6 +9,7 @@ export function analysisLabel(origin: Analysis['origin']) {
     : 'Saved example · manually prepared, not a live AI result';
 }
 export function ConnectionPanel({
+  generationOnly = false,
   brief,
   analysis,
   activeId,
@@ -25,6 +26,7 @@ export function ConnectionPanel({
   resourcesChanged = false,
   onEditResources,
 }: {
+  generationOnly?: boolean;
   brief: Brief;
   analysis: Analysis | null;
   activeId: string | null;
@@ -95,6 +97,29 @@ export function ConnectionPanel({
       </p>
     </div>
   );
+  if (generationOnly)
+    return (
+      <section className="gap-ai-setup" aria-label="AI gap development">
+        {analysis && resourcesChanged ? (
+          <Notice>
+            Resource notes changed after this analysis. Existing findings and
+            edited drafts are kept; generate again only when you choose.
+          </Notice>
+        ) : null}
+        {error ? <Notice error>{error}</Notice> : null}
+        {analysis?.status === 'insufficient' ? (
+          <Notice>Insufficient evidence: {analysis.summary}</Notice>
+        ) : null}
+        {analysis ? (
+          <details>
+            <summary>Analysis notes</summary>
+            <p>{analysisLabel(analysis.origin)}</p>
+            <p>{analysis.summary}</p>
+          </details>
+        ) : null}
+        {setup}
+      </section>
+    );
   return (
     <section
       className="panel connection-panel concise-hypotheses"

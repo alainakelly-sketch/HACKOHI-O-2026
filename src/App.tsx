@@ -22,7 +22,7 @@ import {
 import { CostPanel } from './components/CostPanel';
 import type { UsageEntry } from './components/CostPanel';
 import { api, ApiError } from './lib/api';
-import { Notice } from './components/Primitives';
+import { BridgeMark, Notice } from './components/Primitives';
 import { ResourcesPanel } from './components/ResourcesPanel';
 import { BriefForm } from './components/BriefForm';
 import { PaperPanel } from './components/PaperPanel';
@@ -38,10 +38,13 @@ import {
 import type { PaperFilters } from '../shared/paper-filters';
 import { EvidencePanel } from './components/EvidencePanel';
 import { ComparisonPanel } from './components/ComparisonPanel';
-import { DiscoveryPanel } from './components/DiscoveryPanel';
+import { GapVisualMap } from './components/GapVisualMap';
+import { GapFindings } from './components/GapFindings';
+import { buildGapFindings } from '../shared/gap-findings';
+import type { GapFinding } from '../shared/gap-findings';
 import type { DiscoveryLead } from './components/DiscoveryPanel';
 import { PriorWorkCheck } from './components/PriorWorkCheck';
-import { GapPanel, gapScanSources } from './components/GapPanel';
+import { gapScanSources } from './components/GapPanel';
 import type { GapEvidenceScope } from './components/GapPanel';
 import { buildQueryPlan, buildResearchQuery } from '../shared/research-query';
 import { canLoadFullText } from '../shared/comparison';
@@ -52,24 +55,19 @@ import {
   planContextKey,
 } from '../shared/experiment-plan';
 import type { ExperimentDraft } from '../shared/experiment-plan';
-type Stage = 'search' | 'map' | 'hypothesis' | 'experiment';
+type Stage = 'focus' | 'papers' | 'gaps' | 'experiment';
 const pipeline: { id: Stage; label: string; description: string }[] = [
-  { id: 'search', label: 'Search', description: 'Choose your evidence' },
-  { id: 'map', label: 'Mind map', description: 'Explore the evidence' },
-  {
-    id: 'hypothesis',
-    label: 'Hypothesis',
-    description: 'Find a question to test',
-  },
-  { id: 'experiment', label: 'Experiment', description: 'Build a first test' },
+  { id: 'focus', label: 'Focus', description: 'Set your research focus' },
+  { id: 'papers', label: 'Papers', description: 'Choose and compare evidence' },
+  { id: 'gaps', label: 'Find gaps', description: 'Explain a candidate gap' },
+  { id: 'experiment', label: 'Experiment', description: 'Plan a test' },
 ];
 const nav = [
-  { id: 'question', label: 'Focus', stage: 'search' },
-  { id: 'papers', label: 'Papers', stage: 'search' },
-  { id: 'comparison', label: 'Compare', stage: 'search' },
-  { id: 'gaps', label: 'Gap leads', stage: 'map' },
-  { id: 'resources', label: 'Resources', stage: 'hypothesis' },
-  { id: 'connections', label: 'AI hypotheses', stage: 'hypothesis' },
+  { id: 'question', label: 'Focus', stage: 'focus' },
+  { id: 'papers', label: 'Search & select', stage: 'papers' },
+  { id: 'comparison', label: 'Read & compare', stage: 'papers' },
+  { id: 'gaps', label: 'Gap findings', stage: 'gaps' },
+  { id: 'visual-map', label: 'Visual map', stage: 'gaps' },
   { id: 'experiment', label: 'Experiment', stage: 'experiment' },
 ] as const;
 const workflowHeadings: Record<string, { title: string; description: string }> =
@@ -89,19 +87,13 @@ const workflowHeadings: Record<string, { title: string; description: string }> =
         'Read similarities, differences and the passages behind them.',
     },
     gaps: {
-      title: 'Explore connections and research gaps',
+      title: 'Find gaps',
       description:
-        'Explore the optional map or review author-stated gap leads directly.',
+        'Move from selected evidence to a specific candidate gap and a test.',
     },
-    resources: {
-      title: 'Make the hypothesis fit your resources',
-      description:
-        'Optional context for a realistic proposal. Your paper results stay unchanged.',
-    },
-    connections: {
-      title: 'Develop a hypothesis',
-      description:
-        'Use selected evidence and your resources to propose a testable question.',
+    'visual-map': {
+      title: 'Find gaps',
+      description: 'Explore the evidence behind the same selected finding.',
     },
     experiment: {
       title: 'Plan a small first test',
@@ -231,12 +223,56 @@ export default function App() {
     value: Fit;
   } | null>(null);
   const [activeNav, setActiveNav] = useState('question');
-  const stage = nav.find((item) => item.id === activeNav)?.stage ?? 'search';
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(
+    null,
+  );
+  const [developmentOpen, setDevelopmentOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const findings = useMemo(
+    () => buildGapFindings(gapScan.candidates, analysis, analysisId, selected),
+    [gapScan, analysis, analysisId, selected],
+  );
+  const selectedFinding =
+    findings.find((item) => item.id === selectedFindingId) ??
+    findings[0] ??
+    null;
+  function selectFinding(id: string) {
+    setSelectedFindingId(id);
+    const finding = findings.find((item) => item.id === id);
+    if (finding?.hypothesisId) choose(finding.hypothesisId, false);
+  }
+  function developFinding(finding: GapFinding) {
+    setSelectedFindingId(finding.id);
+    startDiscoveryHypothesis({
+      id: finding.id,
+      title: finding.title,
+      question: finding.question,
+      reason: `${finding.rationale} ${finding.unresolved}`,
+      sources: finding.evidence,
+      searchQuery: finding.sourceLead?.searchQuery ?? finding.title,
+    });
+    setDevelopmentOpen(true);
+  }
+  function planFinding(finding: GapFinding) {
+    setSelectedFindingId(finding.id);
+    if (finding.hypothesisId) startHypothesisPlan(finding.hypothesisId);
+    else
+      startDiscoveryPlan({
+        id: finding.id,
+        title: finding.title,
+        question: finding.question,
+        reason: finding.rationale,
+        sources: finding.evidence,
+        searchQuery: finding.sourceLead?.searchQuery ?? finding.title,
+      });
+  }
+
+  const stage = nav.find((item) => item.id === activeNav)?.stage ?? 'focus';
   const stageIndex = pipeline.findIndex((item) => item.id === stage);
   const lastViews = useRef<Record<Stage, string>>({
-    search: 'question',
-    map: 'gaps',
-    hypothesis: 'connections',
+    focus: 'question',
+    papers: 'papers',
+    gaps: 'gaps',
     experiment: 'experiment',
   });
   useEffect(() => {
@@ -307,7 +343,7 @@ export default function App() {
         setAnalysis(example.result);
         setAnalysisId(example.analysisId);
         setActiveId(example.result.hypotheses[0]?.id ?? null);
-        setActiveNav('connections');
+        setActiveNav('gaps');
       })
       .catch((e) => {
         if (!controller.signal.aborted)
@@ -548,13 +584,6 @@ export default function App() {
       'Compare the source wording and study context before drawing a conclusion.',
     );
   }
-  function inspectGap(lead: GapLead) {
-    openEvidence(
-      { paperId: lead.paperId, passageId: lead.passageId },
-      lead.label,
-      lead.followUp,
-    );
-  }
   async function runAnalysis() {
     const runId = crypto.randomUUID();
     setUsageEntries((items) => [
@@ -617,6 +646,11 @@ export default function App() {
         setAnalysisResourceRevision(resourceRevision);
         setAnalysisId(result.analysisId);
         setActiveId(result.result.hypotheses[0]?.id ?? null);
+        setSelectedFindingId(
+          result.result.hypotheses[0]
+            ? `${result.analysisId}:hypothesis:${result.result.hypotheses[0].id}`
+            : null,
+        );
       }
     } catch (e) {
       record(
@@ -739,14 +773,8 @@ export default function App() {
     setActiveNav('experiment');
   }
   function startDiscoveryHypothesis(lead: DiscoveryLead) {
-    const next = { ...brief, question: lead.question.slice(0, 1200) };
-    clearAnalysis();
-    setBrief(next);
-    setResearchLead({
-      lead: { ...lead, question: next.question },
-      contextKey: planContextKey(next, selected),
-    });
-    setActiveNav('connections');
+    setResearchLead({ lead, contextKey: planContextKey(brief, selected) });
+    setActiveNav('gaps');
   }
   function tabKeys(event: React.KeyboardEvent, index: number) {
     const visible = nav.filter((item) => item.stage === stage);
@@ -767,7 +795,6 @@ export default function App() {
       document.getElementById(`tab-${visible[next].id}`)?.focus(),
     );
   }
-  const activeIndex = nav.findIndex((item) => item.id === activeNav);
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -780,6 +807,9 @@ export default function App() {
             setActiveNav('question');
           }}
         >
+          <span className="brand-icon-frame">
+            <BridgeMark />
+          </span>
           <div className="brand-type">
             <strong className="brand-name">
               Paper<span className="brand-word-bridge">Bridge</span>
@@ -793,11 +823,23 @@ export default function App() {
               key={item.id}
               type="button"
               aria-label={item.label}
+              id={
+                item.id === 'focus'
+                  ? 'tab-question'
+                  : item.id === 'experiment'
+                    ? 'tab-experiment'
+                    : `stage-${item.id}`
+              }
+              aria-controls={`step-${item.id === 'focus' ? 'question' : item.id}`}
               aria-current={stage === item.id ? 'step' : undefined}
               className={
                 stage === item.id ? 'pipeline-step current' : 'pipeline-step'
               }
-              onClick={() => setActiveNav(lastViews.current[item.id])}
+              onClick={() =>
+                setActiveNav(
+                  item.id === 'gaps' ? 'gaps' : lastViews.current[item.id],
+                )
+              }
             >
               <span className="pipeline-number">{index + 1}</span>
               <span>{item.label}</span>
@@ -812,33 +854,35 @@ export default function App() {
         </span>
       </header>
       <main className="workspace">
-        {pipeline.map((item) => (
-          <nav
-            className="workflow-subnav"
-            role="tablist"
-            aria-label={`${item.label} tools`}
-            key={item.id}
-            hidden={stage !== item.id}
-          >
-            {nav
-              .filter((view) => view.stage === item.id)
-              .map((view, index) => (
-                <button
-                  type="button"
-                  role="tab"
-                  id={`tab-${view.id}`}
-                  aria-controls={`step-${view.id}`}
-                  aria-selected={activeNav === view.id}
-                  tabIndex={activeNav === view.id ? 0 : -1}
-                  key={view.id}
-                  onClick={() => setActiveNav(view.id)}
-                  onKeyDown={(event) => tabKeys(event, index)}
-                >
-                  {view.label}
-                </button>
-              ))}
-          </nav>
-        ))}
+        {pipeline
+          .filter((item) => item.id === 'papers' || item.id === 'gaps')
+          .map((item) => (
+            <nav
+              className="workflow-subnav"
+              role="tablist"
+              aria-label={`${item.label} tools`}
+              key={item.id}
+              hidden={stage !== item.id}
+            >
+              {nav
+                .filter((view) => view.stage === item.id)
+                .map((view, index) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    id={`tab-${view.id}`}
+                    aria-controls={`step-${view.id}`}
+                    aria-selected={activeNav === view.id}
+                    tabIndex={activeNav === view.id ? 0 : -1}
+                    key={view.id}
+                    onClick={() => setActiveNav(view.id)}
+                    onKeyDown={(event) => tabKeys(event, index)}
+                  >
+                    {view.label}
+                  </button>
+                ))}
+            </nav>
+          ))}
         <div className="page-heading">
           <div>
             <h1>{workflowHeadings[activeNav].title}</h1>
@@ -951,43 +995,130 @@ export default function App() {
             hidden={activeNav !== 'gaps'}
             tabIndex={0}
           >
-            <DiscoveryPanel
+            <GapFindings
+              findings={findings}
               papers={selected}
-              focus={{ question: brief.question, field: brief.field }}
-              onInspect={(reference, label) =>
-                openEvidence(reference, label ?? 'Discovery source passage')
-              }
-              onPlan={startDiscoveryPlan}
-              onHypothesis={startDiscoveryHypothesis}
-              gapLeads={gapScan.candidates}
-            />
-            <GapPanel
-              papers={selected}
-              question={brief.question}
+              selectedId={selectedFinding?.id ?? null}
+              onSelect={selectFinding}
+              onInspect={(reference, label) => openEvidence(reference, label)}
+              onDevelop={developFinding}
+              onPlan={planFinding}
+              onInspectHypothesis={(id) => choose(id, true)}
               field={brief.field}
-              busy={textBusy}
-              onSearch={search}
-              onRetrieve={() =>
-                verifyPapers(selected, undefined, 6, filters, true)
+            />
+            <details className="gap-source-settings">
+              <summary>Evidence scope & retrieval</summary>
+              <label htmlFor="gap-evidence-scope">Evidence to scan</label>
+              <select
+                id="gap-evidence-scope"
+                value={gapScope}
+                onChange={(event) =>
+                  setGapScope(event.target.value as GapEvidenceScope)
+                }
+              >
+                <option value="body">Retrieved article body only</option>
+                <option value="include-abstracts">
+                  Include abstracts too — limited evidence
+                </option>
+              </select>
+              <p className="muted">
+                Only retrieved passages are used. A source link is not proof
+                that its body text has been read.
+              </p>
+              <button
+                className="secondary"
+                onClick={() =>
+                  void verifyPapers(selected, undefined, 6, filters, true)
+                }
+                disabled={
+                  !selected.length ||
+                  selected.some((paper) => textBusy.has(paper.id))
+                }
+              >
+                Retrieve selected article text
+              </button>
+              {selected.some((paper) => textErrors[paper.id]) ? (
+                <Notice>
+                  Some selected article text could not be imported. Review
+                  source statuses in Papers.
+                </Notice>
+              ) : null}
+            </details>
+            <details
+              className="gap-development"
+              open={developmentOpen}
+              onToggle={(event) => setDevelopmentOpen(event.currentTarget.open)}
+            >
+              <summary>Develop a candidate with AI · optional</summary>
+              {researchLead ? (
+                <div className="prepared-gap">
+                  <h3>Candidate to develop</h3>
+                  <p>{researchLead.lead.question}</p>
+                  {researchLead.contextKey !==
+                  planContextKey(brief, selected) ? (
+                    <Notice>
+                      Inputs changed. Select the current finding again before
+                      developing it.
+                    </Notice>
+                  ) : null}
+                  <button
+                    className="text-button"
+                    onClick={() => startDiscoveryPlan(researchLead.lead)}
+                  >
+                    Draft an experiment without AI
+                  </button>
+                </div>
+              ) : null}
+              <details
+                className="gap-resources"
+                open={resourcesOpen}
+                onToggle={(event) => setResourcesOpen(event.currentTarget.open)}
+              >
+                <summary>Planning resources · optional</summary>
+                <ResourcesPanel
+                  embedded
+                  resources={brief.resources}
+                  onChange={onResources}
+                  onContinue={() => setResourcesOpen(false)}
+                />
+              </details>
+              <ConnectionPanel
+                generationOnly
+                brief={brief}
+                analysis={analysis}
+                activeId={activeId}
+                health={health}
+                count={selected.length}
+                busy={analysisBusy}
+                error={analysisError}
+                onAnalyze={runAnalysis}
+                onSelect={choose}
+                papers={selected}
+                onRecheck={recheckHealth}
+                readinessBusy={readinessBusy}
+                resourcesChanged={
+                  !!analysis && analysisResourceRevision !== resourceRevision
+                }
+              />
+              <CostPanel entries={usageEntries} />
+            </details>
+          </div>
+          <div
+            className="workflow-panel"
+            role="tabpanel"
+            id="step-visual-map"
+            aria-labelledby="tab-visual-map"
+            hidden={activeNav !== 'visual-map'}
+            tabIndex={0}
+          >
+            <GapVisualMap
+              finding={selectedFinding}
+              findings={findings}
+              papers={selected}
+              onSelect={selectFinding}
+              onInspect={(reference, label) =>
+                openEvidence(reference, label ?? 'Selected gap evidence')
               }
-              onInspect={inspectGap}
-              onPlan={startManualPlan}
-              onHypothesis={(lead) =>
-                startDiscoveryHypothesis({
-                  id: lead.id,
-                  title: lead.label,
-                  question: `What study could address this author-stated issue: ${lead.signalText}`,
-                  reason: lead.followUp,
-                  sources: [
-                    { paperId: lead.paperId, passageId: lead.passageId },
-                  ],
-                  searchQuery: lead.searchQuery,
-                })
-              }
-              onGoPapers={() => setActiveNav('papers')}
-              scanResult={gapScan}
-              evidenceScope={gapScope}
-              onScopeChange={setGapScope}
             />
           </div>
           <dialog
@@ -1029,80 +1160,6 @@ export default function App() {
               onPrior={onPrior}
             />
           </dialog>
-          <div
-            className="workflow-panel"
-            role="tabpanel"
-            id="step-resources"
-            aria-labelledby="tab-resources"
-            hidden={activeNav !== 'resources'}
-            tabIndex={0}
-          >
-            <ResourcesPanel
-              resources={brief.resources}
-              onChange={onResources}
-              onContinue={() => setActiveNav('connections')}
-            />
-          </div>
-          <div
-            className="workflow-panel"
-            role="tabpanel"
-            id="step-connections"
-            aria-labelledby="tab-connections"
-            hidden={activeNav !== 'connections'}
-            tabIndex={0}
-          >
-            {researchLead ? (
-              <section className="panel selected-discovery-lead">
-                <h3>Selected discovery lead</h3>
-                <p>{researchLead.lead.question}</p>
-                {researchLead.contextKey !== planContextKey(brief, selected) ? (
-                  <Notice>
-                    Inputs changed. Review this lead before using it again.
-                  </Notice>
-                ) : null}
-                <details>
-                  <summary>Sources & reasoning</summary>
-                  <p className="muted">{researchLead.lead.reason}</p>
-                  <div className="button-row">
-                    {researchLead.lead.sources.map((reference) => (
-                      <button
-                        className="text-button"
-                        key={`${reference.paperId}:${reference.passageId}`}
-                        onClick={() =>
-                          openEvidence(
-                            reference,
-                            'Selected discovery lead evidence',
-                          )
-                        }
-                      >
-                        Inspect selected source passage
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              </section>
-            ) : null}
-            <ConnectionPanel
-              brief={brief}
-              analysis={analysis}
-              activeId={activeId}
-              health={health}
-              count={selected.length}
-              busy={analysisBusy}
-              error={analysisError}
-              onAnalyze={runAnalysis}
-              onSelect={choose}
-              papers={selected}
-              onRecheck={recheckHealth}
-              readinessBusy={readinessBusy}
-              onPlan={startHypothesisPlan}
-              onEditResources={() => setActiveNav('resources')}
-              resourcesChanged={
-                !!analysis && analysisResourceRevision !== resourceRevision
-              }
-            />
-            <CostPanel entries={usageEntries} />
-          </div>
           <div
             className="workflow-panel"
             role="tabpanel"
@@ -1168,8 +1225,10 @@ export default function App() {
         <div className="workflow-controls">
           <button
             className="secondary"
-            disabled={activeIndex === 0}
-            onClick={() => setActiveNav(nav[activeIndex - 1].id)}
+            disabled={stageIndex === 0}
+            onClick={() =>
+              setActiveNav(lastViews.current[pipeline[stageIndex - 1].id])
+            }
           >
             Back
           </button>
@@ -1177,12 +1236,18 @@ export default function App() {
             Stage {stageIndex + 1} of {pipeline.length} ·{' '}
             {pipeline[stageIndex].label}
           </span>
-          {activeNav !== 'resources' && activeIndex < nav.length - 1 ? (
+          {stageIndex < pipeline.length - 1 ? (
             <button
               className="primary"
-              onClick={() => setActiveNav(nav[activeIndex + 1].id)}
+              onClick={() =>
+                setActiveNav(
+                  pipeline[stageIndex + 1].id === 'gaps'
+                    ? 'gaps'
+                    : lastViews.current[pipeline[stageIndex + 1].id],
+                )
+              }
             >
-              Continue to {nav[activeIndex + 1].label}
+              Continue to {pipeline[stageIndex + 1].label}
             </button>
           ) : (
             <span className="workflow-next-spacer" aria-hidden="true" />

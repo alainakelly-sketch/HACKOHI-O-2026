@@ -121,8 +121,18 @@ await page.route('**/api/**', async (route) => {
     modelCalls++;
     const body = route.request().postDataJSON();
     assert.equal(body.lead.evidence.length, 2);
-    assert.equal(body.lead.evidence[0].passageId, 'test:0:result');
-    assert.match(body.brief.question, /different reported findings/);
+    assert.ok(
+      body.lead.evidence.some(
+        (ref: { passageId: string }) => ref.passageId === 'test:0:gap',
+      ),
+    );
+    assert.ok(
+      body.lead.evidence.some(
+        (ref: { passageId: string }) => ref.passageId === 'test:0:result',
+      ),
+    );
+    assert.match(body.lead.question, /small sample/);
+    assert.match(body.brief.question, /transformer screening/);
     await route.fulfill({
       json: {
         analysisId: 'synthetic-analysis',
@@ -137,15 +147,6 @@ await page.route('**/api/**', async (route) => {
     });
   } else throw new Error(`Unexpected endpoint ${path}`);
 });
-const tab = (name: string) => page.getByRole('tab', { name, exact: true });
-const stageFor = (name: string) =>
-  ['Focus', 'Papers', 'Compare'].includes(name)
-    ? 'Search'
-    : name === 'Gap leads'
-      ? 'Mind map'
-      : name === 'Experiment'
-        ? 'Experiment'
-        : 'Hypothesis';
 async function closeEvidence() {
   const close = page.getByRole('button', {
     name: 'Close evidence',
@@ -154,16 +155,47 @@ async function closeEvidence() {
   if (await close.isVisible()) await close.click();
 }
 async function open(name: string) {
-  await closeEvidence();
-  const stage = page
+  const close = page.getByRole('button', {
+    name: 'Close evidence',
+    exact: true,
+  });
+  if (await close.isVisible()) await close.click();
+  const stage =
+    name === 'Focus'
+      ? 'Focus'
+      : ['Papers', 'Compare'].includes(name)
+        ? 'Papers'
+        : name === 'Experiment'
+          ? 'Experiment'
+          : 'Find gaps';
+  await page
     .getByRole('navigation', { name: 'Research pipeline' })
-    .getByRole('button', { name: new RegExp(stageFor(name)) });
-  if ((await stage.getAttribute('aria-current')) !== 'step')
-    await stage.click();
-  await tab(name).click();
+    .getByRole('button', { name: stage, exact: true })
+    .click();
+  const child =
+    name === 'Papers'
+      ? 'Search & select'
+      : name === 'Compare'
+        ? 'Read & compare'
+        : name === 'Visual map'
+          ? 'Visual map'
+          : ['Gap leads', 'AI hypotheses', 'Resources'].includes(name)
+            ? 'Gap findings'
+            : null;
+  if (child) await page.getByRole('tab', { name: child, exact: true }).click();
+  if (['Resources', 'AI hypotheses'].includes(name)) {
+    const development = page.locator('.gap-development');
+    if (!(await development.evaluate((e: HTMLDetailsElement) => e.open)))
+      await development.locator(':scope > summary').click();
+    if (name === 'Resources') {
+      const resources = page.locator('.gap-resources');
+      if (!(await resources.evaluate((e: HTMLDetailsElement) => e.open)))
+        await resources.locator(':scope > summary').click();
+    }
+  }
   assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
-  assert.ok((await page.getByRole('tab').count()) <= 3);
 }
+
 async function expand(text: string | RegExp) {
   const summary = page
     .locator('summary:visible')
@@ -236,53 +268,37 @@ try {
       .getByLabel(`Select SYNTHETIC DISCOVERY PAPER ${i}`, { exact: true })
       .check();
   await open('Gap leads');
-  await expand('Explore connections');
   await page
-    .getByRole('heading', { name: 'Theme overlap map', exact: true })
-    .waitFor();
-  const discovery = page.locator('.concept-panel');
-  {
-    const conflictButton = discovery.getByRole('button', {
-      name: /Possible disagreement to review: diagnostic accuracy/,
-    });
-    if ((await conflictButton.getAttribute('aria-expanded')) !== 'true')
-      await conflictButton.click();
-  }
-  await discovery
-    .getByText('Possible finding difference · requires review', { exact: true })
-    .waitFor();
-  await discovery
-    .getByRole('heading', { name: 'What is known', exact: true })
-    .waitFor();
-  await discovery
-    .getByRole('heading', { name: 'What is missing', exact: true })
-    .waitFor();
-  await expand(/^Supporting papers & passages/);
-  for (let i = 0; i < 2; i++)
-    await discovery
-      .locator('.concept-details:visible .concept-evidence')
-      .getByText(papers[i].passages[0].text, { exact: true })
-      .first()
-      .waitFor();
-  await discovery
-    .locator('.concept-details:visible .concept-evidence')
-    .getByRole('button', {
-      name: 'Inspect complete source passage',
-      exact: true,
-    })
+    .locator('.finding-choice[data-finding-id*="lead:test:0:"]')
     .first()
-    .click();
-  await page
-    .locator('#evidence-inspector')
+    .getByRole('radio')
+    .check();
+  const finding = page.getByRole('region', { name: 'Selected gap finding' });
+  await finding
+    .getByText('What the sources establish', { exact: true })
+    .waitFor();
+  await finding.getByText('What remains unresolved', { exact: true }).waitFor();
+  await finding.locator('.finding-evidence > summary').click();
+  await finding
     .getByText(papers[0].passages[0].text, { exact: true })
     .waitFor();
+  await finding
+    .getByRole('button', { name: 'Inspect evidence', exact: true })
+    .first()
+    .click();
+  await page.getByRole('dialog').waitFor();
   await closeEvidence();
   assert.equal(priorCalls, 0);
   assert.equal(modelCalls, 0);
-  await discovery
-    .getByRole('button', { name: 'Draft a test without AI', exact: true })
+  await finding
+    .getByRole('button', { name: 'Develop this gap', exact: true })
     .click();
-  assert.equal(await tab('Experiment').getAttribute('aria-selected'), 'true');
+  await page
+    .getByRole('button', {
+      name: 'Draft an experiment without AI',
+      exact: true,
+    })
+    .click();
   await page
     .getByText('User-created draft · not AI-generated', { exact: true })
     .waitFor();
@@ -343,23 +359,16 @@ try {
     .getByText('Related prior work found.', { exact: true })
     .waitFor();
   await open('Gap leads');
-  await discovery
-    .getByRole('button', {
-      name: 'Develop into a hypothesis',
-      exact: true,
-    })
+  await finding
+    .getByRole('button', { name: 'Develop this gap', exact: true })
     .click();
-  assert.equal(
-    await tab('AI hypotheses').getAttribute('aria-selected'),
-    'true',
-  );
   assert.equal(modelCalls, 0);
   await page
-    .getByRole('heading', { name: 'Selected discovery lead', exact: true })
+    .getByRole('heading', { name: 'Candidate to develop', exact: true })
     .waitFor();
   await generate('Develop AI gap hypotheses');
   await page
-    .getByText('SYNTHETIC MOCK: insufficient evidence', { exact: true })
+    .getByText(/Insufficient evidence: SYNTHETIC MOCK: insufficient evidence/)
     .waitFor();
   assert.equal(modelCalls, 1);
   await open('Experiment');
@@ -370,18 +379,15 @@ try {
     'Study population group',
   );
   await open('Gap leads');
-  {
-    const conflictButton = discovery.getByRole('button', {
-      name: /Possible disagreement to review: diagnostic accuracy/,
-    });
-    if ((await conflictButton.getAttribute('aria-expanded')) !== 'true')
-      await conflictButton.click();
-  }
+  await page.getByRole('tab', { name: 'Visual map', exact: true }).click();
+  const map = page.locator('.gap-visual-map');
+  await map
+    .getByRole('button', { name: /Retrieved source/ })
+    .first()
+    .click();
   await mkdir('/tmp/paperbridge-discovery', { recursive: true });
-  await page.locator('.concept-panel').scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/tmp/paperbridge-discovery/desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('.concept-panel').scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/tmp/paperbridge-discovery/mobile.png' });
   assert.equal(
     await page.evaluate(
@@ -393,7 +399,7 @@ try {
   assert.equal(searches, 1);
   assert.equal(await page.locator('vite-error-overlay').count(), 0);
   console.log(
-    'PASS: guided focus, theme-map conflict details and exact evidence, free draft+variables/export, three prior outcomes, selected-lead AI handoff only on explicit generation, retained plan, mobile. SYNTHETIC mocks; no paid calls.',
+    'PASS: guided focus, canonical gap findings and exact evidence, free draft+variables/export, three prior outcomes, selected-lead AI handoff only on explicit generation, retained plan, mobile. SYNTHETIC mocks; no paid calls.',
   );
 } finally {
   await browser.close();

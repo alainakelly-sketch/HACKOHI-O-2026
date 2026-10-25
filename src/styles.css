@@ -72,7 +72,7 @@ h1 {
   font-size: var(--text-title);
   letter-spacing: -0.025em;
   line-height: 1.15;
-  font-weight: 400;
+  font-weight: 500;
   font-family: var(--font-editorial);
 }
 h2 {
@@ -113,7 +113,7 @@ button {
   border-radius: 6px;
   padding: 10px var(--space-3);
   line-height: 1.2;
-  font-weight: 550;
+  font-weight: 500;
   font-size: var(--text-control);
   transition: background 0.15s;
 }
@@ -736,7 +736,7 @@ details summary {
 .prior-match > a {
   font-size: var(--text-control);
   line-height: 1.7;
-  font-weight: 550;
+  font-weight: 500;
 }
 .prior-match > .paper-meta {
   margin: 6px 0;
@@ -1957,18 +1957,18 @@ button:focus-visible,
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
-  min-width: 215px;
-  gap: var(--space-2);
+  min-width: 220px;
+  gap: 8px;
 }
 .brand .brand-type {
   min-width: 0;
 }
 .brand .brand-name {
-  font-family: var(--font-editorial);
-  font-size: 32px;
-  font-weight: 500;
+  font-family: var(--font-ui);
+  font-size: 27px;
+  font-weight: 600;
   line-height: 1.1;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.055em;
   color: var(--ink);
 }
 .brand .brand-name .brand-word-bridge {
@@ -1976,7 +1976,7 @@ button:focus-visible,
   font: inherit;
   letter-spacing: inherit;
   margin: 0;
-  color: inherit;
+  color: var(--brand-violet);
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
@@ -1984,8 +1984,8 @@ button:focus-visible,
 .brand .brand-tagline {
   color: var(--muted);
   margin: 0;
-  margin-top: var(--space-1);
-  font-size: var(--text-control);
+  margin-top: 3px;
+  font-size: 13px;
   font-family: var(--font-ui);
   font-weight: 400;
 }
@@ -2153,14 +2153,14 @@ body {
   height: 100%;
   border-bottom: 2px solid transparent;
   border-radius: 0;
-  font-weight: 400;
+  font-weight: 500;
 }
 .pipeline-step.current {
   background: transparent;
   color: var(--accent);
   border-color: var(--accent);
   box-shadow: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 .pipeline-number {
   display: grid;
@@ -2216,7 +2216,7 @@ body {
   font-size: var(--text-title);
   letter-spacing: -0.025em;
   font-family: var(--font-editorial);
-  font-weight: 400;
+  font-weight: 500;
 }
 .page-heading p {
   color: var(--muted);
@@ -2361,7 +2361,7 @@ body {
   color: var(--muted);
 }
 .evidence-dialog::backdrop {
-  background: #24232166;
+  background: #0b1c3d66;
 }
 .evidence-dialog .evidence-panel {
   position: static;
@@ -2457,7 +2457,7 @@ body {
     padding: 18px;
   }
   .page-heading h1 {
-    font-size: 32px;
+    font-size: 28px;
   }
   .page-heading p {
     font-size: var(--text-control);
@@ -2516,4 +2516,20 @@ body {
   color: var(--muted);
   margin-top: var(--space-2);
   line-height: 1.5;
+}
+
+.brand-icon-frame {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.brand .brand-icon-frame .bridge-mark {
+  width: 64px;
+  height: 64px;
+  max-width: none;
+  object-fit: contain;
 }

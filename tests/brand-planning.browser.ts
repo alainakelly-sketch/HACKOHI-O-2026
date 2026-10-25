@@ -119,15 +119,15 @@ await page.route('**/api/**', async (route) => {
     });
   } else throw new Error(`Unexpected ${path}`);
 });
-const tab = (name: string) => page.getByRole('tab', { name, exact: true });
-const stageFor = (name: string) =>
-  ['Focus', 'Papers', 'Compare'].includes(name)
-    ? 'Search'
-    : name === 'Gap leads'
-      ? 'Mind map'
-      : name === 'Experiment'
-        ? 'Experiment'
-        : 'Hypothesis';
+const aliases: Record<string, string> = {
+  Papers: 'Search & select',
+  Compare: 'Read & compare',
+  'Gap leads': 'Gap findings',
+  'AI hypotheses': 'Gap findings',
+  Resources: 'Gap findings',
+};
+const tab = (name: string) =>
+  page.getByRole('tab', { name: aliases[name] ?? name, exact: true });
 async function closeEvidence() {
   const close = page.getByRole('button', {
     name: 'Close evidence',
@@ -137,17 +137,32 @@ async function closeEvidence() {
 }
 async function open(name: string) {
   await closeEvidence();
+  const stageName =
+    name === 'Focus'
+      ? 'Focus'
+      : name === 'Experiment'
+        ? 'Experiment'
+        : ['Papers', 'Compare'].includes(name)
+          ? 'Papers'
+          : 'Find gaps';
   const stage = page
     .getByRole('navigation', { name: 'Research pipeline' })
-    .getByRole('button', { name: new RegExp(stageFor(name)) });
+    .getByRole('button', { name: stageName, exact: true });
   if ((await stage.getAttribute('aria-current')) !== 'step')
     await stage.click();
-  await tab(name).click();
+  if (!['Focus', 'Experiment'].includes(name)) await tab(name).click();
+  if (['AI hypotheses', 'Resources'].includes(name))
+    await expand('Develop a candidate with AI');
+  if (name === 'Resources') await expand('Planning resources · optional');
   assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
-  assert.ok((await page.getByRole('tab').count()) <= 3);
+  assert.ok((await page.getByRole('tab').count()) <= 2);
 }
 async function expand(text: string | RegExp) {
-  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const summary = page
+    .locator('[role=tabpanel]:visible')
+    .locator('summary')
+    .filter({ hasText: text })
+    .first();
   const details = summary.locator('xpath=ancestor::details');
   for (let i = 0; i < (await details.count()); i++) {
     const detail = details.nth(i);
@@ -175,6 +190,14 @@ try {
   await page
     .getByRole('link', { name: 'PaperBridge research workspace', exact: true })
     .waitFor();
+  const logo = page.getByRole('img', { name: 'PaperBridge logo', exact: true });
+  await logo.waitFor();
+  assert.equal(
+    await logo.evaluate(
+      (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+    ),
+    true,
+  );
   await page.evaluate(() => document.fonts.ready);
   const favicon = await page.request.get(
     new URL('/paperbridge-icon.png', page.url()).toString(),
@@ -195,8 +218,8 @@ try {
     };
   });
   assert.equal(fonts.brandFamily, fonts.titleFamily);
-  assert.equal(fonts.brandWeight, '500');
-  assert.equal(fonts.titleWeight, '400');
+  assert.equal(fonts.brandWeight, '600');
+  assert.equal(fonts.titleWeight, '500');
   assert.ok(fonts.left < 40 && fonts.top < 40);
   assert.equal(
     await page.locator('link[rel=icon]').getAttribute('href'),
@@ -255,7 +278,7 @@ try {
   );
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page
-    .getByRole('button', { name: 'Continue to hypotheses', exact: true })
+    .getByRole('button', { name: 'Use these resource notes', exact: true })
     .click();
   assert.equal(
     await tab('AI hypotheses').getAttribute('aria-selected'),
@@ -287,22 +310,25 @@ try {
       .getByLabel(`Select SYNTHETIC PLANNING PAPER ${i}`, { exact: true })
       .check();
   await open('AI hypotheses');
+  await open('Resources');
+  assert.equal(
+    await page.getByLabel('Available equipment', { exact: true }).inputValue(),
+    'Laptop, no GPU',
+  );
   await page
-    .getByText('Resources guiding the next hypothesis and experiment', {
-      exact: true,
-    })
+    .getByRole('button', { name: 'Use these resource notes', exact: true })
     .click();
-  await page
-    .locator('.hypothesis-resource-context')
-    .getByText('Laptop, no GPU', { exact: true })
-    .waitFor();
   assert.equal(calls, 0);
   await generate('Develop AI gap hypotheses');
   await page
-    .getByText('SYNTHETIC portable network test', { exact: true })
+    .getByRole('region', { name: 'Selected gap finding' })
+    .getByRole('heading', {
+      name: 'SYNTHETIC portable network test',
+      exact: true,
+    })
     .waitFor();
   await page
-    .getByRole('button', { name: 'Plan an experiment', exact: true })
+    .getByRole('button', { name: 'Plan experiment', exact: true })
     .first()
     .click();
   await expand('Constraints & open questions');
@@ -366,8 +392,12 @@ try {
   assert.equal(exported.fields.method, 'Keep my edited method');
   await open('AI hypotheses');
   await page
-    .getByRole('button', { name: 'Plan an experiment', exact: true })
-    .nth(1)
+    .getByRole('radiogroup', { name: 'Candidate gaps' })
+    .getByRole('radio')
+    .last()
+    .check();
+  await page
+    .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();
   await page
     .getByText(
@@ -394,7 +424,7 @@ try {
   assert.deepEqual(errors, []);
   assert.equal(searches, 1);
   console.log(
-    'PASS: typographic wordmark/favicon load, resource notes preserve source list, model request receives constraints, current/old plan resources differentiated, stale warning, free explicit notes append preserves edits/export, desktop/mobile. Synthetic mocks only.',
+    'PASS: restored logo/wordmark/favicon load, resource notes preserve source list, model request receives constraints, current/old plan resources differentiated, stale warning, free explicit notes append preserves edits/export, desktop/mobile. Synthetic mocks only.',
   );
 } finally {
   await browser.close();

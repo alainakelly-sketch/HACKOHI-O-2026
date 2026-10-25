@@ -349,15 +349,18 @@ try {
   assert.equal(await panel.locator('#article-access').inputValue(), 'all');
   await page
     .getByRole('navigation', { name: 'Research pipeline' })
-    .getByRole('button', { name: 'Search', exact: true })
+    .getByRole('button', { name: 'Focus', exact: true })
     .click();
-  await page.getByRole('tab', { name: 'Focus', exact: true }).click();
   assert.equal(
     await page.getByLabel('Research question', { exact: true }).inputValue(),
     question,
     'Editing query concepts must not silently rewrite the research question.',
   );
-  await page.getByRole('tab', { name: 'Papers', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Research pipeline' })
+    .getByRole('button', { name: 'Papers', exact: true })
+    .click();
+  await page.getByRole('tab', { name: 'Search & select', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({

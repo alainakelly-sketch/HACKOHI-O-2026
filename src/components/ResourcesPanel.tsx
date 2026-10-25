@@ -34,10 +34,12 @@ export function ResourcesPanel({
   resources,
   onChange,
   onContinue,
+  embedded = false,
 }: {
   resources: Resources;
   onChange: (key: keyof Resources, value: string) => void;
   onContinue: () => void;
+  embedded?: boolean;
 }) {
   const filled = Object.values(resources).some((value) => value.trim());
   return (
@@ -81,7 +83,11 @@ export function ResourcesPanel({
           unchanged.
         </p>
         <button className="primary" onClick={onContinue}>
-          {filled ? 'Continue to hypotheses' : 'Skip for now'}
+          {embedded
+            ? 'Use these resource notes'
+            : filled
+              ? 'Continue to hypotheses'
+              : 'Skip for now'}
         </button>
       </div>
     </section>
