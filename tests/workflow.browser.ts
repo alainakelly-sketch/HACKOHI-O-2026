@@ -387,7 +387,9 @@ try {
   );
   await open('Gap leads');
   await page
-    .getByRole('radio', { name: /Select gap finding: Future work/ })
+    .getByRole('radio', {
+      name: /Select gap finding: .*larger network samples/,
+    })
     .first()
     .check();
   await page

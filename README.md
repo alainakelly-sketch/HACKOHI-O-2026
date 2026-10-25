@@ -250,7 +250,7 @@ Coordinate before editing `shared/types.ts`, `server/app.ts` or `src/App.tsx`, w
 
 ## Brand assets
 
-The existing PaperBridge icon and wordmark identity are retained: navy, violet and blue. The original PNG assets are unchanged; the compact icon appears fully contained beside the live wordmark and remains the favicon. Typography uses the existing self-hosted IBM Plex Sans family with restrained400/500/600 weights; the orange/editorial serif treatment is superseded. No new logo or imagery was introduced.
+The header uses the exact original `public/paperbridge-logo.png` asset, including its embedded purple/blue bridge and lettering, unchanged from its first asset commit `acba703`. The favicon is unchanged. Brand colors are recovered from the pre-editorial Git history, with the current layout and workflow preserved. Website typography uses self-hosted Manrope: regular body text and medium/semibold headings. Font styling does not change lettering inside the logo image.
 
 `src/design-tokens.css` and component styles retain readable controls, consistent spacing, open sections and thin dividers. Font licenses remain in `public/fonts/`; no font CDN is needed at runtime. See [purpose-focused workspace checks](docs/PURPOSE-WORKSPACE.md).
 

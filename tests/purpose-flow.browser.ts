@@ -224,11 +224,11 @@ try {
   const font = await page
     .locator('h1')
     .evaluate((e) => getComputedStyle(e).fontFamily);
-  assert.match(font, /IBM Plex Sans/);
+  assert.match(font, /Manrope/);
   assert.doesNotMatch(font, /Newsreader/);
   await page.evaluate(() => document.fonts.ready);
   assert.equal(
-    await page.evaluate(() => document.fonts.check('400 16px "IBM Plex Sans"')),
+    await page.evaluate(() => document.fonts.check('400 16px "Manrope"')),
     true,
   );
   const brandProof = await page.evaluate(() => {

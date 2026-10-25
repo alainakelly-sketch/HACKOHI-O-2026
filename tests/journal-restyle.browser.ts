@@ -1,4 +1,4 @@
-/** SYNTHETIC UI fixtures only. Brand uses original logo assets and local IBM fonts; all API requests mocked. */
+/** SYNTHETIC UI fixtures only. Brand uses original logo assets and local Manrope font; all API requests mocked. */
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -206,9 +206,9 @@ try {
   await page.locator('h1').waitFor();
   await page.evaluate(() => document.fonts.ready);
   for (const font of [
-    '400 16px "IBM Plex Sans"',
-    '500 32px "IBM Plex Sans"',
-    '600 14px "IBM Plex Sans"',
+    '400 16px "Manrope"',
+    '500 32px "Manrope"',
+    '600 14px "Manrope"',
   ])
     assert.equal(
       await page.evaluate((font) => document.fonts.check(font), font),
@@ -222,7 +222,7 @@ try {
       size: parseFloat(getComputedStyle(e).fontSize),
       weight: parseFloat(getComputedStyle(e).fontWeight),
     }));
-  assert.match(h1.family, /IBM Plex Sans/);
+  assert.match(h1.family, /Manrope/);
   assert.ok(h1.size >= 28 && h1.size <= 38);
   assert.ok(h1.weight >= 400 && h1.weight <= 500);
   const ui = await page
@@ -231,7 +231,7 @@ try {
       family: getComputedStyle(e).fontFamily,
       size: parseFloat(getComputedStyle(e).fontSize),
     }));
-  assert.match(ui.family, /IBM Plex Sans/);
+  assert.match(ui.family, /Manrope/);
   assert.ok(ui.size >= 14);
   const tokens = await page.evaluate(() => {
     const s = getComputedStyle(document.documentElement);
@@ -299,7 +299,7 @@ try {
       size: parseFloat(getComputedStyle(e).fontSize),
       weight: parseFloat(getComputedStyle(e).fontWeight),
     }));
-  assert.match(publication.family, /IBM Plex Sans/);
+  assert.match(publication.family, /Manrope/);
   assert.ok(publication.size >= 19 && publication.size <= 22);
   assert.equal(publication.weight, 500);
   const metadata = await page
@@ -310,7 +310,7 @@ try {
       size: parseFloat(getComputedStyle(e).fontSize),
       color: getComputedStyle(e).color,
     }));
-  assert.match(metadata.family, /IBM Plex Sans/);
+  assert.match(metadata.family, /Manrope/);
   assert.ok(metadata.size >= 14, 'Metadata readable size');
   assert.ok(
     contrast(metadata.color, 'rgb(255, 255, 255)') >= 4.5,
@@ -329,7 +329,7 @@ try {
   await cdp.send('CSS.enable');
   const domDocument = await cdp.send('DOM.getDocument');
   const nodes = await Promise.all(
-    ['.brand-name', '.paper-row h3', '.paper-meta'].map(async (selector) => {
+    ['h1', '.paper-row h3', '.paper-meta'].map(async (selector) => {
       const { nodeId } = await cdp.send('DOM.querySelector', {
         nodeId: domDocument.root.nodeId,
         selector,
@@ -342,20 +342,17 @@ try {
   );
   assert.ok(
     nodes[0].fonts.some(
-      (font: any) =>
-        font.familyName.includes('IBM Plex Sans') && font.isCustomFont,
+      (font: any) => font.familyName.includes('Manrope') && font.isCustomFont,
     ),
   );
   assert.ok(
     nodes[1].fonts.some(
-      (font: any) =>
-        font.familyName.includes('IBM Plex Sans') && font.isCustomFont,
+      (font: any) => font.familyName.includes('Manrope') && font.isCustomFont,
     ),
   );
   assert.ok(
     nodes[2].fonts.some(
-      (font: any) =>
-        font.familyName.includes('IBM Plex Sans') && font.isCustomFont,
+      (font: any) => font.familyName.includes('Manrope') && font.isCustomFont,
     ),
   );
   await screenshot('after-papers');
@@ -410,7 +407,7 @@ try {
     family: getComputedStyle(e).fontFamily,
     size: parseFloat(getComputedStyle(e).fontSize),
   }));
-  assert.match(mapNode.family, /IBM Plex Sans/);
+  assert.match(mapNode.family, /Manrope/);
   assert.ok(mapNode.size >= 14);
   await screenshot('after-map');
   await noOverflow();
@@ -455,7 +452,7 @@ try {
       weight: parseFloat(getComputedStyle(e).fontWeight),
       family: getComputedStyle(e).fontFamily,
     }));
-  assert.match(mobileHeading.family, /IBM Plex Sans/);
+  assert.match(mobileHeading.family, /Manrope/);
   assert.ok(mobileHeading.size >= 28 && mobileHeading.size <= 38);
   assert.equal(mobileHeading.weight, 500);
   await screenshot('after-focus-mobile');
@@ -493,7 +490,7 @@ try {
     ),
   );
   console.log(
-    'PASS: original-brand IBM typography, title sizes, primary contrast, focus; Focus/Papers/error/map/evidence/editable Experiment, selection/tab state, desktop1366+narrow390, no page errors or model calls.',
+    'PASS: original-brand Manrope typography, title sizes, primary contrast, focus; Focus/Papers/error/map/evidence/editable Experiment, selection/tab state, desktop1366+narrow390, no page errors or model calls.',
   );
 } finally {
   await browser.close();

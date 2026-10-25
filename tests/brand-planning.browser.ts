@@ -205,20 +205,23 @@ try {
   assert.equal(favicon.status(), 200);
   assert.match(favicon.headers()['content-type'], /image\/png/);
   const fonts = await page.evaluate(() => {
-    const brand = getComputedStyle(document.querySelector('.brand-name')!);
+    const body = getComputedStyle(document.body);
     const title = getComputedStyle(document.querySelector('h1')!);
     const box = document.querySelector('.brand')!.getBoundingClientRect();
     return {
-      brandFamily: brand.fontFamily,
+      bodyFamily: body.fontFamily,
       titleFamily: title.fontFamily,
-      brandWeight: brand.fontWeight,
+      bodyWeight: body.fontWeight,
       titleWeight: title.fontWeight,
       left: box.left,
       top: box.top,
     };
   });
-  assert.equal(fonts.brandFamily, fonts.titleFamily);
-  assert.equal(fonts.brandWeight, '600');
+  assert.match(fonts.bodyFamily, /Manrope/);
+  assert.match(fonts.titleFamily, /Manrope/);
+  assert.equal(await page.locator('.brand-name').count(), 0);
+  assert.equal(await logo.getAttribute('src'), '/paperbridge-logo.png');
+  assert.equal(fonts.bodyWeight, '400');
   assert.equal(fonts.titleWeight, '500');
   assert.ok(fonts.left < 40 && fonts.top < 40);
   assert.equal(

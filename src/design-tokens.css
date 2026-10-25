@@ -1,19 +1,21 @@
-/* PaperBridge original-brand workspace system. Color, type and rhythm shared by every workspace. */
+/* Original brand colors recovered from acba703; page from pre-editorial d17f704. */
 :root {
   --font-editorial: var(--font-ui);
   --font-ui:
-    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --page: #f8faff;
+    'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --page: #f8fafc;
   --surface: #fff;
   --ink: #0b1c3d;
-  --muted: #596780;
-  --accent: #5147c9;
-  --accent-hover: #4037ad;
+  --muted: #62708b;
+  --accent: #5558ef;
+  --accent-hover: #4036c5;
   --brand-blue: #0878c8;
-  --brand-violet: #5558ef;
-  --accent-surface: #f2f0ff;
-  --line: #dce2ed;
-  --soft: #f4f6fa;
+  --brand-lavender: #eee8fc;
+  --brand-sky: #eaf4ff;
+  --brand-violet: #6d4fd1;
+  --accent-surface: #eee8fc;
+  --line: #dce4f0;
+  --soft: #f2f5ff;
   --success: #2c6551;
   --success-surface: #eff6f0;
   --warning: #80551d;

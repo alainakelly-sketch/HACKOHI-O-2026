@@ -1954,11 +1954,11 @@ button:focus-visible,
   }
 }
 .app-header .brand {
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   justify-content: flex-start;
   min-width: 220px;
-  gap: 8px;
+  gap: 0;
 }
 .brand .brand-type {
   min-width: 0;
@@ -1984,15 +1984,18 @@ button:focus-visible,
 .brand .brand-tagline {
   color: var(--muted);
   margin: 0;
-  margin-top: 3px;
+  margin-top: 0;
   font-size: 13px;
   font-family: var(--font-ui);
   font-weight: 400;
+  line-height: 16px;
 }
 @media (max-width: 760px) {
   .app-header .brand {
     min-width: 0;
-    gap: 6px;
+    gap: 0;
+    flex-direction: column;
+    align-items: flex-start;
   }
   .brand .brand-name {
     font-size: 23px;
@@ -2532,4 +2535,12 @@ body {
   height: 64px;
   max-width: none;
   object-fit: contain;
+}
+
+.brand .brand-logo {
+  display: block;
+  width: 150px;
+  height: 70px;
+  object-fit: contain;
+  flex-shrink: 0;
 }

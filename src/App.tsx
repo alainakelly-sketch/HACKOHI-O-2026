@@ -22,7 +22,7 @@ import {
 import { CostPanel } from './components/CostPanel';
 import type { UsageEntry } from './components/CostPanel';
 import { api, ApiError } from './lib/api';
-import { BridgeMark, Notice } from './components/Primitives';
+import { Notice } from './components/Primitives';
 import { ResourcesPanel } from './components/ResourcesPanel';
 import { BriefForm } from './components/BriefForm';
 import { PaperPanel } from './components/PaperPanel';
@@ -807,15 +807,14 @@ export default function App() {
             setActiveNav('question');
           }}
         >
-          <span className="brand-icon-frame">
-            <BridgeMark />
-          </span>
-          <div className="brand-type">
-            <strong className="brand-name">
-              Paper<span className="brand-word-bridge">Bridge</span>
-            </strong>
-            <span className="brand-tagline">Research workspace</span>
-          </div>
+          <img
+            className="brand-logo"
+            src="/paperbridge-logo.png"
+            width={150}
+            height={70}
+            alt="PaperBridge logo"
+          />
+          <span className="brand-tagline">Research workspace</span>
         </a>
         <nav className="pipeline-nav" aria-label="Research pipeline">
           {pipeline.map((item, index) => (
