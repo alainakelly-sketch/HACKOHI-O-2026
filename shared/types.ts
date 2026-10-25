@@ -30,7 +30,31 @@ export type SearchSourceStatus = {
   count: number;
   message: string | null;
 };
+export type SearchConcept = { label: string; terms: string[] };
+export type QueryPlan = {
+  question: string;
+  concepts: SearchConcept[];
+  variants: string[];
+  note: string;
+};
+export type PerformedQuery = {
+  source: SourceName;
+  query: string;
+  status: 'ok' | 'error';
+  message: string | null;
+};
+export type PaperRelevance = {
+  classification:
+    | 'Directly addresses the question'
+    | 'Related background or potentially transferable method'
+    | 'Relevance unclear';
+  explanation: string;
+  matchedConcepts: string[];
+  missingConcepts: string[];
+  evidence: { field: 'title' | 'abstract'; text: string }[];
+};
 export type Paper = {
+  relevance?: PaperRelevance;
   id: string;
   title: string;
   year: number | null;
@@ -106,6 +130,8 @@ export type Analysis = {
   hypotheses: Hypothesis[];
 };
 export type SearchResult = {
+  queryPlan?: QueryPlan;
+  performedQueries?: PerformedQuery[];
   papers: Paper[];
   query: string;
   retrievedAt: string;

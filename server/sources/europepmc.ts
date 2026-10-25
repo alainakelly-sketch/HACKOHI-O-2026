@@ -1,3 +1,4 @@
+import { compileProviderQuery } from '../../shared/research-query';
 import { load } from 'cheerio';
 import type { Paper, SearchResult } from '../../shared/types';
 import { AppError } from '../errors';
@@ -85,17 +86,9 @@ export function createEuropePMC(fetcher: typeof fetch = networkFetch) {
     const url = new URL(
       'https://www.ebi.ac.uk/europepmc/webservices/rest/search',
     );
-    // Quoted keyword clauses prevent user-entered search operators overriding the OA filter.
-    const terms = query.match(/[\p{L}\p{N}_-]+/gu) ?? [];
-    if (!terms.length)
+    if (!query.trim())
       return { papers: [], query, retrievedAt: new Date().toISOString() };
-    url.searchParams.set(
-      'query',
-      `(${terms
-        .slice(0, 40)
-        .map((t) => `"${t}"`)
-        .join(' AND ')}) AND OPEN_ACCESS:Y`,
-    );
+    url.searchParams.set('query', compileProviderQuery(query, 'Europe PMC'));
     url.searchParams.set('format', 'json');
     url.searchParams.set('resultType', 'core');
     url.searchParams.set('pageSize', '12');

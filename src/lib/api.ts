@@ -1,8 +1,13 @@
+import type { SearchResult } from '../../shared/types';
 import type { AnalysisCost } from '../../shared/analysis-cost';
 export class ApiError extends Error {
   constructor(
     message: string,
     public cost?: AnalysisCost,
+    public searchDetails?: Pick<
+      SearchResult,
+      'queryPlan' | 'performedQueries' | 'sourceStatuses'
+    >,
   ) {
     super(message);
   }
@@ -19,7 +24,11 @@ export async function api<T>(
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
-  let data: T & { error?: string; cost?: AnalysisCost };
+  let data: T & {
+    error?: string;
+    cost?: AnalysisCost;
+    searchDetails?: ApiError['searchDetails'];
+  };
   try {
     data = (await response.json()) as typeof data;
   } catch {
@@ -31,6 +40,7 @@ export async function api<T>(
     throw new ApiError(
       data.error || 'Request failed. Please retry.',
       data.cost,
+      data.searchDetails,
     );
   return data;
 }

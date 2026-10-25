@@ -54,7 +54,9 @@ const provenance = (...providers: SourceName[]) =>
   }));
 
 describe('retrieved body filtering', () => {
-  it('defaults to verified imported article bodies, not possible retrieval routes', () => {
+  const ready = (papers: Paper[], filters = {}) =>
+    filterPapers(papers, { access: 'verified', ...filters });
+  it('defaults to discovery including abstracts and free links without claiming imported body', () => {
     const realBody = imported('BODY');
     const routeOnly = record('ROUTE', { identifiers: { pmcid: 'PMC123' } });
     const freeLinkOnly = record('LINK', {
@@ -66,12 +68,15 @@ describe('retrieved body filtering', () => {
         },
       ],
     });
-    expect(defaultFilter.access).toBe('verified');
+    expect(defaultFilter.access).toBe('all');
     expect(filterPapers([routeOnly, freeLinkOnly, realBody])).toEqual([
+      routeOnly,
+      freeLinkOnly,
       realBody,
     ]);
+    expect(ready([routeOnly, freeLinkOnly, realBody])).toEqual([realBody]);
   });
-  it('keeps the verified defaults when optional filter fields are undefined', () => {
+  it('keeps discovery defaults when optional filter fields are undefined', () => {
     const body = imported('BODY');
     expect(
       filterPapers([record('ABSTRACT'), body], {
@@ -79,7 +84,7 @@ describe('retrieved body filtering', () => {
         sources: undefined,
         allowExcerpt: undefined,
       }),
-    ).toEqual([body]);
+    ).toEqual([record('ABSTRACT'), body]);
   });
   it('does not accept metadata-only, abstract-only, or whitespace body passages', () => {
     expect(hasArticleBody(record('ABS'))).toBe(false);
@@ -96,20 +101,18 @@ describe('retrieved body filtering', () => {
       passages: [{ id: 'blank', text: '  \n ', kind: 'full-text' }],
     });
     expect(hasArticleBody(blank)).toBe(false);
-    expect(filterPapers([blank])).toEqual([]);
+    expect(ready([blank])).toEqual([]);
   });
   it('requires actual body and full-text metadata together', () => {
     const labelOnly = record('LABEL', { coverage: 'Full text retrieved' });
     const metadataOnly = imported('META', { passages: [] });
     const bodyWithoutProvenance = imported('NO_META', { fullText: undefined });
     expect(hasArticleBody(bodyWithoutProvenance)).toBe(true);
-    expect(
-      filterPapers([labelOnly, metadataOnly, bodyWithoutProvenance]),
-    ).toEqual([]);
+    expect(ready([labelOnly, metadataOnly, bodyWithoutProvenance])).toEqual([]);
   });
   it('does not mistake an untyped old abstract passage for body', () => {
     expect(
-      filterPapers([
+      ready([
         imported('OLD', {
           passages: [{ id: 'old', text: 'An untyped synthetic abstract.' }],
         }),
@@ -122,8 +125,8 @@ describe('retrieved body filtering', () => {
       coverage: 'Full text excerpt',
       fullText: { ...complete.fullText!, truncated: true },
     });
-    expect(filterPapers([excerpt, complete])).toEqual([complete]);
-    expect(filterPapers([excerpt, complete], { allowExcerpt: true })).toEqual([
+    expect(ready([excerpt, complete])).toEqual([complete]);
+    expect(ready([excerpt, complete], { allowExcerpt: true })).toEqual([
       excerpt,
       complete,
     ]);
@@ -133,7 +136,7 @@ describe('retrieved body filtering', () => {
     const inconsistent = imported('INCONSISTENT', {
       fullText: { ...complete.fullText!, truncated: true },
     });
-    expect(filterPapers([inconsistent], { allowExcerpt: true })).toEqual([]);
+    expect(ready([inconsistent], { allowExcerpt: true })).toEqual([]);
   });
   it('supported mode includes known retrieval routes or actual body, but not merely a free-copy link', () => {
     const route = record('PMC', { identifiers: { pmcid: 'PMC123' } });

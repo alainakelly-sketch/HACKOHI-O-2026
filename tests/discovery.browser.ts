@@ -66,6 +66,7 @@ const page = await browser.newPage({
   viewport: { width: 1440, height: 1000 },
   acceptDownloads: true,
 });
+page.setDefaultTimeout(10000);
 const errors: string[] = [];
 let searches = 0,
   priorCalls = 0,
@@ -140,7 +141,7 @@ const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 const stageFor = (name: string) =>
   ['Focus', 'Papers', 'Compare'].includes(name)
     ? 'Search'
-    : name === 'Mind map'
+    : name === 'Gap leads'
       ? 'Mind map'
       : name === 'Experiment'
         ? 'Experiment'
@@ -164,7 +165,10 @@ async function open(name: string) {
   assert.ok((await page.getByRole('tab').count()) <= 3);
 }
 async function expand(text: string | RegExp) {
-  const summary = page.locator('summary').filter({ hasText: text }).first();
+  const summary = page
+    .locator('summary:visible')
+    .filter({ hasText: text })
+    .first();
   const details = summary.locator('xpath=ancestor::details');
   for (let i = 0; i < (await details.count()); i++) {
     const detail = details.nth(i);
@@ -231,19 +235,21 @@ try {
     await page
       .getByLabel(`Select SYNTHETIC DISCOVERY PAPER ${i}`, { exact: true })
       .check();
-  await open('Mind map');
+  await open('Gap leads');
+  await expand('Explore connections');
   await page
     .getByRole('heading', { name: 'Theme overlap map', exact: true })
     .waitFor();
   const discovery = page.locator('.concept-panel');
-  await expand(/^Conflicts to review/);
-  await discovery
-    .getByRole('button', {
+  {
+    const conflictButton = discovery.getByRole('button', {
       name: /Possible disagreement to review: diagnostic accuracy/,
-    })
-    .click();
+    });
+    if ((await conflictButton.getAttribute('aria-expanded')) !== 'true')
+      await conflictButton.click();
+  }
   await discovery
-    .getByText('Possible conflict · requires context review', { exact: true })
+    .getByText('Possible finding difference · requires review', { exact: true })
     .waitFor();
   await discovery
     .getByRole('heading', { name: 'What is known', exact: true })
@@ -254,10 +260,12 @@ try {
   await expand(/^Supporting papers & passages/);
   for (let i = 0; i < 2; i++)
     await discovery
+      .locator('.concept-details:visible .concept-evidence')
       .getByText(papers[i].passages[0].text, { exact: true })
       .first()
       .waitFor();
   await discovery
+    .locator('.concept-details:visible .concept-evidence')
     .getByRole('button', {
       name: 'Inspect complete source passage',
       exact: true,
@@ -334,7 +342,7 @@ try {
   await planPrior
     .getByText('Related prior work found.', { exact: true })
     .waitFor();
-  await open('Mind map');
+  await open('Gap leads');
   await discovery
     .getByRole('button', {
       name: 'Develop into a hypothesis',
@@ -361,13 +369,14 @@ try {
       .inputValue(),
     'Study population group',
   );
-  await open('Mind map');
-  await expand(/^Conflicts to review/);
-  await discovery
-    .getByRole('button', {
+  await open('Gap leads');
+  {
+    const conflictButton = discovery.getByRole('button', {
       name: /Possible disagreement to review: diagnostic accuracy/,
-    })
-    .click();
+    });
+    if ((await conflictButton.getAttribute('aria-expanded')) !== 'true')
+      await conflictButton.click();
+  }
   await mkdir('/tmp/paperbridge-discovery', { recursive: true });
   await page.locator('.concept-panel').scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/tmp/paperbridge-discovery/desktop.png' });

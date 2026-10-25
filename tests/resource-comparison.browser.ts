@@ -84,7 +84,7 @@ const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 const stageFor = (name: string) =>
   ['Focus', 'Papers', 'Compare'].includes(name)
     ? 'Search'
-    : name === 'Mind map'
+    : name === 'Gap leads'
       ? 'Mind map'
       : name === 'Experiment'
         ? 'Experiment'

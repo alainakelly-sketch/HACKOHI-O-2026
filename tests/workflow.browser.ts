@@ -143,7 +143,7 @@ const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 const stageFor = (name: string) =>
   ['Focus', 'Papers', 'Compare'].includes(name)
     ? 'Search'
-    : name === 'Mind map'
+    : name === 'Gap leads'
       ? 'Mind map'
       : name === 'Experiment'
         ? 'Experiment'
@@ -216,7 +216,7 @@ try {
   for (const name of [
     'Papers',
     'Compare',
-    'Mind map',
+    'Gap leads',
     'Resources',
     'AI hypotheses',
     'Experiment',
@@ -360,11 +360,7 @@ try {
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
     'Synthetic method',
   );
-  await open('Mind map');
-  await expand('Advanced: scan settings and abstract-only leads');
-  await page
-    .getByRole('button', { name: 'Find gap leads', exact: true })
-    .click();
+  await open('Gap leads');
   await page
     .getByRole('button', { name: 'Draft an experiment from this lead' })
     .first()

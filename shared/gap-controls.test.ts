@@ -43,12 +43,12 @@ function render(
   );
 }
 function findButton(html: string) {
-  return html.match(/<button[^>]*>Find gap leads<\/button>/)?.[0] ?? '';
+  return html.match(/<button[^>]*>Hide gap leads<\/button>/)?.[0] ?? '';
 }
 describe('gap controls make prerequisites and evidence scope explicit', () => {
   it('enables scanning selected sources without requiring a field or question', () => {
     const html = render([paper()]);
-    expect(findButton(html)).toContain('Find gap leads');
+    expect(findButton(html)).toContain('Hide gap leads');
     expect(findButton(html)).not.toContain('disabled');
     expect(html).toContain('You can scan now without a field.');
     expect(html).toContain('No AI key or field is required.');

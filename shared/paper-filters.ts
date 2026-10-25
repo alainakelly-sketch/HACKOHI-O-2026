@@ -12,10 +12,10 @@ export type PaperFilters = {
   allowExcerpt: boolean;
 };
 
-/** "Verified" describes imported article-body text, never the completeness of
- * the publication or verification of its scientific claims. */
+/** Discovery includes every retrieved record; access is an independent opt-in
+ * filter. "Verified" describes imported body text, not scientific verification. */
 export const defaultFilter: PaperFilters = {
-  access: 'verified',
+  access: 'all',
   sources: ['OpenAlex', 'Europe PMC', 'arXiv'],
   yearFrom: null,
   yearTo: null,

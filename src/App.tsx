@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Info, ArrowUpRight, X } from 'lucide-react';
 import type {
   Analysis,
@@ -9,6 +9,7 @@ import type {
   PriorWork,
   Resources,
   SearchResult,
+  SearchConcept,
   SearchSourceStatus,
   Citation,
   ResearchLeadContext,
@@ -27,6 +28,7 @@ import { BriefForm } from './components/BriefForm';
 import { PaperPanel } from './components/PaperPanel';
 import { ConnectionPanel } from './components/ConnectionPanel';
 import type { EvidenceInspection } from './components/EvidencePanel';
+import { scanGapLeads } from '../shared/gaps';
 import type { GapLead } from '../shared/gaps';
 import {
   defaultFilter,
@@ -39,8 +41,9 @@ import { ComparisonPanel } from './components/ComparisonPanel';
 import { DiscoveryPanel } from './components/DiscoveryPanel';
 import type { DiscoveryLead } from './components/DiscoveryPanel';
 import { PriorWorkCheck } from './components/PriorWorkCheck';
-import { GapPanel } from './components/GapPanel';
-import { buildResearchQuery } from '../shared/research-query';
+import { GapPanel, gapScanSources } from './components/GapPanel';
+import type { GapEvidenceScope } from './components/GapPanel';
+import { buildQueryPlan, buildResearchQuery } from '../shared/research-query';
 import { canLoadFullText } from '../shared/comparison';
 import { ExperimentPanel } from './components/ExperimentPanel';
 import {
@@ -64,7 +67,7 @@ const nav = [
   { id: 'question', label: 'Focus', stage: 'search' },
   { id: 'papers', label: 'Papers', stage: 'search' },
   { id: 'comparison', label: 'Compare', stage: 'search' },
-  { id: 'gaps', label: 'Mind map', stage: 'map' },
+  { id: 'gaps', label: 'Gap leads', stage: 'map' },
   { id: 'resources', label: 'Resources', stage: 'hypothesis' },
   { id: 'connections', label: 'AI hypotheses', stage: 'hypothesis' },
   { id: 'experiment', label: 'Experiment', stage: 'experiment' },
@@ -86,9 +89,9 @@ const workflowHeadings: Record<string, { title: string; description: string }> =
         'Read similarities, differences and the passages behind them.',
     },
     gaps: {
-      title: 'Connect the evidence',
+      title: 'Explore connections and research gaps',
       description:
-        'Select a paper or a lead, inspect its evidence, then take a question into your hypothesis.',
+        'Explore the optional map or review author-stated gap leads directly.',
     },
     resources: {
       title: 'Make the hypothesis fit your resources',
@@ -151,6 +154,10 @@ export default function App() {
   }
   const [exampleError, setExampleError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [queryPlan, setQueryPlan] = useState<SearchResult['queryPlan']>();
+  const [performedQueries, setPerformedQueries] = useState<
+    SearchResult['performedQueries']
+  >([]);
   const [filters, setFilters] = useState<PaperFilters>(() => ({
     ...defaultFilter,
     sources: [...defaultFilter.sources],
@@ -187,6 +194,16 @@ export default function App() {
   });
   const [papers, setPapers] = useState<Paper[]>([]),
     [selected, setSelected] = useState<Paper[]>([]);
+  const [gapScope, setGapScope] = useState<GapEvidenceScope>('body');
+  const gapScan = useMemo(
+    () =>
+      scanGapLeads(
+        gapScanSources(selected, gapScope),
+        brief.question,
+        brief.field,
+      ),
+    [selected, gapScope, brief.question, brief.field],
+  );
   const [sourceStatuses, setSourceStatuses] = useState<SearchSourceStatus[]>(
     [],
   );
@@ -353,7 +370,7 @@ export default function App() {
       setActiveNav('papers');
     }
   }
-  async function search(query: string) {
+  async function search(query: string, concepts?: SearchConcept[]) {
     searchController.current?.abort();
     const controller = new AbortController();
     searchController.current = controller;
@@ -364,24 +381,53 @@ export default function App() {
     setSearchBusy(true);
     setSearchError('');
     setSourceStatuses([]);
+    setPerformedQueries([]);
+    setQueryPlan(
+      buildQueryPlan({
+        question: brief.question || query,
+        field: brief.field,
+        concepts,
+      }),
+    );
     setPapers([]);
     setSearched(true);
     setActiveNav('papers');
     try {
+      const params = new URLSearchParams({
+        q: query,
+        question: brief.question || query,
+        field: brief.field,
+      });
+      if (concepts?.length) params.set('concepts', JSON.stringify(concepts));
       const result = await api<SearchResult>(
-        `/api/search?q=${encodeURIComponent(query)}`,
+        `/api/search?${params.toString()}`,
         undefined,
         controller.signal,
       );
       if (!controller.signal.aborted) {
         setPapers(result.papers);
         setSourceStatuses(result.sourceStatuses ?? []);
+        setQueryPlan(
+          result.queryPlan ??
+            buildQueryPlan({
+              question: brief.question || query,
+              field: brief.field,
+              concepts,
+            }),
+        );
+        setPerformedQueries(result.performedQueries ?? []);
         if (filters.access === 'verified')
           void verifyPapers(result.papers, controller.signal);
       }
     } catch (e) {
-      if (!controller.signal.aborted)
+      if (!controller.signal.aborted) {
         setSearchError(e instanceof Error ? e.message : 'Search failed.');
+        if (e instanceof ApiError && e.searchDetails) {
+          setQueryPlan(e.searchDetails.queryPlan);
+          setSourceStatuses(e.searchDetails.sourceStatuses ?? []);
+          setPerformedQueries(e.searchDetails.performedQueries ?? []);
+        }
+      }
     } finally {
       if (!controller.signal.aborted) setSearchBusy(false);
     }
@@ -867,6 +913,8 @@ export default function App() {
               onSearch={search}
               onToggle={toggle}
               sourceStatuses={sourceStatuses}
+              queryPlan={queryPlan}
+              performedQueries={performedQueries}
               onLoad={loadFullText}
               textBusy={textBusy}
               textErrors={textErrors}
@@ -914,23 +962,36 @@ export default function App() {
               }
               onPlan={startDiscoveryPlan}
               onHypothesis={startDiscoveryHypothesis}
+              gapLeads={gapScan.candidates}
             />
-            <details className="author-lead-scan">
-              <summary>Advanced: scan settings and abstract-only leads</summary>
-              <GapPanel
-                papers={selected}
-                question={brief.question}
-                field={brief.field}
-                busy={textBusy}
-                onSearch={search}
-                onRetrieve={() =>
-                  verifyPapers(selected, undefined, 6, filters, true)
-                }
-                onInspect={inspectGap}
-                onPlan={startManualPlan}
-                onGoPapers={() => setActiveNav('papers')}
-              />
-            </details>
+            <GapPanel
+              papers={selected}
+              question={brief.question}
+              field={brief.field}
+              busy={textBusy}
+              onSearch={search}
+              onRetrieve={() =>
+                verifyPapers(selected, undefined, 6, filters, true)
+              }
+              onInspect={inspectGap}
+              onPlan={startManualPlan}
+              onHypothesis={(lead) =>
+                startDiscoveryHypothesis({
+                  id: lead.id,
+                  title: lead.label,
+                  question: `What study could address this author-stated issue: ${lead.signalText}`,
+                  reason: lead.followUp,
+                  sources: [
+                    { paperId: lead.paperId, passageId: lead.passageId },
+                  ],
+                  searchQuery: lead.searchQuery,
+                })
+              }
+              onGoPapers={() => setActiveNav('papers')}
+              scanResult={gapScan}
+              evidenceScope={gapScope}
+              onScopeChange={setGapScope}
+            />
           </div>
           <dialog
             className="evidence-dialog"

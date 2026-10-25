@@ -63,7 +63,7 @@ const arxivFeed = (
   `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">${entry}</feed>`;
 
 describe('combined free-paper search', () => {
-  it('queries all adapters with the same input and interleaves their existing relevance order', async () => {
+  it('queries all adapters with focused terms and uses common relevance ordering', async () => {
     const searches = adapters(
       [paper('W1'), paper('W2')],
       [paper('PMC1', 'Europe PMC')],
@@ -71,13 +71,13 @@ describe('combined free-paper search', () => {
     );
     const found = await createCombinedSearch(searches)('synthetic question');
     Object.values(searches).forEach((search) =>
-      expect(search).toHaveBeenCalledWith('synthetic question'),
+      expect(search).toHaveBeenCalledWith('synthetic'),
     );
     expect(found.papers.map((p) => p.id)).toEqual([
       'W1',
+      'W2',
       'PMC1',
       'A1',
-      'W2',
       'A2',
     ]);
     expect(found.sourceStatuses?.map((s) => s.source)).toEqual([
@@ -134,6 +134,97 @@ describe('combined free-paper search', () => {
     )('synthetic');
     expect(found.papers.map((p) => p.id)).toEqual(['W2']);
     expect(found.sourceStatuses?.[0].count).toBe(1);
+  });
+});
+
+describe('question-aware combined ranking and query diagnostics', () => {
+  it('deduplicates variants before common question ranking, preserving background and metadata', async () => {
+    const searches = adapters(
+      [
+        paper('pain', 'OpenAlex', {
+          title: 'SYNTHETIC Music and pain relief',
+          abstract: 'Listening to music reduced pain intensity.',
+        }),
+        paper('metadata', 'OpenAlex', {
+          title: 'SYNTHETIC Music and perceived duration',
+          abstract: null,
+          passages: [],
+          coverage: 'Metadata only',
+        }),
+      ],
+      [],
+      [
+        paper('duration', 'arXiv', {
+          title: 'SYNTHETIC Musical tempo and duration estimates',
+          abstract: 'Musical tempo influenced duration estimates.',
+        }),
+      ],
+    );
+    const found = await createCombinedSearch(searches)(
+      'music "time perception"',
+      {
+        question: 'How does music affect time perception?',
+        field: 'Psychology',
+      },
+    );
+    expect(found.papers).toHaveLength(3);
+    expect(found.papers[0].id).toBe('duration');
+    expect(found.papers[0].relevance?.classification).toBe(
+      'Directly addresses the question',
+    );
+    expect(
+      found.papers.find((p) => p.id === 'pain')?.relevance?.missingConcepts,
+    ).toEqual(['time perception']);
+    expect(found.papers.find((p) => p.id === 'metadata')?.coverage).toBe(
+      'Metadata only',
+    );
+    expect(found.queryPlan?.concepts.map((c) => c.label)).toEqual([
+      'music',
+      'time perception',
+    ]);
+    expect(found.performedQueries).toHaveLength(6);
+    expect(
+      found.performedQueries?.find((q) => q.source === 'Europe PMC')?.query,
+    ).toBe('("music" AND "time perception") AND OPEN_ACCESS:Y');
+  });
+  it('does not retry rate limits through synonym queries and retains other successful collections', async () => {
+    const searches = adapters([paper('W1')]);
+    searches['Europe PMC'].mockRejectedValue(
+      new AppError(429, 'Europe PMC rate limit reached. Wait before retrying.'),
+    );
+    const found = await createCombinedSearch(searches)(
+      'music "time perception"',
+    );
+    expect(searches['Europe PMC']).toHaveBeenCalledTimes(1);
+    expect(
+      found.performedQueries?.find((q) => q.source === 'Europe PMC')?.status,
+    ).toBe('error');
+    expect(found.papers).toHaveLength(1);
+  });
+  it('shares successful repeated searches without new provider traffic', async () => {
+    const searches = adapters([paper('W1')]);
+    const search = createCombinedSearch(searches);
+    await Promise.all([search('synthetic'), search('synthetic')]);
+    await search('synthetic');
+    expect(searches.OpenAlex).toHaveBeenCalledTimes(1);
+  });
+  it('returns attempted queries in the safe all-provider-failure details', async () => {
+    const searches = adapters();
+    Object.values(searches).forEach((search) =>
+      search.mockRejectedValue(new AppError(429, 'Synthetic rate limit.')),
+    );
+    try {
+      await createCombinedSearch(searches)('music "time perception"');
+      expect.fail('expected failure');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).searchDetails?.performedQueries).toHaveLength(
+        3,
+      );
+      expect(
+        (error as AppError).searchDetails?.queryPlan?.concepts,
+      ).toHaveLength(2);
+    }
   });
 });
 

@@ -294,7 +294,7 @@ describe('free source-led gap candidates', () => {
     expect(result.candidates).toHaveLength(12);
     expect(result.coverage.paperCount).toBe(20);
   });
-  it('keeps suggested searches concise, bounded and tied to field plus source evidence', () => {
+  it('preserves source concepts in bounded follow-up searches without broad-field padding', () => {
     const result = scanGapLeads(
       [
         paper('T', [
@@ -306,15 +306,16 @@ describe('free source-led gap candidates', () => {
       'sample reliability',
       'Epidemiology',
     );
-    expect(result.candidates[0].searchQuery).toContain('Epidemiology');
+    expect(result.candidates[0].searchQuery).toContain(
+      'inadequate sample diversity',
+    );
+    expect(result.candidates[0].searchQuery).not.toContain('Epidemiology');
     expect(result.candidates[0].searchQuery).not.toContain(
       'sample reliability',
     );
     expect(result.candidates[0].searchQuery).toContain('sample');
     expect(result.candidates[0].searchQuery.trim().length).toBeGreaterThan(0);
-    expect(
-      result.candidates[0].searchQuery.split(/\s+/).length,
-    ).toBeLessThanOrEqual(5);
+    expect(result.candidates[0].searchQuery).toContain('clinical populations');
     expect(result.candidates[0].searchQuery.length).toBeLessThanOrEqual(400);
     expect(result.scope).toEqual({
       question: 'sample reliability',

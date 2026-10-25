@@ -62,30 +62,21 @@ One search runs these three routes:
 
 Titles, years, identifiers, abstracts and links come from retrieved records, not from AI-generated references. Search a narrower topic, a method, or a shorter phrase if the suggested query is too restrictive. Your selection stays while you search.
 
-Results interleave each service's relevance-ranked list. Scores from different services are not treated as directly comparable. Records sharing a DOI, PMC identifier or arXiv identifier are grouped; title similarity alone is not used to declare two papers identical. **Grouped records / versions** retains their source links. Manuscripts and published versions can differ, so inspect the original version you use.
+Results are deduplicated and then ranked together against the research question using a consistent title/abstract baseline. Provider scores are not compared or alternated. Direct matches appear first; background/method papers and unclear results remain available in separate groups with source-grounded explanations. Records sharing a DOI, PMC identifier or arXiv identifier are grouped; title similarity alone is not used to declare two papers identical. **Grouped records / versions** retains their source links. Manuscripts and published versions can differ, so inspect the original version you use.
 
 Each service has a visible status. If one is unavailable, the successful services' results remain visible and the search is labelled incomplete. An empty successful result is different from a failed request. No saved paper list is substituted for a failed live search.
 
 **Free-copy links are reported by the source and may change.** A publisher-record link is a reference page and may not itself contain the free copy. Use the separately marked free-copy link. Free to read does not necessarily mean unrestricted reuse; check the source's license and terms.
 
-## Show papers whose body text is actually ready
+## Discover by relevance, then choose text access
 
-The default **Filters → Text availability → Retrieved article body only** admits only records whose article-body paragraphs have actually been imported, with full-text provenance metadata and no reported truncation. A free link, PMC/arXiv identifier, abstract, or coverage label alone does not qualify. This confirms text availability, **not scientific correctness or completeness of the whole publication**.
+The default **Discovery — best topic matches** keeps relevant abstract-only and metadata records discoverable within the existing free-linked provider pool. It does not claim that full text was read. Cards show actual coverage and separate failed/unsupported retrieval states. Missing abstracts remain uncertain.
 
-After each search, PaperBridge automatically checks up to **12 supported candidate records**, with at most two checks running together. Ready papers appear as soon as their text arrives. Use **Check more article texts** for another batch. Failed checks remain visible under **text retrieval checks failed — inspect or retry**; expand it to read the error and choose **Retry this article**. A failed import is not silently counted as full text.
+Search preserves question concepts and multiword phrases instead of taking the first four keywords or forcing a broad field into the query. **Interpreted search concepts** shows the current interpretation. Expand **Edit interpreted concepts** to correct one concept per line and add related terms with `|`; **Apply concepts & search** explicitly searches those concepts without changing your research question. Provider searches use at most two bounded variants per provider. Expand the search diagnostics to see actual provider-specific queries and failures.
 
-A result card admitted by the default filter shows **Article body retrieved**, an actual paragraph preview, and **Read article body**. That button selects the paper if needed and takes you to the reader. A search can return free-linked records while showing no ready text yet: wait for checks, check more candidates, or deliberately widen the filter.
+**Filters → Discovery and text access → Ready for full-text analysis** explicitly requires imported article-body passages, full-text provenance and no reported truncation. A free link, identifier or abstract alone does not qualify. Choosing this filter checks up to 12 supported candidates with at most two imports together; **Check more article texts** and per-paper retry remain available. Excerpts need explicit opt-in. Strict filters remain selected across searches, and an access-hidden notice explains excluded results without implying no relevant research exists.
 
-Other filters are explicit:
-
-- **Supported retrieval route — not checked:** show records with a supported import route or available body passages; this is not a promise that retrieval will succeed.
-- **All free-copy records — may be abstract-only:** show the broader free-linked discovery results, including unsupported repositories and PDFs.
-- **Include labelled partial-text excerpts:** allow explicitly labelled body excerpts in the retrieved-text filter; this is off by default.
-- **Show collections**, **Year from / Year to**, and **Publication versions:** narrow the currently retrieved records. A year range excludes records without a known year. Excluding identified preprints/mixed versions does not prove that the remaining papers were peer reviewed.
-
-Filters apply to search results; selected papers remain in the reader and gap scan until you remove their selection chips.
-
-No filter retrieves every paper in a field. A blank filtered list is not evidence that no relevant literature exists.
+**Supported retrieval route — not checked**, collection/year/preprint filters and labelled partial-text controls remain available. Selecting a supported paper can import text. Selected papers persist across searches and filters until explicitly removed. Downstream evidence uses only retrieved passages, never a link as proof of reading. Body availability does not establish scientific correctness or full-publication completeness.
 
 ## Read and compare article text for free
 
@@ -172,15 +163,14 @@ Browser regression checks use **synthetic mocked paper and AI responses**, never
 
 In **Focus → Help me shape a question**, compose a question from a topic, outcome, optional population/conditions and dataset, or choose an editable starter. Opening the guide changes nothing; **Use this question** applies your template. Templates are not AI findings or claims that a question is unexplored.
 
-After selecting papers, open **Mind map → Theme overlap map**. The research question stays central, surrounded by up to five nonredundant source-text themes. The local screen prefers three useful question-related themes over padding the map with generic words. Sparse evidence may yield fewer themes.
+After selecting papers, open **Mind map → Gap leads**. Two independent sections are available:
 
-Click a theme or an overlap card to see **What is known**, **What is missing**, a possible question, and supporting papers/passages. Solid connectors represent themes co-mentioned in a source sentence; dashed bridge cards mark a connection not identified by this screen. Neither co-mention nor an absent link establishes a tested relationship, contradiction or field-wide research gap. Similar author-stated issue passages are grouped under their matching themes. **Conflicts to review** appears only when the existing conservative finding-tension screen finds a candidate.
+- **Explore connections**: an optional, initially collapsed theme-overlap map. Open it to see your focus and supported themes. Theme buttons expand/collapse their own child comparisons and author-stated issue nodes; several branches can stay open. Leaf details appear inside the map, without page jumps or tab changes. **Collapse all**, **Fit map** / **Restore spacing**, Enter/Space and Escape are supported. Ordinary map display does not search or call a model.
+- **Research gap leads**: the readable source-led results list remains usable with the map closed and without selecting any node. Source passages, related-work checking, hypothesis development and direct experiment drafting remain available. Article-body scope stays the default; explicitly include abstracts through Scan settings when necessary.
 
-Each selected paper has a **Strong fit**, **Moderate fit** or **Weak fit** badge, with matching/missing question terms available on expansion. These are lexical screening aids, not semantic relevance or study-quality ratings. Two or more weak-fit papers trigger a visible warning. The local map does not call OpenAI, hide papers or alter searches. Read **How to read this map** for extraction bounds and omissions.
+The map and list receive the same gap records and IDs. Evidence inspection never clears hypothesis or plan edits; tab changes preserve branches. Changing selected sources updates current map/list evidence. Only source-backed overlaps are rendered—no missing-bridge filler nodes or empty conflict columns. Shared wording is not proof of a tested relationship, a contradiction or a field-wide gap. Themes and fit badges remain transparent lexical aids, not semantic relevance judgments.
 
-**Develop into a hypothesis** carries the question and actual citations to the existing hypothesis step without making a model call. Only the separate generation button can incur an OpenAI charge. **Draft a test without AI** creates an editable proposal directly. Unknown manual protocol details remain blank, and edits to focus/resources/sources still flag stale context.
-
-**Check related prior work** works from an experiment draft, without an AI result or key. Edit the visible search terms and explicitly run the search. No close match does not establish novelty; related results do not establish an identical experiment. Search errors remain **Search incomplete**.
+**Develop into a hypothesis** prepares source-linked context without a model request. Only the separate explicit generation button may incur an OpenAI charge. **Check related prior work** is available from the gap list and experiment plans; opening it does not run a search. No close match does not establish novelty, and search failures remain **Search incomplete**.
 
 Evidence inspection includes publication details, section, exact stored passage ID and coverage. Page numbers remain unavailable when extraction supplies paragraph text only. Full-publication completeness, scientific evidence-strength ratings, PDF uploads, arbitrary URL import, dataset ingestion and proof of novelty are not implemented. Existing source links remain available for checking omitted figures, tables, supplements and PDFs.
 

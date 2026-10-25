@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, Search } from 'lucide-react';
 import type { Paper } from '../../shared/types';
 import { scanGapLeads } from '../../shared/gaps';
-import type { GapLead } from '../../shared/gaps';
+import type { GapLead, GapScan } from '../../shared/gaps';
+import { PriorWorkCheck } from './PriorWorkCheck';
 import { Busy, Notice } from './Primitives';
 import './gap-leads.css';
 export type GapEvidenceScope = 'body' | 'include-abstracts';
@@ -31,6 +32,10 @@ export function GapPanel({
   onInspect,
   onPlan,
   onGoPapers,
+  onHypothesis,
+  scanResult,
+  evidenceScope,
+  onScopeChange,
 }: {
   papers: Paper[];
   question: string;
@@ -41,16 +46,26 @@ export function GapPanel({
   onInspect?: (lead: GapLead) => void;
   onPlan?: (lead: GapLead) => void;
   onGoPapers?: () => void;
+  onHypothesis?: (lead: GapLead) => void;
+  scanResult?: GapScan;
+  evidenceScope?: GapEvidenceScope;
+  onScopeChange?: (scope: GapEvidenceScope) => void;
 }) {
-  const [opened, setOpened] = useState(false);
-  const [scope, setScope] = useState<GapEvidenceScope>('body');
+  const [opened, setOpened] = useState(true);
+  const [localScope, setLocalScope] = useState<GapEvidenceScope>('body');
+  const scope = evidenceScope ?? localScope;
+  function setScope(value: GapEvidenceScope) {
+    setLocalScope(value);
+    onScopeChange?.(value);
+  }
   const [retrieving, setRetrieving] = useState(false);
   const [retrieveError, setRetrieveError] = useState('');
   const sources = useMemo(() => gapScanSources(papers, scope), [papers, scope]);
-  const scan = useMemo(
+  const localScan = useMemo(
     () => scanGapLeads(sources, question, field),
     [sources, question, field],
   );
+  const scan = scanResult ?? localScan;
   const bodyCount = papers.filter((p) =>
     p.passages.some((x) => x.kind === 'full-text' && x.text.trim()),
   ).length;
@@ -78,7 +93,7 @@ export function GapPanel({
     <section className="panel gap-panel" id="gaps" aria-labelledby="gap-title">
       <div className="panel-heading">
         <div>
-          <h2 id="gap-title">Possible research gap leads</h2>
+          <h2 id="gap-title">Research gap leads</h2>
           <p className="muted">
             Free · based on author-stated issues in selected sources
           </p>
@@ -198,18 +213,25 @@ export function GapPanel({
             {scan.candidates.map((lead) => {
               const paper = papers.find((p) => p.id === lead.paperId)!;
               return (
-                <article className="gap-lead" key={lead.id}>
+                <article
+                  className="gap-lead"
+                  key={lead.id}
+                  data-gap-id={lead.id}
+                  data-paper-id={lead.paperId}
+                >
                   <div className="source-label">
                     {lead.label} ·{' '}
                     {lead.kind === 'full-text'
                       ? 'ARTICLE BODY'
                       : 'ABSTRACT ONLY'}
                   </div>
-                  <h3>{paper.title}</h3>
-                  <p className="gap-lead-preview">
-                    {lead.signalText.slice(0, 180)}
-                    {lead.signalText.length > 180 ? '…' : ''}
-                  </p>
+                  <h3>
+                    {lead.signalText.slice(0, 110)}
+                    {lead.signalText.length > 110 ? '…' : ''}
+                  </h3>
+                  <a href={paper.url} target="_blank" rel="noreferrer">
+                    {paper.title}
+                  </a>
                   <details>
                     <summary>Inspect complete supporting passage</summary>
                     <p className="muted">
@@ -237,11 +259,31 @@ export function GapPanel({
                       Inspect evidence
                     </button>
                   ) : null}
+                  <p className="panel-footnote">
+                    Author-stated issue in this source, not a confirmed
+                    field-wide gap. Related work may already address it.
+                  </p>
+                  {onHypothesis ? (
+                    <button
+                      className="primary"
+                      onClick={() => onHypothesis(lead)}
+                    >
+                      Develop this gap into a hypothesis
+                    </button>
+                  ) : null}
                   {onPlan ? (
                     <button className="primary" onClick={() => onPlan(lead)}>
                       Draft an experiment from this lead
                     </button>
                   ) : null}
+                  <details className="gap-prior-work">
+                    <summary>Check related prior work</summary>
+                    <PriorWorkCheck
+                      key={`${lead.id}:${lead.searchQuery}:${field}`}
+                      initialQuery={lead.searchQuery}
+                      field={field}
+                    />
+                  </details>
                   <details className="gap-follow-up">
                     <summary>Check this lead before planning</summary>
                     <p>{lead.followUp}</p>

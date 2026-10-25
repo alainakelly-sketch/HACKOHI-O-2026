@@ -141,6 +141,8 @@ async function prepare(page: Page, papers: Paper[]) {
     .getByRole('navigation', { name: 'Research pipeline' })
     .getByRole('button', { name: 'Mind map', exact: true })
     .click();
+  await page.getByRole('tab', { name: 'Gap leads', exact: true }).click();
+  await page.locator('.explore-connections > summary').click();
   await page
     .getByRole('heading', { name: 'Theme overlap map', exact: true })
     .waitFor();
@@ -159,30 +161,40 @@ function verifyQuotes(quotes: string[], papers: Paper[]) {
       `Quote not found in selected source text: ${quote}`,
     );
 }
+async function revealEvidence(detail: import('playwright').Locator) {
+  const summary = detail
+    .locator('summary')
+    .filter({ hasText: /supporting.*passages|evidence/i })
+    .first();
+  if (
+    (await summary.count()) &&
+    !(await summary
+      .locator('..')
+      .evaluate((element) => (element as HTMLDetailsElement).open))
+  )
+    await summary.click();
+}
 try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   });
   const page = await context.newPage();
   const { errors, consoleErrors, counts } = await prepare(page, related);
-  const themes = page.getByRole('button', { name: /^Explore theme: / });
-  const overlaps = page.getByRole('button', { name: /^Explore overlap: / });
+  const map = page.locator('.explore-connections');
+  const themes = map.getByRole('button', { name: /^Explore theme: / });
   const themeCount = await themes.count();
   assert.ok(
     themeCount >= 3 && themeCount <= 5,
     `Expected 3–5 supported themes, got ${themeCount}`,
   );
-  for (let index = 0; index < themeCount; index++)
+  for (let index = 0; index < themeCount; index++) {
     assert.match(await themes.nth(index).innerText(), /4 papers/);
-  assert.ok(
-    (await overlaps.count()) > 0,
-    'Related papers should produce an overlap',
-  );
-  assert.equal(await page.locator('.concept-conflicts').count(), 0);
-  assert.equal(
-    await page.getByRole('heading', { name: 'Conflicts', exact: true }).count(),
-    0,
-  );
+    assert.equal(
+      await themes.nth(index).getAttribute('aria-expanded'),
+      'false',
+    );
+  }
+  assert.equal(await map.locator('.concept-conflicts').count(), 0);
   assert.equal(
     await page
       .getByText('These papers may not strongly match your question.', {
@@ -191,17 +203,95 @@ try {
       .count(),
     0,
   );
-  assert.ok((await page.getByText('Strong fit', { exact: true }).count()) > 0);
-  assert.equal(await page.locator('vite-error-overlay').count(), 0);
-  assert.ok(
-    (await page.locator('.concept-connectors .overlap-edge').count()) > 0,
-    'Map must render relationships between overlap and theme nodes',
+  await map.locator('.concept-paper-fits > summary').click();
+  assert.equal(
+    await map.getByText('Strong fit', { exact: true }).count(),
+    related.length,
   );
+  assert.equal(await page.locator('vite-error-overlay').count(), 0);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.screenshot({
     path: `${output}/related-desktop.png`,
     fullPage: true,
   });
+  await themes.first().click();
+  const branch = themes
+    .first()
+    .locator('xpath=ancestor::article[contains(@class,"concept-branch")]');
+  const themeLabel = (await themes.first().getAttribute('aria-label'))!.replace(
+    'Explore theme: ',
+    '',
+  );
+  await branch
+    .getByRole('button', {
+      name: `How sources describe ${themeLabel}`,
+    })
+    .click();
+  let detail = map.getByRole('region', {
+    name: 'Concept details',
+    exact: true,
+  });
+  await detail
+    .getByRole('heading', { name: themeLabel, exact: true })
+    .waitFor();
+  await detail
+    .getByRole('heading', { name: 'What is known', exact: true })
+    .waitFor();
+  await detail
+    .getByRole('heading', { name: 'What is missing', exact: true })
+    .waitFor();
+  await revealEvidence(detail);
+  const quotes = await detail.locator('blockquote').allTextContents();
+  verifyQuotes(quotes, related);
+  assert.ok(
+    quotes.some((quote) =>
+      quote.toLowerCase().includes(themeLabel.toLowerCase()),
+    ),
+  );
+  await detail
+    .getByRole('button', {
+      name: 'Inspect complete source passage',
+      exact: true,
+    })
+    .first()
+    .click();
+  await page.getByRole('dialog').waitFor();
+  await page.getByRole('dialog').locator('.source-metadata > summary').click();
+  assert.match(
+    await page.getByRole('dialog').innerText(),
+    /SYNTHETIC Sleep duration/,
+  );
+  await page
+    .getByRole('button', { name: 'Close evidence', exact: true })
+    .click();
+  await detail
+    .getByRole('button', { name: 'Close details', exact: true })
+    .click();
+  const overlap = branch
+    .getByRole('button', { name: /^Explore overlap: / })
+    .first();
+  assert.ok(
+    (await overlap.count()) > 0,
+    'Related papers should produce source-backed overlap children',
+  );
+  const overlapLabel = (await overlap.getAttribute('aria-label'))!.replace(
+    'Explore overlap: ',
+    '',
+  );
+  await overlap.click();
+  detail = map.getByRole('region', { name: 'Concept details', exact: true });
+  await detail
+    .getByRole('heading', { name: overlapLabel, exact: true })
+    .waitFor();
+  await revealEvidence(detail);
+  verifyQuotes(await detail.locator('blockquote').allTextContents(), related);
+  await page.screenshot({
+    path: `${output}/overlap-detail.png`,
+    fullPage: true,
+  });
+  await detail
+    .getByRole('button', { name: 'Close details', exact: true })
+    .click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.screenshot({ path: `${output}/related-mobile-top.png` });
@@ -215,113 +305,11 @@ try {
     ),
     false,
   );
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  const themeLabel = (await themes.first().getAttribute('aria-label'))!.replace(
-    'Explore theme: ',
-    '',
-  );
-  await themes.first().click();
-  const detail = page.getByRole('region', {
-    name: 'Concept details',
-    exact: true,
-  });
-  await detail.waitFor();
-  await detail
-    .getByRole('heading', { name: themeLabel, exact: true })
-    .waitFor();
-  await detail
-    .getByRole('heading', { name: 'What is known', exact: true })
-    .waitFor();
-  await detail
-    .getByRole('heading', { name: 'What is missing', exact: true })
-    .waitFor();
-  await detail.getByText('Why investigate this', { exact: true }).waitFor();
-  // Source excerpts may be progressively disclosed, but every rendered quote must
-  // be an exact substring of a selected source and be inspectable in the dialog.
-  const evidenceSummary = detail
-    .locator('summary')
-    .filter({ hasText: /source passages|supporting.*passages|evidence/i })
-    .first();
-  if (await evidenceSummary.count()) {
-    const details = evidenceSummary.locator('..');
-    if (
-      !(await details.evaluate(
-        (element) => (element as HTMLDetailsElement).open,
-      ))
-    )
-      await evidenceSummary.click();
-  }
-  const themeQuotes = await detail.locator('blockquote').allTextContents();
-  verifyQuotes(themeQuotes, related);
-  assert.ok(
-    themeQuotes.some((quote) =>
-      quote.toLowerCase().includes(themeLabel.toLowerCase()),
-    ),
-    'Theme selection must show evidence mentioning that theme',
-  );
-  await detail
-    .getByRole('button', {
-      name: 'Inspect complete source passage',
-      exact: true,
-    })
-    .first()
-    .click();
-  await page.getByRole('dialog').waitFor();
-  assert.ok(
-    (await page.getByRole('dialog').textContent())?.includes(
-      'SYNTHETIC Sleep duration',
-    ),
-  );
-  await page
-    .getByRole('button', { name: 'Close evidence', exact: true })
-    .click();
-  const overlapLabel = (await overlaps
-    .first()
-    .getAttribute('aria-label'))!.replace('Explore overlap: ', '');
-  await overlaps.first().click();
-  await detail.waitFor();
-  await detail
-    .getByRole('heading', { name: overlapLabel, exact: true })
-    .waitFor();
-  const overlapSummary = detail
-    .locator('summary')
-    .filter({ hasText: /source passages|supporting.*passages|evidence/i })
-    .first();
-  assert.match(await overlapSummary.innerText(), /4 papers/);
-  if (await overlapSummary.count()) {
-    const details = overlapSummary.locator('..');
-    if (
-      !(await details.evaluate(
-        (element) => (element as HTMLDetailsElement).open,
-      ))
-    )
-      await overlapSummary.click();
-  }
-  verifyQuotes(await detail.locator('blockquote').allTextContents(), related);
-  await page.screenshot({
-    path: `${output}/overlap-detail.png`,
-    fullPage: true,
-  });
-  await detail
-    .getByRole('button', { name: 'Develop into a hypothesis', exact: true })
-    .click();
-  assert.equal(
-    await page
-      .getByRole('navigation', { name: 'Research pipeline' })
-      .getByRole('button', { name: 'Hypothesis', exact: true })
-      .getAttribute('aria-current'),
-    'step',
-  );
   assert.equal(counts.analysis, 0);
-  await page
-    .getByRole('navigation', { name: 'Research pipeline' })
-    .getByRole('button', { name: 'Mind map', exact: true })
-    .click();
   assert.deepEqual(errors, []);
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(counts.unexpected, []);
   await context.close();
-
   const weakContext = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   });
@@ -332,21 +320,17 @@ try {
       exact: true,
     })
     .waitFor();
+  const weakMap = weakPage.locator('.explore-connections');
+  await weakMap.locator('.concept-paper-fits > summary').click();
   assert.equal(
-    await weakPage.getByText('Weak fit', { exact: true }).count(),
+    await weakMap.getByText('Weak fit', { exact: true }).count(),
     weak.length,
   );
-  assert.equal(await weakPage.locator('.concept-conflicts').count(), 0);
-  assert.equal(
-    await weakPage
-      .getByRole('heading', { name: 'Conflicts', exact: true })
-      .count(),
-    0,
-  );
+  assert.equal(await weakMap.locator('.concept-conflicts').count(), 0);
+  assert.equal(await weakPage.locator('vite-error-overlay').count(), 0);
   await weakPage.evaluate(() =>
     window.scrollTo({ top: 0, behavior: 'instant' }),
   );
-  assert.equal(await weakPage.locator('vite-error-overlay').count(), 0);
   await weakPage.screenshot({
     path: `${output}/weak-desktop.png`,
     fullPage: true,
@@ -357,7 +341,7 @@ try {
   assert.deepEqual(weakState.counts.unexpected, []);
   await weakContext.close();
   console.log(
-    'PASS: related themes and overlaps; exact source evidence and dialog; hypothesis handoff without model calls; weak-fit warning; no empty conflicts; desktop/mobile without overflow or page errors.',
+    'PASS: related expandable themes and overlap children; exact source evidence and dialog; weak-fit warning; no empty conflicts; desktop/mobile without overflow or page errors.',
   );
 } finally {
   await browser.close();

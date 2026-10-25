@@ -1,3 +1,4 @@
+import { compileProviderQuery } from '../../shared/research-query';
 import { load } from 'cheerio';
 import { XMLValidator } from 'fast-xml-parser';
 import type { Paper, SearchResult } from '../../shared/types';
@@ -106,16 +107,12 @@ export function createArxiv(
     try {
       const wait = nextRequestAt - Date.now();
       if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-      const terms = query.match(/[\p{L}\p{N}_-]+/gu) ?? [];
-      if (!terms.length)
+      if (!query.trim())
         return { query, papers: [], retrievedAt: new Date().toISOString() };
       const url = new URL('https://export.arxiv.org/api/query');
       url.searchParams.set(
         'search_query',
-        terms
-          .slice(0, 40)
-          .map((t) => `all:"${t}"`)
-          .join(' AND '),
+        compileProviderQuery(query, 'arXiv'),
       );
       url.searchParams.set('start', '0');
       url.searchParams.set('max_results', '12');

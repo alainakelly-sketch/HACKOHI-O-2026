@@ -1,3 +1,4 @@
+import { compileProviderQuery } from '../shared/research-query';
 import { createHash } from 'node:crypto';
 import type { Paper, SearchResult } from '../shared/types';
 import { AppError } from './errors';
@@ -148,7 +149,7 @@ export function createPaperStore() {
           existing.expires > Date.now() &&
           existing.paper.fullText &&
           !paper.fullText
-            ? existing.paper
+            ? { ...existing.paper, relevance: paper.relevance }
             : paper;
         cache.set(paper.id, { paper: retained, expires: Date.now() + 3600000 });
       }
@@ -172,7 +173,7 @@ export function createOpenAlex(
 ) {
   return async (query: string): Promise<SearchResult> => {
     const url = new URL('https://api.openalex.org/works');
-    url.searchParams.set('search', query);
+    url.searchParams.set('search', compileProviderQuery(query, 'OpenAlex'));
     url.searchParams.set('per-page', '16');
     if (options.freeOnly)
       url.searchParams.set('filter', 'open_access.is_oa:true');

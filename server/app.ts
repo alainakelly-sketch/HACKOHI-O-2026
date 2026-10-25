@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { z } from 'zod';
 import { createPaperStore } from './openalex';
 import { createCombinedSearch } from './sources/combined';
+import type { SearchOptions } from './sources/combined';
 import { createFullTextRetriever } from './sources/fulltext';
 import { analyze, analysisAvailability } from './analysis';
 import { AppError } from './errors';
@@ -63,7 +64,7 @@ const selectionSchema = z
   );
 export function createApp(
   deps: {
-    search?: (q: string) => Promise<SearchResult>;
+    search?: (q: string, options?: SearchOptions) => Promise<SearchResult>;
     analyze?: (
       brief: Brief,
       papers: Paper[],
@@ -154,7 +155,41 @@ export function createApp(
   });
   app.get('/api/search', async (req, res) => {
     const query = z.string().trim().min(2).max(400).parse(req.query.q);
-    const result = await search(query);
+    const question = z
+      .string()
+      .trim()
+      .max(1200)
+      .optional()
+      .parse(req.query.question);
+    const field = z.string().trim().max(100).optional().parse(req.query.field);
+    const rawConcepts = z
+      .string()
+      .max(5000)
+      .optional()
+      .parse(req.query.concepts);
+    let decoded: unknown;
+    if (rawConcepts) {
+      try {
+        decoded = JSON.parse(rawConcepts);
+      } catch {
+        throw new AppError(
+          400,
+          'Search concepts must be valid structured text.',
+        );
+      }
+    }
+    const concepts = z
+      .array(
+        z.object({
+          label: z.string().trim().min(1).max(80),
+          terms: z.array(z.string().trim().min(1).max(100)).max(5),
+        }),
+      )
+      .min(1)
+      .max(8)
+      .optional()
+      .parse(decoded);
+    const result = await search(query, { question, field, concepts });
     paperStore.put(result.papers);
     res.json({
       ...result,
@@ -272,6 +307,7 @@ export function createApp(
         res.status(err.status).json({
           error: err.message,
           ...(err.cost ? { cost: err.cost } : {}),
+          ...(err.searchDetails ? { searchDetails: err.searchDetails } : {}),
         });
         return;
       }

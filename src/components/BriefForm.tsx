@@ -55,8 +55,8 @@ export function BriefForm({
         placeholder="e.g. Neuroscience, ecology, education"
       />
       <p className="focus-help">
-        Choose one field and a question you want to explore. You can refine them
-        later.
+        Your question drives paper relevance. The field is optional context; it
+        does not replace the specific concepts in your question.
       </p>
       <details className="focus-guide">
         <summary>Help me shape a question</summary>
@@ -182,7 +182,10 @@ export function BriefForm({
       <button
         className="primary focus-search"
         onClick={onFindPapers}
-        disabled={searching || brief.field.trim().length < 2}
+        disabled={
+          searching ||
+          (brief.question.trim().length < 2 && brief.field.trim().length < 2)
+        }
       >
         {searching ? 'Finding papers…' : 'Find papers for this focus'}
       </button>

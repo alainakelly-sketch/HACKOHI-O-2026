@@ -3,6 +3,12 @@ import { createOpenAlex } from '../openalex';
 import { createEuropePMC } from './europepmc';
 import { createArxiv } from './arxiv';
 import { AppError } from '../errors';
+import {
+  buildQueryPlan,
+  compileProviderQuery,
+} from '../../shared/research-query';
+import { rankQuestionResults } from '../../shared/search-relevance';
+import type { SearchConcept, PerformedQuery } from '../../shared/types';
 type Searcher = (query: string) => Promise<SearchResult>;
 function keys(paper: Paper) {
   return [
@@ -93,6 +99,11 @@ export function mergeDuplicates(papers: Paper[]): Paper[] {
   });
   return [...groups.values()];
 }
+export type SearchOptions = {
+  question?: string;
+  field?: string;
+  concepts?: SearchConcept[];
+};
 export function createCombinedSearch(
   adapters: Partial<Record<SourceName, Searcher>> = {},
 ) {
@@ -104,43 +115,118 @@ export function createCombinedSearch(
     ['Europe PMC', adapters['Europe PMC'] ?? createEuropePMC()],
     ['arXiv', adapters.arXiv ?? createArxiv()],
   ];
-  return async (query: string): Promise<SearchResult> => {
-    const outcomes = await Promise.allSettled(
-      providers.map(([, search]) => search(query)),
+  const cache = new Map<string, { value: SearchResult; expires: number }>();
+  const inFlight = new Map<string, Promise<SearchResult>>();
+  async function retrieve(
+    query: string,
+    options: SearchOptions,
+  ): Promise<SearchResult> {
+    // Ranking follows the user-confirmed concepts/question. Retrieval preserves
+    // an edited search phrase rather than silently replacing it with the question.
+    const queryPlan = buildQueryPlan({
+      question: options.question || query,
+      field: options.field,
+      concepts: options.concepts,
+    });
+    const retrievalPlan = options.concepts?.length
+      ? queryPlan
+      : buildQueryPlan({ question: query });
+    const variants = retrievalPlan.variants.slice(0, 2);
+    const outcomes = await Promise.all(
+      providers.map(async ([source, search]) => {
+        // arXiv already serializes and spaces requests; per-provider variants are
+        // sequential so one search cannot fill its queue with concurrent requests.
+        const records: Paper[] = [];
+        const performed: PerformedQuery[] = [];
+        let successful = 0;
+        for (const variant of variants) {
+          try {
+            const result = await search(variant);
+            successful++;
+            records.push(...result.papers.filter((p) => p.freeCopies?.length));
+            performed.push({
+              source,
+              query: compileProviderQuery(variant, source),
+              status: 'ok',
+              message: null,
+            });
+          } catch (error) {
+            const message =
+              error instanceof AppError
+                ? error.message
+                : `${source} search failed. Try again later.`;
+            performed.push({
+              source,
+              query: compileProviderQuery(variant, source),
+              status: 'error',
+              message,
+            });
+            // Do not retry a rate-limited/failed provider through a synonym variant.
+            break;
+          }
+        }
+        return { source, records, performed, successful };
+      }),
     );
-    const sourceStatuses = outcomes.map((outcome, i) => ({
-      source: providers[i][0],
-      status:
-        outcome.status === 'fulfilled' ? ('ok' as const) : ('error' as const),
-      count:
-        outcome.status === 'fulfilled'
-          ? outcome.value.papers.filter((p) => p.freeCopies?.length).length
-          : 0,
+    const sourceStatuses = outcomes.map((outcome) => ({
+      source: outcome.source,
+      status: outcome.performed.some((p) => p.status === 'error')
+        ? ('error' as const)
+        : ('ok' as const),
+      count: mergeDuplicates(outcome.records).length,
       message:
-        outcome.status === 'rejected'
-          ? outcome.reason instanceof AppError
-            ? outcome.reason.message
-            : `${providers[i][0]} search failed. Try again later.`
-          : null,
+        outcome.performed.find((p) => p.status === 'error')?.message ?? null,
     }));
-    if (sourceStatuses.every((s) => s.status === 'error'))
+    if (outcomes.every((outcome) => !outcome.successful) && variants.length)
       throw new AppError(
         502,
         'All free-paper sources are unavailable. Check network access to api.openalex.org, www.ebi.ac.uk and export.arxiv.org, then retry.',
+        undefined,
+        {
+          queryPlan,
+          sourceStatuses,
+          performedQueries: outcomes.flatMap((outcome) => outcome.performed),
+        },
       );
-    // Interleave relevance-ranked lists instead of pretending scores from different APIs are comparable.
-    const lists = outcomes.map((o) =>
-      o.status === 'fulfilled' ? o.value.papers : [],
+    // Provider scores are incomparable. Deduplicate candidates first, then apply
+    // the same title/abstract evidence baseline to every retained record.
+    const candidates = mergeDuplicates(
+      outcomes.flatMap((outcome) => outcome.records),
     );
-    const interleaved: Paper[] = [];
-    for (let i = 0; i < Math.max(...lists.map((l) => l.length)); i++)
-      for (const list of lists)
-        if (list[i]?.freeCopies?.length) interleaved.push(list[i]);
     return {
       query,
-      papers: mergeDuplicates(interleaved),
+      papers: rankQuestionResults(candidates, queryPlan),
       retrievedAt: new Date().toISOString(),
       sourceStatuses,
+      queryPlan,
+      performedQueries: outcomes.flatMap((outcome) => outcome.performed),
     };
+  }
+  return async (
+    query: string,
+    options: SearchOptions = {},
+  ): Promise<SearchResult> => {
+    const key = JSON.stringify([
+      query,
+      options.question,
+      options.field,
+      options.concepts,
+    ]);
+    const cached = cache.get(key);
+    if (cached && cached.expires > Date.now()) return cached.value;
+    const pending = inFlight.get(key);
+    if (pending) return pending;
+    const task = retrieve(query, options);
+    inFlight.set(key, task);
+    try {
+      const result = await task;
+      if (!result.sourceStatuses?.some((s) => s.status === 'error')) {
+        if (cache.size >= 100) cache.delete(cache.keys().next().value!);
+        cache.set(key, { value: result, expires: Date.now() + 600000 });
+      }
+      return result;
+    } finally {
+      inFlight.delete(key);
+    }
   };
 }

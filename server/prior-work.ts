@@ -45,7 +45,9 @@ async function searchPriorQueries(
   queries: string[],
   search: (q: string) => Promise<SearchResult>,
 ): Promise<PriorWork> {
-  const outcomes = await Promise.allSettled(queries.map(search));
+  const outcomes = await Promise.allSettled(
+    queries.map((query) => search(query)),
+  );
   const searches: PriorWork['searches'] = [];
   const matches = new Map<string, PriorWork['matches'][number]>();
   outcomes.forEach((outcome, i) => {
