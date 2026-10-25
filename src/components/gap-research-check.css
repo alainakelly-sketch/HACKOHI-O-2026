@@ -133,3 +133,26 @@
     flex-basis: 100%;
   }
 }
+
+.gap-check-match > summary {
+  cursor: pointer;
+  padding: 12px 0;
+  color: var(--ink);
+}
+.gap-check-match > summary span {
+  font-weight: 700;
+}
+.gap-check-match > summary small {
+  display: block;
+  margin: 6px 0 0 16px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.gap-check-intent {
+  margin-bottom: 12px;
+}
+.gap-check-intent > summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 10px;
+}

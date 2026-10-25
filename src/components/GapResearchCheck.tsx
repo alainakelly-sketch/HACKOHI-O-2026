@@ -116,7 +116,7 @@ export function GapResearchCheck({
       data-gap-id={finding.id}
     >
       <h4 id="gap-research-check-title">
-        Check existing research before developing this gap
+        Check whether research already addresses it
       </h4>
       <details className="gap-check-question">
         <summary>Review or refine the gap question</summary>
@@ -144,7 +144,7 @@ export function GapResearchCheck({
           {error} The check is incomplete; this is not a no-match result.
         </Notice>
       ) : null}
-      {!approved ? (
+      {!approved && !complete ? (
         <div className="gap-check-action">
           <button
             type="button"
@@ -164,11 +164,16 @@ export function GapResearchCheck({
             <p className="muted">
               Searches beyond your selected papers.{' '}
               {aiAvailable
-                ? 'The configured AI assesses retrieved text; this explicit check may incur an API charge.'
-                : 'AI assessment is unavailable. Retrieved candidates will remain available for manual review, but the AI check cannot be completed.'}
+                ? 'AI assessment may incur an API charge.'
+                : 'AI is unavailable. You can search for related studies, but cannot complete the AI check yet.'}
             </p>
           ) : null}
         </div>
+      ) : null}
+      {finding.ready && question.trim().length < 5 ? (
+        <p className="muted">
+          Enter a complete gap question in “Review or refine the gap question”.
+        </p>
       ) : null}
       {result ? (
         <div
@@ -179,29 +184,17 @@ export function GapResearchCheck({
             {stale ? 'Previous check · needs updating' : result.status}
           </p>
           <p>{result.summary}</p>
-          {result.status === NO_MATCH ? (
-            <Notice>
-              No close match in these searches is not proof of novelty.
-              Coverage, terminology and available text are limited.
-            </Notice>
-          ) : null}
           {result.assessmentNotNeeded ? (
-            <Notice>
-              No studies were returned to assess; no AI request was made. This
-              completed search does not establish novelty.
-            </Notice>
+            <p className="muted">Search only · no AI request was made.</p>
           ) : !result.aiCompleted ? (
-            <Notice>
-              AI assessment has not been completed. The papers below are
-              retrieved candidates for manual review, not AI-assessed answers to
-              the gap.
-            </Notice>
+            <p className="muted">AI assessment has not been completed.</p>
+          ) : null}
+          {result.status === NO_MATCH ? (
+            <p className="muted">This search does not establish novelty.</p>
           ) : null}
           {addressesWhole && !stale ? (
             <p className="gap-check-overlap-warning">
-              Existing research may already answer this question. Refine and
-              recheck it, or deliberately choose a replication or extension
-              below; do not present it as an untouched discovery.
+              Refine the question, or choose a replication or extension below.
             </p>
           ) : null}
           <div className="gap-check-matches">
@@ -211,11 +204,15 @@ export function GapResearchCheck({
               );
               if (!paper) return null;
               return (
-                <article
+                <details
                   className="gap-check-match"
                   key={match.paperId}
                   data-paper-id={match.paperId}
                 >
+                  <summary>
+                    <span>{paper.title}</span>
+                    <small>{relation[match.addresses]}</small>
+                  </summary>
                   <h5>
                     <a href={paper.url} target="_blank" rel="noreferrer">
                       {paper.title}
@@ -254,12 +251,12 @@ export function GapResearchCheck({
                       </p>
                     )}
                   </details>
-                </article>
+                </details>
               );
             })}
           </div>
           {manualCandidates.length ? (
-            <details className="gap-check-manual" open={!result.aiCompleted}>
+            <details className="gap-check-manual">
               <summary>
                 {result.aiCompleted
                   ? 'Other retrieved candidates'
@@ -327,38 +324,46 @@ export function GapResearchCheck({
           </details>
           {complete && !approved ? (
             <div className="gap-check-review">
-              <label htmlFor="gap-check-decision">
-                How will you use this check?
-              </label>
-              <select
-                id="gap-check-decision"
-                value={decision}
-                onChange={(event) =>
-                  setDecision(event.target.value as ReviewDecision | '')
-                }
-                disabled={reviewBusy || busy}
-              >
-                <option value="">Choose after reviewing the matches</option>
-                {!addressesWhole ? (
-                  <option value="continue">
-                    Develop the remaining candidate question · novelty unproven
+              <details open={addressesWhole} className="gap-check-intent">
+                <summary>
+                  {addressesWhole
+                    ? 'Choose replication or extension'
+                    : 'Other research intentions'}
+                </summary>
+                <label htmlFor="gap-check-decision">
+                  How will you use this check?
+                </label>
+                <select
+                  id="gap-check-decision"
+                  value={decision}
+                  onChange={(event) =>
+                    setDecision(event.target.value as ReviewDecision | '')
+                  }
+                  disabled={reviewBusy || busy}
+                >
+                  <option value="">Choose after reviewing the matches</option>
+                  {!addressesWhole ? (
+                    <option value="continue">
+                      Develop the remaining candidate question · novelty
+                      unproven
+                    </option>
+                  ) : null}
+                  <option value="replication">
+                    Replication of existing research · not a novel gap
                   </option>
-                ) : null}
-                <option value="replication">
-                  Replication of existing research · not a novel gap
-                </option>
-                <option value="extension">
-                  Extension of existing research · specify the remaining
-                  distinction
-                </option>
-              </select>
+                  <option value="extension">
+                    Extension of existing research · specify the remaining
+                    distinction
+                  </option>
+                </select>
+              </details>
               <button
                 type="button"
                 className="primary"
                 onClick={() => {
-                  if (decision) onReview(decision);
+                  onReview(decision || 'continue');
                 }}
-                disabled={!decision || reviewBusy || busy}
+                disabled={(addressesWhole && !decision) || reviewBusy || busy}
               >
                 {reviewBusy ? (
                   <Busy>Saving review</Busy>
@@ -391,18 +396,20 @@ export function GapResearchCheck({
                   ? 'Develop hypothesis'
                   : 'Plan experiment'}
               </button>
-              <button
-                type="button"
-                className="text-button"
-                onClick={onCheck}
-                disabled={busy || reviewBusy}
-              >
-                Check existing research again
-              </button>
-              <p className="muted">
-                A new check may incur another API charge when AI assessment is
-                enabled.
-              </p>
+              <details>
+                <summary>Run another check</summary>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={onCheck}
+                  disabled={busy || reviewBusy}
+                >
+                  Check existing research again
+                </button>
+                <p className="muted">
+                  A new AI assessment may incur another charge.
+                </p>
+              </details>
             </div>
           ) : null}
         </div>

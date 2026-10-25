@@ -206,3 +206,56 @@
 .gap-development .connection-panel {
   padding: var(--space-4) 0;
 }
+
+.finding-picker {
+  margin-bottom: var(--space-5);
+}
+.finding-picker > summary {
+  color: var(--accent);
+  cursor: pointer;
+  padding: 12px 0;
+}
+.finding-picker .finding-choices {
+  margin: 12px 0 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.finding-detail {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(18px, 3vw, 32px);
+}
+.finding-detail h3 {
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+.finding-background {
+  margin-bottom: 24px;
+}
+.finding-background > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.finding-background .finding-explanation {
+  margin-top: 20px;
+}
+.finding-empty {
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.finding-empty p {
+  margin: 12px 0 20px;
+  max-width: 65ch;
+}
+.gap-cost-details {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding: 16px 0;
+}
+.gap-cost-details > summary {
+  color: var(--muted);
+  cursor: pointer;
+}

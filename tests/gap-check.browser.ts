@@ -344,6 +344,31 @@ try {
   await check().waitFor();
   assert.equal(calls.analysis, 0);
   assert.equal(calls.check, 0);
+  assert.equal(
+    await page
+      .getByRole('radio', { name: /Select gap finding:/ })
+      .first()
+      .isVisible(),
+    false,
+    'Alternate gaps stay collapsed by default',
+  );
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Develop AI gap hypotheses', exact: true })
+      .isVisible(),
+    false,
+    'Generation controls are absent from the first decision',
+  );
+  await page.screenshot({
+    path: `${output}/gap-default-desktop.png`,
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: `${output}/gap-default-mobile.png`,
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1366, height: 900 });
   await clickCheck();
   await check()
     .getByText('Related work addresses part of this gap', { exact: true })
@@ -354,6 +379,17 @@ try {
       .count(),
     0,
   );
+  const match = check().locator('details.gap-check-match').first();
+  assert.equal(
+    await match.evaluate((e) => (e as HTMLDetailsElement).open),
+    false,
+    'Match deep detail is collapsed',
+  );
+  await page.screenshot({
+    path: `${output}/research-check-compact-desktop.png`,
+    fullPage: true,
+  });
+  await match.locator(':scope > summary').click();
   await check().getByText('Supporting passages · 1', { exact: true }).click();
   await check()
     .getByText(candidate.passages[0].text, { exact: true })
@@ -370,9 +406,11 @@ try {
     before,
     'Display tab switches must not trigger API calls',
   );
-  await check()
-    .getByLabel('How will you use this check?')
-    .selectOption('continue');
+  assert.equal(
+    await check().getByLabel('How will you use this check?').isVisible(),
+    false,
+    'Alternate intentions are optional disclosure',
+  );
   await check()
     .getByRole('button', { name: 'I have reviewed this check', exact: true })
     .click();
@@ -446,6 +484,7 @@ try {
     .click();
   await page.waitForTimeout(100);
   const radios = page.getByRole('radio', { name: /Select gap finding:/ });
+  await page.locator('.finding-picker > summary').click();
   assert.ok((await radios.count()) > 1);
   await radios.nth(1).check();
   const currentGap = await check().getAttribute('data-gap-id');
@@ -476,6 +515,7 @@ try {
       await check()
         .getByText(/AI assessment has not been completed/)
         .waitFor();
+      await check().locator('.gap-check-manual > summary').click();
       await check().getByText(candidate.title, { exact: true }).waitFor();
       assert.equal(
         await check().getByLabel('How will you use this check?').count(),

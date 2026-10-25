@@ -22,8 +22,12 @@ export function GapFindings({
   field = '',
   onInspectHypothesis,
   researchCheck,
+  onGoPapers,
+  onIncludeAbstracts,
 }: {
   researchCheck?: ReactNode;
+  onGoPapers?: () => void;
+  onIncludeAbstracts?: () => void;
   field?: string;
   findings: GapFinding[];
   papers: Paper[];
@@ -37,42 +41,60 @@ export function GapFindings({
   const finding = findings.find((item) => item.id === selectedId) ?? null;
   return (
     <section className="gap-findings" aria-labelledby="gap-findings-title">
-      <h2 id="gap-findings-title">Gap findings</h2>
+      <h2 id="gap-findings-title">Choose a gap to investigate</h2>
       {!findings.length ? (
-        <Notice>
-          No supported candidate is available yet. Select relevant papers with
-          explicit limitations, unanswered questions or future-work detail. More
-          readable source text may be needed; an empty result does not mean the
-          field has no gaps.
-        </Notice>
+        <div className="finding-empty">
+          <h3>No clear gap found in the available text</h3>
+          <p>
+            Try papers with explicit limitations or future-work sections. This
+            does not mean the field has no gaps.
+          </p>
+          {onIncludeAbstracts && papers.length ? (
+            <button
+              type="button"
+              className="primary"
+              onClick={onIncludeAbstracts}
+            >
+              Look for leads in abstracts
+            </button>
+          ) : onGoPapers ? (
+            <button type="button" className="primary" onClick={onGoPapers}>
+              Choose more relevant papers
+            </button>
+          ) : null}
+        </div>
       ) : (
         <>
-          <div
-            className="finding-choices"
-            role="radiogroup"
-            aria-label="Candidate gaps"
-          >
-            {findings.map((item) => (
-              <label
-                key={item.id}
-                className={`finding-choice ${item.id === selectedId ? 'selected' : ''}`}
-                data-finding-id={item.id}
-              >
-                <input
-                  type="radio"
-                  name="candidate-gap"
-                  checked={item.id === selectedId}
-                  aria-label={`Select gap finding: ${item.title}`}
-                  onChange={() => onSelect(item.id)}
-                />
-                <span className="finding-choice-copy">
-                  <span>{findingOrigin(item)}</span>
-                  <strong>{item.title}</strong>
-                  {!item.ready ? <small>More evidence needed</small> : null}
-                </span>
-              </label>
-            ))}
-          </div>
+          <details className="finding-picker">
+            <summary>
+              Choose a different gap · {findings.length} candidates
+            </summary>
+            <div
+              className="finding-choices"
+              role="radiogroup"
+              aria-label="Candidate gaps"
+            >
+              {findings.map((item) => (
+                <label
+                  key={item.id}
+                  className={`finding-choice ${item.id === selectedId ? 'selected' : ''}`}
+                  data-finding-id={item.id}
+                >
+                  <input
+                    type="radio"
+                    name="candidate-gap"
+                    checked={item.id === selectedId}
+                    aria-label={`Select gap finding: ${item.title}`}
+                    onChange={() => onSelect(item.id)}
+                  />
+                  <span className="finding-choice-copy">
+                    <strong>{item.title}</strong>
+                    {!item.ready ? <small>More evidence needed</small> : null}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </details>
           {finding ? (
             <article
               className="finding-detail"
@@ -82,26 +104,29 @@ export function GapFindings({
             >
               <p className="finding-origin">{findingOrigin(finding)}</p>
               <h3>{finding.title}</h3>
-              <dl className="finding-explanation">
-                <div>
-                  <dt>What the sources establish</dt>
-                  <dd>{finding.known}</dd>
-                </div>
-                <div>
-                  <dt>What remains unresolved</dt>
-                  <dd>{finding.unresolved}</dd>
-                </div>
-                <div>
-                  <dt>Why investigate this</dt>
-                  <dd>{finding.rationale}</dd>
-                </div>
-              </dl>
-              {finding.origin !== 'author-stated' ? (
-                <p className="finding-question">
-                  <strong>Candidate research question</strong>
-                  <span>{finding.question}</span>
-                </p>
-              ) : null}
+              <details className="finding-background">
+                <summary>Why this may be a gap</summary>
+                <dl className="finding-explanation">
+                  <div>
+                    <dt>What the sources establish</dt>
+                    <dd>{finding.known}</dd>
+                  </div>
+                  <div>
+                    <dt>What remains unresolved</dt>
+                    <dd>{finding.unresolved}</dd>
+                  </div>
+                  <div>
+                    <dt>Why investigate this</dt>
+                    <dd>{finding.rationale}</dd>
+                  </div>
+                </dl>
+                {finding.origin !== 'author-stated' ? (
+                  <p className="finding-question">
+                    <strong>Candidate research question</strong>
+                    <span>{finding.question}</span>
+                  </p>
+                ) : null}
+              </details>
               {!finding.ready ? (
                 <Notice>
                   Insufficient evidence to develop this candidate. Inspect the

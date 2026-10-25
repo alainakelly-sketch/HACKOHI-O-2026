@@ -218,9 +218,16 @@ async function open(name: string) {
   if ((await stage.getAttribute('aria-current')) !== 'step')
     await stage.click();
   if (!['Focus', 'Experiment'].includes(name)) await tab(name).click();
-  if (['AI hypotheses', 'Resources'].includes(name))
+  if (
+    ['AI hypotheses', 'Resources'].includes(name) &&
+    (await page.locator('.gap-development').isVisible())
+  )
     await expand('Develop a candidate with AI');
-  if (name === 'Resources') await expand('Planning resources · optional');
+  if (
+    name === 'Resources' &&
+    (await page.locator('.gap-development').isVisible())
+  )
+    await expand('Planning resources · optional');
   assert.equal(await page.locator('[role=tabpanel]:visible').count(), 1);
   assert.ok((await page.getByRole('tab').count()) <= 2);
 }
@@ -269,6 +276,7 @@ async function checkAndReviewSelectedGap() {
       exact: true,
     })
     .waitFor();
+  await page.getByText('Other research intentions', { exact: true }).click();
   await page
     .getByLabel('How will you use this check?', { exact: true })
     .selectOption('continue');
@@ -334,6 +342,11 @@ try {
       .getByLabel(`Select SYNTHETIC TEST PAPER ${i}`, { exact: true })
       .check();
   await open('AI hypotheses');
+  assert.equal(await page.locator('.gap-development').isVisible(), false);
+  await checkAndReviewSelectedGap();
+  await page
+    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .click();
   await page
     .getByText('Select 1 more paper (4–6 required).', { exact: false })
     .waitFor();
@@ -348,6 +361,10 @@ try {
     .getByLabel('Select SYNTHETIC TEST PAPER 3', { exact: true })
     .check();
   await open('AI hypotheses');
+  await checkAndReviewSelectedGap();
+  await page
+    .getByRole('button', { name: 'Develop hypothesis', exact: true })
+    .click();
   await page
     .getByText('Live analysis is off.', { exact: false })
     .first()
@@ -361,10 +378,6 @@ try {
   healthFailure = false;
   ready = true;
   await page.getByRole('button', { name: 'Recheck server readiness' }).click();
-  await checkAndReviewSelectedGap();
-  await page
-    .getByRole('button', { name: 'Develop hypothesis', exact: true })
-    .click();
   mode = 'error';
   await generate('Develop AI gap hypotheses');
   await page
@@ -379,7 +392,8 @@ try {
     .getByRole('region', { name: 'Selected gap finding' })
     .getByRole('heading', { name: 'Synthetic test hypothesis', exact: true })
     .waitFor();
-  await page.getByText('Cost of each AI run (4)', { exact: true }).click();
+  await expand('API usage & cost');
+  await page.getByText('Cost of each AI run (5)', { exact: true }).click();
   await page
     .getByText('Estimated $0.0072 USD', { exact: true })
     .first()
@@ -467,6 +481,7 @@ try {
     'Synthetic method',
   );
   await open('Gap leads');
+  await expand('Choose a different gap');
   await page
     .getByRole('radio', {
       name: /Select gap finding: .*larger network samples/,

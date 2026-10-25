@@ -529,6 +529,11 @@ export default function App() {
       searchQuery: finding.sourceLead?.searchQuery ?? finding.title,
     });
     setDevelopmentOpen(true);
+    requestAnimationFrame(() => {
+      const panel = document.getElementById('gap-development');
+      panel?.focus({ preventScroll: true });
+      panel?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
   }
   function planFinding(finding: GapFinding) {
     if (!checkIsReviewed(finding)) return;
@@ -1312,6 +1317,12 @@ export default function App() {
             tabIndex={0}
           >
             <GapFindings
+              onGoPapers={() => setActiveNav('papers')}
+              onIncludeAbstracts={
+                gapScope === 'body'
+                  ? () => setGapScope('include-abstracts')
+                  : undefined
+              }
               findings={findings}
               researchCheck={
                 selectedFinding ? (
@@ -1397,6 +1408,9 @@ export default function App() {
             </details>
             <details
               className="gap-development"
+              id="gap-development"
+              tabIndex={-1}
+              hidden={!developmentOpen}
               open={developmentOpen}
               onToggle={(event) => setDevelopmentOpen(event.currentTarget.open)}
             >
@@ -1471,7 +1485,12 @@ export default function App() {
                 }
               />
             </details>
-            <CostPanel entries={usageEntries} />
+            {usageEntries.length ? (
+              <details className="gap-cost-details">
+                <summary>API usage & cost</summary>
+                <CostPanel entries={usageEntries} />
+              </details>
+            ) : null}
           </div>
           <div
             className="workflow-panel"

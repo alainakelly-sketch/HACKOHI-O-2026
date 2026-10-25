@@ -240,6 +240,7 @@ async function checkAndReviewSelectedGap() {
       exact: true,
     })
     .waitFor();
+  await page.getByText('Other research intentions', { exact: true }).click();
   await page
     .getByLabel('How will you use this check?', { exact: true })
     .selectOption('continue');
@@ -373,6 +374,7 @@ try {
   // Stable selectors are deliberately shared by the findings and map components.
   const selected = findings.locator('.finding-detail');
   await selected.waitFor();
+  await selected.getByText('Why this may be a gap', { exact: true }).click();
   for (const label of [
     'What the sources establish',
     'What remains unresolved',
@@ -502,10 +504,13 @@ try {
   });
   await openDetailsFor(generate);
   await generate.click();
-  await page
-    .getByText('SYNTHETIC selected hypothesis', { exact: true })
-    .first()
+  await selected
+    .getByRole('heading', {
+      name: 'SYNTHETIC selected hypothesis',
+      exact: true,
+    })
     .waitFor();
+  await findings.getByText(/^Choose a different gap/).click();
   const aiChoice = findings.getByRole('radio', {
     name: /SYNTHETIC selected hypothesis/,
   });
@@ -648,7 +653,7 @@ try {
     .getByRole('button', { name: 'Find gaps', exact: true })
     .click();
   await emptyPage
-    .getByText(/No supported candidate is available yet/)
+    .getByText(/No clear gap found in the available text/)
     .waitFor();
   assert.equal(
     await emptyPage
