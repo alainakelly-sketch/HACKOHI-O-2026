@@ -1,7 +1,14 @@
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
-import { modelResponseSchema } from '../shared/analysis-schema';
-import { validateAnalysis } from './evidence-validation';
+import { z } from 'zod';
+import {
+  modelResponseSchema,
+  requirementSchema,
+} from '../shared/analysis-schema';
+import {
+  recoverSupportedAnalysis,
+  AnalysisValidationError,
+} from './evidence-validation';
 import type {
   Analysis,
   Brief,
@@ -49,6 +56,42 @@ function modelPassages(paper: Paper, lead?: ResearchLeadContext) {
   return passages.filter((p) => {
     chars += p.text.length;
     return chars <= 24000;
+  });
+}
+/** Constrain live output to identifiers actually sent to the model. Pair checks
+ * still run server-side; membership is not scientific verification. */
+function responseSchemaForSources(papers: Paper[]) {
+  const paperIds = [
+    ...new Set(
+      papers
+        .filter((p) => p.passages.some((passage) => passage.text.trim()))
+        .map((p) => p.id),
+    ),
+  ] as [string, ...string[]];
+  const passageIds = [
+    ...new Set(
+      papers.flatMap((p) =>
+        p.passages
+          .filter((passage) => passage.text.trim())
+          .map((passage) => passage.id),
+      ),
+    ),
+  ] as [string, ...string[]];
+  const citation = z.object({
+    paperId: z.enum(paperIds),
+    passageId: z.enum(passageIds),
+  });
+  return modelResponseSchema.extend({
+    hypotheses: z
+      .array(
+        modelResponseSchema.shape.hypotheses.element.extend({
+          evidence: z.array(citation).min(2).max(12),
+          requirements: z
+            .array(requirementSchema.extend({ evidence: citation }))
+            .max(10),
+        }),
+      )
+      .max(2),
   });
 }
 export async function analyze(
@@ -107,7 +150,10 @@ Experiment plan is a PROPOSAL, never an established protocol. Include question, 
         })),
       }),
       text: {
-        format: zodTextFormat(modelResponseSchema, 'paperbridge_analysis'),
+        format: zodTextFormat(
+          responseSchemaForSources(modelSources),
+          'paperbridge_analysis',
+        ),
       },
     });
     const cost = estimateAnalysisCost(response.model, response.usage);
@@ -119,14 +165,18 @@ Experiment plan is a PROPOSAL, never an established protocol. Include question, 
       );
     try {
       return {
-        ...validateAnalysis(response.output_parsed, modelSources),
+        ...recoverSupportedAnalysis(response.output_parsed, modelSources),
         origin: 'live',
         cost,
       };
-    } catch {
+    } catch (error) {
+      const reason =
+        error instanceof AnalysisValidationError
+          ? error.message
+          : 'The AI response did not match the required evidence structure.';
       throw new AppError(
         502,
-        'The model response failed evidence validation. No result was accepted. Try different source material.',
+        `${reason} Your selected papers are kept. Another generation is optional and may incur another API charge.`,
         cost,
       );
     }

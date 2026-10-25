@@ -9,6 +9,7 @@ vi.mock('openai', () => ({
   },
 }));
 import { AppError } from './errors';
+import type { Paper } from '../shared/types';
 import { analyze, analysisAvailability } from './analysis';
 import {
   exampleAnalysis,
@@ -108,6 +109,91 @@ describe('model integration without paid calls (SDK mocked)', () => {
     }
   });
 
+  it('constrains live citation identifiers to sources and passages actually submitted', async () => {
+    mocked.parse.mockResolvedValue({ output_parsed: exampleAnalysis });
+    await analyze(exampleBrief, examplePapers);
+    const request = mocked.parse.mock.calls[0][0];
+    const schema = request.text.format.schema.properties.hypotheses.items;
+    const sources = JSON.parse(request.input).sources;
+    expect(schema.properties.evidence.items.properties.paperId.enum).toEqual(
+      sources.map((p: { paperId: string }) => p.paperId),
+    );
+    expect(schema.properties.evidence.items.properties.passageId.enum).toEqual([
+      ...new Set(
+        sources.flatMap((p: Paper) => p.passages.map((passage) => passage.id)),
+      ),
+    ]);
+    expect(mocked.options.mock.calls[0][0].maxRetries).toBe(0);
+  });
+
+  it('keeps supported hypothesis evidence while omitting an untraceable optional resource requirement', async () => {
+    const output = structuredClone(exampleAnalysis);
+    output.hypotheses[0].requirements.push({
+      category: 'equipment',
+      term: 'SYNTHETIC device not in source',
+      evidence: output.hypotheses[0].evidence[0],
+    });
+    mocked.parse.mockResolvedValue({
+      output_parsed: output,
+      model: 'gpt-4.1-mini',
+      usage: { input_tokens: 1000, output_tokens: 100 },
+    });
+    const result = await analyze(exampleBrief, examplePapers);
+    expect(result.hypotheses[0].hypothesis).toBe(
+      output.hypotheses[0].hypothesis,
+    );
+    expect(result.hypotheses[0].evidence).toEqual(
+      output.hypotheses[0].evidence,
+    );
+    expect(result.hypotheses[0].requirements).not.toContainEqual(
+      output.hypotheses[0].requirements.at(-1),
+    );
+    expect(result.summary).toMatch(/resource|requirement/i);
+    expect(result.hypotheses[0].unknowns.join(' ')).toMatch(
+      /feasibility.*unknown/i,
+    );
+    expect(result.cost?.inputTokens).toBe(1000);
+    expect(mocked.parse).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a valid hypothesis when a neighboring hypothesis cites a nonexistent source', async () => {
+    const output = structuredClone(exampleAnalysis);
+    const valid = structuredClone(output.hypotheses[0]);
+    valid.id = 'SYNTHETIC_VALID';
+    output.hypotheses = [structuredClone(valid), valid];
+    output.hypotheses[0].id = 'SYNTHETIC_INVALID';
+    output.hypotheses[0].evidence[0].paperId = 'UNKNOWN_SYNTHETIC_SOURCE';
+    mocked.parse.mockResolvedValue({ output_parsed: output });
+    const result = await analyze(exampleBrief, examplePapers);
+    expect(result.hypotheses).toHaveLength(1);
+    expect(result.hypotheses[0].id).toBe('SYNTHETIC_VALID');
+    expect(result.summary).toMatch(/reject|omit/i);
+  });
+
+  it('explains a fully rejected citation response without exposing raw model content or retrying', async () => {
+    const output = structuredClone(exampleAnalysis);
+    output.hypotheses = [output.hypotheses[0]];
+    output.hypotheses[0].evidence[0].paperId = 'SYNTHETIC_DO_NOT_EXPOSE_RAW';
+    mocked.parse.mockResolvedValue({
+      output_parsed: output,
+      model: 'gpt-4.1-mini',
+      usage: { input_tokens: 1000, output_tokens: 100 },
+    });
+    await expect(analyze(exampleBrief, examplePapers)).rejects.toMatchObject({
+      status: 502,
+      cost: { inputTokens: 1000 },
+    });
+    try {
+      await analyze(exampleBrief, examplePapers);
+    } catch (error) {
+      expect((error as Error).message).toMatch(/paper|source|citation/i);
+      expect((error as Error).message).not.toContain(
+        'SYNTHETIC_DO_NOT_EXPOSE_RAW',
+      );
+    }
+    expect(mocked.parse).toHaveBeenCalledTimes(2); // Two explicit test invocations; zero automatic retries.
+  });
+
   it('never calls the SDK without spending enablement', async () => {
     vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'false');
     await expect(analyze(exampleBrief, examplePapers)).rejects.toThrow('off');
@@ -168,7 +254,7 @@ describe('model integration without paid calls (SDK mocked)', () => {
     invalid.hypotheses[0].evidence[0].paperId = 'W999999';
     mocked.parse.mockResolvedValue({ output_parsed: invalid });
     await expect(analyze(exampleBrief, examplePapers)).rejects.toThrow(
-      'evidence validation',
+      'paper outside the selected sources',
     );
   });
   it('rejects references to stored passages that were outside the actual model excerpt', async () => {
@@ -182,7 +268,7 @@ describe('model integration without paid calls (SDK mocked)', () => {
     });
     mocked.parse.mockResolvedValue({ output_parsed: exampleAnalysis });
     await expect(analyze(exampleBrief, sources)).rejects.toThrow(
-      'evidence validation',
+      'passage absent from its selected paper',
     );
     const payload = JSON.parse(mocked.parse.mock.calls[0][0].input);
     expect(
