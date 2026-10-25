@@ -311,3 +311,56 @@
 #gap-findings {
   scroll-margin-top: 110px;
 }
+.paper-synthesis {
+  padding: 24px;
+  margin: 24px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.paper-synthesis > h2 {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.synthesis-columns {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 28px;
+  margin: 24px 0;
+}
+.synthesis-columns h3 {
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.synthesis-columns ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.synthesis-columns li {
+  margin-bottom: 12px;
+}
+.synthesis-paper-title {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.synthesis-term {
+  margin-right: 12px;
+}
+.hypothesis-experiment-preview {
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 14px;
+}
+@media (max-width: 650px) {
+  .synthesis-columns {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .paper-synthesis {
+    padding: 18px;
+  }
+}

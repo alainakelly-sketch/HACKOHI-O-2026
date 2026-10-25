@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import type { Analysis, Paper } from '../shared/types';
 import { gapCheckScopeKey, type GapCheckResult } from '../shared/gap-check';
+import { buildComparisonOverview } from '../shared/comparison-overview';
 const question =
   'How does sleep duration affect memory recall in university students?';
 const papers: Paper[] = Array.from({ length: 4 }, (_, index) => ({
@@ -345,6 +346,39 @@ try {
     );
   await stage('Find gaps');
   await check().waitFor();
+  const synthesis = page.locator('.paper-synthesis:visible');
+  await synthesis
+    .getByRole('heading', { name: 'Your papers, compared', exact: true })
+    .waitFor();
+  const automaticCalls = { ...calls };
+  const comparison = buildComparisonOverview(papers);
+  assert.ok(
+    comparison.shared.length > 0,
+    'Synthetic body text has inspectable shared topics',
+  );
+  const topic = comparison.shared[0];
+  await synthesis
+    .getByRole('button', { name: topic.term, exact: true })
+    .first()
+    .click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  const reference = topic.evidence[0].reference;
+  const passage = papers
+    .find((p) => p.id === reference.paperId)!
+    .passages.find((p) => p.id === reference.passageId)!;
+  assert.equal(
+    await dialog.locator('.source-quote blockquote').innerText(),
+    passage.text,
+  );
+  await page
+    .getByRole('button', { name: 'Close evidence', exact: true })
+    .click();
+  assert.deepEqual(
+    calls,
+    automaticCalls,
+    'Automatic comparison and source inspection incur no API requests',
+  );
   assert.equal(calls.analysis, 0);
   assert.equal(calls.check, 0);
   assert.equal(
@@ -474,6 +508,20 @@ try {
   await generated.waitFor();
   assert.equal(
     await generated
+      .getByText(analysis.hypotheses[0].experiment.method, { exact: true })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await generated
+      .getByText(`Measure: ${analysis.hypotheses[0].experiment.measure}`, {
+        exact: true,
+      })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await generated
       .getByText(analysis.hypotheses[0].hypothesis, { exact: true })
       .isVisible(),
     true,
@@ -482,6 +530,18 @@ try {
     path: `${output}/generated-hypothesis-desktop.png`,
     fullPage: true,
   });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: `${output}/generated-hypothesis-mobile.png`,
+    fullPage: true,
+  });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+    false,
+  );
+  await page.setViewportSize({ width: 1366, height: 900 });
   await generated
     .getByRole('button', { name: 'Plan experiment', exact: true })
     .click();

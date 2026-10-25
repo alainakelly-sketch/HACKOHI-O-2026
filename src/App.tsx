@@ -39,6 +39,7 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { ComparisonPanel } from './components/ComparisonPanel';
 import { GapVisualMap } from './components/GapVisualMap';
 import { GapFindings } from './components/GapFindings';
+import { PaperSynthesis } from './components/PaperSynthesis';
 import { GapResearchCheck } from './components/GapResearchCheck';
 import { gapCheckScopeKey } from '../shared/gap-check';
 import type {
@@ -95,7 +96,7 @@ const workflowHeadings: Record<string, { title: string; description: string }> =
     gaps: {
       title: 'Find gaps',
       description:
-        'Move from selected evidence to a specific candidate gap and a test.',
+        'Compare your papers, choose a gap, and develop a testable hypothesis.',
     },
     'visual-map': {
       title: 'Find gaps',
@@ -1308,6 +1309,7 @@ export default function App() {
             hidden={activeNav !== 'gaps'}
             tabIndex={0}
           >
+            <PaperSynthesis papers={selected} onInspect={inspectComparison} />
             <nav
               className="gap-step-links"
               aria-label="Gap and hypothesis steps"
@@ -1397,6 +1399,18 @@ export default function App() {
                   </p>
                   <h3>{hypothesis.title}</h3>
                   <p>{hypothesis.hypothesis}</p>
+                  {hypothesis.experiment.method ? (
+                    <div className="hypothesis-experiment-preview">
+                      <h3>Proposed experiment</h3>
+                      <p>{hypothesis.experiment.method}</p>
+                      {hypothesis.experiment.measure ? (
+                        <p>
+                          <strong>Measure:</strong>{' '}
+                          {hypothesis.experiment.measure}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     className="primary"
@@ -1657,7 +1671,9 @@ export default function App() {
                 )
               }
             >
-              Continue to {pipeline[stageIndex + 1].label}
+              {stage === 'papers'
+                ? 'Compare & find gaps'
+                : `Continue to ${pipeline[stageIndex + 1].label}`}
             </button>
           ) : (
             <span className="workflow-next-spacer" aria-hidden="true" />
