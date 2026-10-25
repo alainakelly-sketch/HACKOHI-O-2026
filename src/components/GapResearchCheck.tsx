@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { GapFinding } from '../../shared/gap-findings';
-import type { GapCheckResult } from '../../shared/gap-check';
+import type { GapCheckResult, GapCheckMatch } from '../../shared/gap-check';
 import type { Citation } from '../../shared/types';
 import { resolveCitation } from '../../shared/evidence';
 import { Busy, Notice } from './Primitives';
@@ -108,9 +108,68 @@ export function GapResearchCheck({
       );
     }
   }
+  function renderMatch(match: GapCheckMatch) {
+    const paper = candidates.find((item) => item.id === match.paperId);
+    if (!paper) return null;
+    return (
+      <details
+        className="gap-check-match"
+        key={match.paperId}
+        data-paper-id={match.paperId}
+      >
+        <summary>
+          <span>{paper.title}</span>
+          <small>{relation[match.addresses]}</small>
+          <small className="gap-match-summary">
+            Assessment: {match.establishes}
+          </small>
+        </summary>
+        <h5>
+          <a href={paper.url} target="_blank" rel="noreferrer">
+            {paper.title}
+          </a>
+        </h5>
+        <p className="muted">
+          {paper.year ?? 'Year unavailable'} · {paper.coverage}
+        </p>
+        <p className="gap-check-relation">{relation[match.addresses]}</p>
+        <dl>
+          <div>
+            <dt>Question investigated</dt>
+            <dd>{match.question}</dd>
+          </div>
+          <div>
+            <dt>What the available text establishes</dt>
+            <dd>{match.establishes}</dd>
+          </div>
+          <div>
+            <dt>What remains uncertain or different</dt>
+            <dd>{match.uncertainty}</dd>
+          </div>
+        </dl>
+        <details>
+          <summary>Supporting passages · {match.evidence.length}</summary>
+          {match.evidence.length ? (
+            match.evidence.map(source)
+          ) : (
+            <p>
+              No supporting passage was identified; a title alone cannot
+              establish that the gap is addressed.
+            </p>
+          )}
+        </details>
+      </details>
+    );
+  }
+  const rank = { all: 0, part: 1, unclear: 2, different: 3 };
+  const matches = [...(result?.matches ?? [])].sort(
+    (a, b) => rank[a.addresses] - rank[b.addresses],
+  );
   return (
     <section
       className="gap-research-check"
+      id="selected-gap-check"
+      tabIndex={-1}
       aria-labelledby="gap-research-check-title"
       data-gap-id={finding.id}
     >
@@ -196,63 +255,21 @@ export function GapResearchCheck({
               Refine the question, or choose a replication or extension below.
             </p>
           ) : null}
+          {candidates.length ? (
+            <p className="gap-check-explanation">
+              These are additional studies found while checking your chosen
+              gap—not a replacement for your selected papers. Each assessment
+              explains whether its available text answers your question.
+            </p>
+          ) : null}
           <div className="gap-check-matches">
-            {result.matches.map((match) => {
-              const paper = candidates.find(
-                (item) => item.id === match.paperId,
-              );
-              if (!paper) return null;
-              return (
-                <details
-                  className="gap-check-match"
-                  key={match.paperId}
-                  data-paper-id={match.paperId}
-                >
-                  <summary>
-                    <span>{paper.title}</span>
-                    <small>{relation[match.addresses]}</small>
-                  </summary>
-                  <h5>
-                    <a href={paper.url} target="_blank" rel="noreferrer">
-                      {paper.title}
-                    </a>
-                  </h5>
-                  <p className="muted">
-                    {paper.year ?? 'Year unavailable'} · {paper.coverage}
-                  </p>
-                  <p className="gap-check-relation">
-                    {relation[match.addresses]}
-                  </p>
-                  <dl>
-                    <div>
-                      <dt>Question investigated</dt>
-                      <dd>{match.question}</dd>
-                    </div>
-                    <div>
-                      <dt>What the available text establishes</dt>
-                      <dd>{match.establishes}</dd>
-                    </div>
-                    <div>
-                      <dt>What remains uncertain or different</dt>
-                      <dd>{match.uncertainty}</dd>
-                    </div>
-                  </dl>
-                  <details>
-                    <summary>
-                      Supporting passages · {match.evidence.length}
-                    </summary>
-                    {match.evidence.length ? (
-                      match.evidence.map(source)
-                    ) : (
-                      <p>
-                        No supporting passage was identified; a title alone
-                        cannot establish that the gap is addressed.
-                      </p>
-                    )}
-                  </details>
-                </details>
-              );
-            })}
+            {matches.slice(0, 3).map(renderMatch)}
+            {matches.length > 3 ? (
+              <details>
+                <summary>Other related studies · {matches.length - 3}</summary>
+                {matches.slice(3).map(renderMatch)}
+              </details>
+            ) : null}
           </div>
           {manualCandidates.length ? (
             <details className="gap-check-manual">
@@ -323,6 +340,10 @@ export function GapResearchCheck({
           </details>
           {complete && !approved ? (
             <div className="gap-check-review">
+              <p>
+                Review the study summaries above, then confirm to unlock
+                hypothesis generation.
+              </p>
               <details open={addressesWhole} className="gap-check-intent">
                 <summary>
                   {addressesWhole
@@ -367,7 +388,7 @@ export function GapResearchCheck({
                 {reviewBusy ? (
                   <Busy>Saving review</Busy>
                 ) : (
-                  'I have reviewed this check'
+                  'Confirm review & continue'
                 )}
               </button>
             </div>

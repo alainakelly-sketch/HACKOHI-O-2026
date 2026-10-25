@@ -422,6 +422,26 @@ try {
       .count(),
     0,
   );
+  const development = page.locator('#gap-development');
+  await development
+    .getByText(
+      'The research check is complete. Click “Confirm review & continue” in its results to unlock this button.',
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(
+    await development
+      .getByRole('button', { name: 'Generate hypothesis', exact: true })
+      .isDisabled(),
+    true,
+  );
+  await development
+    .getByRole('button', { name: 'Review results & continue', exact: true })
+    .click();
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    'selected-gap-check',
+  );
   const match = check().locator('details.gap-check-match').first();
   assert.equal(
     await match.evaluate((e) => (e as HTMLDetailsElement).open),
@@ -455,14 +475,35 @@ try {
     'Alternate intentions are optional disclosure',
   );
   await check()
-    .getByRole('button', { name: 'I have reviewed this check', exact: true })
+    .getByRole('button', { name: 'Confirm review & continue', exact: true })
     .click();
   await check()
     .getByRole('button', { name: 'Go to hypothesis', exact: true })
     .waitFor();
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    'gap-development',
+  );
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Generate hypothesis', exact: true })
+      .isEnabled(),
+    true,
+  );
   await editGap();
   await check()
     .getByText(/check is stale/)
+    .waitFor();
+  await page
+    .locator('#gap-development')
+    .getByText(
+      'The gap or evidence changed. Update the research check first.',
+      { exact: true },
+    )
+    .waitFor();
+  await page
+    .locator('#gap-development')
+    .getByRole('button', { name: 'Update research check', exact: true })
     .waitFor();
   assert.equal(
     await check()
@@ -480,7 +521,7 @@ try {
     .getByLabel('How will you use this check?')
     .selectOption('replication');
   await check()
-    .getByRole('button', { name: 'I have reviewed this check', exact: true })
+    .getByRole('button', { name: 'Confirm review & continue', exact: true })
     .click();
   const generate = page.getByRole('button', {
     name: 'Generate hypothesis',
@@ -571,7 +612,9 @@ try {
   await page.waitForTimeout(100);
   const radios = page.getByRole('radio', { name: /Select gap finding:/ });
   await page.locator('.finding-picker > summary').click();
-  assert.ok((await radios.count()) > 1);
+  assert.equal(await radios.count(), 3, 'Only three candidate gaps initially');
+  await page.getByRole('button', { name: /Show \d+ more gaps/ }).click();
+  assert.equal(await radios.count(), 4, 'Remaining candidates are opt-in');
   await radios.nth(1).check();
   const currentGap = await check().getAttribute('data-gap-id');
   release?.();
@@ -601,6 +644,28 @@ try {
       await check()
         .getByText(/AI assessment has not been completed/)
         .first()
+        .waitFor();
+      await page
+        .locator('#gap-development')
+        .getByText(
+          next === 'manual'
+            ? 'Related papers were found, but AI assessment is unavailable. See the check results and server requirements below.'
+            : 'The research check is incomplete or inconclusive. Open its results to see what failed or what evidence is missing.',
+          { exact: true },
+        )
+        .waitFor();
+      assert.equal(
+        await page
+          .getByRole('button', { name: 'Generate hypothesis', exact: true })
+          .isDisabled(),
+        true,
+      );
+      await page
+        .locator('#gap-development')
+        .getByRole('button', {
+          name: 'See why the check is incomplete',
+          exact: true,
+        })
         .waitFor();
       await check().locator('.gap-check-manual > summary').click();
       await check().getByText(candidate.title, { exact: true }).waitFor();

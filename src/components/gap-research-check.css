@@ -156,3 +156,29 @@
   color: var(--muted);
   margin-bottom: 10px;
 }
+#selected-gap-check {
+  scroll-margin-top: 110px;
+}
+.gap-check-review {
+  padding: 18px;
+  background: var(--accent-surface);
+  border-radius: var(--radius);
+}
+.gap-check-review > p {
+  margin-bottom: 14px;
+}
+.gap-check-match > summary .gap-match-summary {
+  color: var(--ink);
+  line-height: 1.6;
+  font-size: var(--text-control);
+}
+.gap-check-explanation {
+  line-height: 1.7;
+  margin: 16px 0;
+}
+.gap-check-match > summary .gap-match-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}

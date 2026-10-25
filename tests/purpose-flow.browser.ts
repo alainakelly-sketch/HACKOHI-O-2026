@@ -245,7 +245,7 @@ async function checkAndReviewSelectedGap() {
     .getByLabel('How will you use this check?', { exact: true })
     .selectOption('continue');
   await page
-    .getByRole('button', { name: 'I have reviewed this check', exact: true })
+    .getByRole('button', { name: 'Confirm review & continue', exact: true })
     .click();
   await page
     .getByText('Reviewed · candidate follow-up, novelty not established.', {
@@ -514,6 +514,15 @@ try {
   const aiChoice = findings.getByRole('radio', {
     name: /SYNTHETIC selected hypothesis/,
   });
+  while (!(await aiChoice.count())) {
+    const more = findings.getByRole('button', { name: /^Show \d+ more gaps$/ });
+    assert.equal(
+      await more.count(),
+      1,
+      'The AI candidate must remain reachable through the gap picker',
+    );
+    await more.click();
+  }
   assert.equal(await aiChoice.count(), 1);
   await aiChoice.first().check();
   assert.match(

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Citation, Paper } from '../../shared/types';
 import type { GapFinding } from '../../shared/gap-findings';
 import { Notice } from './Primitives';
@@ -39,6 +39,12 @@ export function GapFindings({
   onInspectHypothesis?: (id: string) => void;
 }) {
   const finding = findings.find((item) => item.id === selectedId) ?? null;
+  const [visibleCount, setVisibleCount] = useState(3);
+  const findingIds = findings.map((item) => item.id).join('|');
+  useEffect(() => setVisibleCount(3), [findingIds]);
+  const visibleFindings = findings.slice(0, visibleCount);
+  if (finding && !visibleFindings.some((item) => item.id === finding.id))
+    visibleFindings.splice(Math.max(0, visibleFindings.length - 1), 1, finding);
   return (
     <section
       id="gap-findings"
@@ -78,7 +84,7 @@ export function GapFindings({
               role="radiogroup"
               aria-label="Candidate gaps"
             >
-              {findings.map((item) => (
+              {visibleFindings.map((item) => (
                 <label
                   key={item.id}
                   className={`finding-choice ${item.id === selectedId ? 'selected' : ''}`}
@@ -98,6 +104,15 @@ export function GapFindings({
                 </label>
               ))}
             </div>
+            {visibleCount < findings.length ? (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setVisibleCount((count) => count + 3)}
+              >
+                Show {Math.min(3, findings.length - visibleCount)} more gaps
+              </button>
+            ) : null}
           </details>
           {finding ? (
             <article

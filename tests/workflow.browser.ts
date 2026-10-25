@@ -276,7 +276,7 @@ async function checkAndReviewSelectedGap() {
     .getByLabel('How will you use this check?', { exact: true })
     .selectOption('continue');
   await page
-    .getByRole('button', { name: 'I have reviewed this check', exact: true })
+    .getByRole('button', { name: 'Confirm review & continue', exact: true })
     .click();
   await page
     .getByText('Reviewed · candidate follow-up, novelty not established.', {

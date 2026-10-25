@@ -469,11 +469,17 @@ export default function App() {
           (item) =>
             item.id === finding.id && item.question === finding.question,
         )
-      )
+      ) {
         setGapChecks((items) => ({
           ...items,
           [finding.id]: { result, textKey: entry.textKey },
         }));
+        requestAnimationFrame(() => {
+          const panel = document.getElementById('gap-development');
+          panel?.focus({ preventScroll: true });
+          panel?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        });
+      }
     } catch (error) {
       if (gapCheckRuns.current.get(finding.id) === run)
         setGapCheckErrors((items) => ({
@@ -492,6 +498,37 @@ export default function App() {
     findings.find((item) => item.id === selectedFindingId) ??
     findings[0] ??
     null;
+  const chosenCheck = selectedFinding
+    ? gapChecks[selectedFinding.id]
+    : undefined;
+  const chosenCheckCurrent =
+    !!selectedFinding && checkIsCurrent(selectedFinding);
+  const chosenCheckComplete =
+    chosenCheckCurrent &&
+    !!chosenCheck &&
+    (chosenCheck.result.aiCompleted ||
+      chosenCheck.result.assessmentNotNeeded === true) &&
+    chosenCheck.result.status !== 'Check incomplete or inconclusive';
+  const researchCheckMessage = !selectedFinding
+    ? 'Choose a gap before generating a hypothesis.'
+    : gapCheckBusy[selectedFinding.id]
+      ? 'The research check is still running. Wait for its results.'
+      : !chosenCheck
+        ? 'Run the research check for this gap first.'
+        : !chosenCheckCurrent
+          ? 'The gap or evidence changed. Update the research check first.'
+          : !chosenCheckComplete
+            ? !chosenCheck.result.aiCompleted && !health?.analysisAvailable
+              ? 'Related papers were found, but AI assessment is unavailable. See the check results and server requirements below.'
+              : 'The research check is incomplete or inconclusive. Open its results to see what failed or what evidence is missing.'
+            : !chosenCheck.result.reviewed
+              ? 'The research check is complete. Click “Confirm review & continue” in its results to unlock this button.'
+              : '';
+  function goToResearchCheck() {
+    const check = document.getElementById('selected-gap-check');
+    check?.focus({ preventScroll: true });
+    check?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
   function selectFinding(id: string) {
     if (selectedFinding && selectedFinding.id !== id) {
       const previous = selectedFinding.id;
@@ -1436,6 +1473,17 @@ export default function App() {
               </details>
               <ConnectionPanel
                 generationOnly
+                researchCheckMessage={researchCheckMessage}
+                onReviewCheck={selectedFinding ? goToResearchCheck : undefined}
+                reviewCheckAction={
+                  chosenCheckComplete && !chosenCheck?.result.reviewed
+                    ? 'Review results & continue'
+                    : chosenCheck && !chosenCheckCurrent
+                      ? 'Update research check'
+                      : chosenCheck && !chosenCheckComplete
+                        ? 'See why the check is incomplete'
+                        : 'Go to research check'
+                }
                 researchCheckReady={
                   !!selectedFinding && checkIsReviewed(selectedFinding)
                 }

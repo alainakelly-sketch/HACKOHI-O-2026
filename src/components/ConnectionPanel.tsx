@@ -11,6 +11,9 @@ export function analysisLabel(origin: Analysis['origin']) {
 export function ConnectionPanel({
   generationOnly = false,
   researchCheckReady = false,
+  researchCheckMessage,
+  onReviewCheck,
+  reviewCheckAction = 'Go to research check',
   brief,
   analysis,
   activeId,
@@ -29,6 +32,9 @@ export function ConnectionPanel({
 }: {
   generationOnly?: boolean;
   researchCheckReady?: boolean;
+  researchCheckMessage?: string;
+  onReviewCheck?: () => void;
+  reviewCheckAction?: string;
   brief: Brief;
   analysis: Analysis | null;
   activeId: string | null;
@@ -53,6 +59,7 @@ export function ConnectionPanel({
       key: 'research-check',
       ready: false,
       message:
+        researchCheckMessage ||
         'Check existing research for the selected gap and review the matches first.',
     });
   const complete = missing.length === 0;
@@ -78,6 +85,7 @@ export function ConnectionPanel({
       <div className="hypothesis-generate-row">
         <button
           className="primary"
+          id={generationOnly ? 'generate-hypothesis' : undefined}
           disabled={!complete || busy || readinessBusy}
           onClick={onAnalyze}
         >
@@ -94,7 +102,12 @@ export function ConnectionPanel({
             </>
           )}
         </button>
-        {onRecheck ? (
+        {!researchCheckReady && onReviewCheck ? (
+          <button type="button" className="secondary" onClick={onReviewCheck}>
+            {reviewCheckAction}
+          </button>
+        ) : null}
+        {onRecheck && (!health?.analysisAvailable || readinessBusy) ? (
           <button
             className="text-button"
             onClick={onRecheck}
