@@ -150,8 +150,10 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
 const errors: string[] = [];
 page.on('pageerror', (e) => errors.push(e.message));
-const calls = { search: 0, check: 0, review: 0, analysis: 0 };
-let mode: 'part' | 'all' | 'empty' | 'manual' | 'failure' = 'part';
+const calls = { search: 0, check: 0, review: 0, analysis: 0, reassess: 0 };
+let mode:
+  'part' | 'all' | 'empty' | 'manual' | 'failure' | 'recovery' | 'unclear' =
+  'part';
 let last: GapCheckResult | null = null;
 let analyzed: any = null;
 let delayNext = false;
@@ -190,11 +192,11 @@ await page.route('**/api/**', async (route) => {
           ? 'Existing research may address this gap'
           : mode === 'empty'
             ? 'No close match found in the searches completed'
-            : mode === 'manual' || mode === 'failure'
+            : mode === 'manual' || mode === 'failure' || mode === 'recovery'
               ? 'Check incomplete or inconclusive'
               : 'Related work addresses part of this gap',
       summary:
-        mode === 'manual' || mode === 'failure'
+        mode === 'manual' || mode === 'failure' || mode === 'recovery'
           ? 'SYNTHETIC AI assessment has not been completed; candidates require manual review.'
           : 'SYNTHETIC mocked assessment, not a live AI response.',
       candidates:
@@ -204,7 +206,10 @@ await page.route('**/api/**', async (route) => {
             ? [candidate, uncertainCandidate, differentCandidate]
             : [candidate],
       matches:
-        mode === 'manual' || mode === 'failure' || mode === 'empty'
+        mode === 'manual' ||
+        mode === 'failure' ||
+        mode === 'recovery' ||
+        mode === 'empty'
           ? []
           : [
               {
@@ -265,6 +270,11 @@ await page.route('**/api/**', async (route) => {
           ],
         },
       );
+    if (mode === 'unclear') {
+      result.status = 'Check incomplete or inconclusive';
+      result.aiCompleted = true;
+      result.matches.forEach((m) => (m.addresses = 'unclear'));
+    }
     last = result;
     if (delayNext) {
       delayNext = false;
@@ -274,13 +284,64 @@ await page.route('**/api/**', async (route) => {
     }
     return route.fulfill({ json: result }).catch(() => {});
   }
+  if (/^\/api\/gap-check\/[^/]+\/reassess$/.test(path)) {
+    calls.reassess++;
+    assert.ok(last);
+    const body = route.request().postDataJSON();
+    assert.deepEqual(body.gap, last.gap);
+    last = {
+      ...last,
+      aiCompleted: true,
+      summary:
+        'SYNTHETIC Available candidate partially addresses the question; provider coverage remains incomplete.',
+      limitedCoverageEligible: true,
+      limitedCoverageAccepted: false,
+      assessmentWarnings: [
+        'SYNTHETIC One provider failed; coverage remains incomplete.',
+      ],
+      matches: [
+        {
+          paperId: candidate.id,
+          question: 'SYNTHETIC sleep recall',
+          establishes: 'Available text partially addresses sleep and recall.',
+          addresses: 'part',
+          uncertainty:
+            'Missing provider results and abstract-only evidence remain uncertain.',
+          evidence: [
+            { paperId: candidate.id, passageId: candidate.passages[0].id },
+          ],
+        },
+      ],
+      sourceStatuses: [
+        { source: 'OpenAlex', status: 'ok', count: 1, message: null },
+        {
+          source: 'Europe PMC',
+          status: 'error',
+          count: 0,
+          message: 'SYNTHETIC provider failure',
+        },
+      ],
+    };
+    return route.fulfill({ json: last });
+  }
   if (/^\/api\/gap-check\/[^/]+\/review$/.test(path)) {
     calls.review++;
     assert.ok(last);
     const body = route.request().postDataJSON();
     if (last.matches.some((m) => m.addresses === 'all'))
       assert.notEqual(body.decision, 'continue');
-    last = { ...last, reviewed: true, decision: body.decision };
+    if (last.limitedCoverageEligible)
+      assert.equal(
+        body.acceptLimitedCoverage,
+        true,
+        'Limited review requires explicit checked opt-in',
+      );
+    last = {
+      ...last,
+      reviewed: true,
+      decision: body.decision,
+      limitedCoverageAccepted: body.acceptLimitedCoverage === true,
+    };
     return route.fulfill({ json: last });
   }
   if (path === '/api/analyze') {
@@ -784,6 +845,101 @@ try {
       );
     }
   }
+  mode = 'unclear';
+  await reset();
+  await selectSources();
+  await clickCheck();
+  await check()
+    .getByText('Check incomplete or inconclusive', { exact: true })
+    .waitFor();
+  assert.equal(
+    await check()
+      .getByRole('button', { name: 'Confirm review & continue', exact: true })
+      .count(),
+    0,
+    'All-unclear AI results cannot be approved',
+  );
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Generate hypothesis', exact: true })
+      .isDisabled(),
+    true,
+  );
+  // Explicit assessment recovery reuses candidates and never restarts literature searches.
+  mode = 'recovery';
+  await reset();
+  await selectSources();
+  await clickCheck();
+  await check()
+    .getByText('Check incomplete or inconclusive', { exact: true })
+    .waitFor();
+  const beforeRecovery = { ...calls };
+  await page.waitForTimeout(150);
+  assert.deepEqual(
+    calls,
+    beforeRecovery,
+    'Failed checks must not automatically retry',
+  );
+  await check()
+    .getByRole('button', { name: 'Reassess these papers', exact: true })
+    .click();
+  await check()
+    .getByText('Available text partially addresses sleep and recall.', {
+      exact: false,
+    })
+    .first()
+    .waitFor();
+  assert.equal(calls.reassess, beforeRecovery.reassess + 1);
+  assert.equal(
+    calls.search,
+    beforeRecovery.search,
+    'Reassessment must not search again',
+  );
+  assert.equal(
+    calls.check,
+    beforeRecovery.check,
+    'Reassessment uses existing check',
+  );
+  await check()
+    .getByText('Check incomplete or inconclusive', { exact: true })
+    .waitFor();
+  const limitedAck = check().getByRole('checkbox', {
+    name: /I understand searches were incomplete for .*; continue with available collections/,
+  });
+  assert.equal(await limitedAck.isChecked(), false);
+  const limitedReview = check().getByRole('button', {
+    name: 'Confirm review & continue',
+    exact: true,
+  });
+  assert.equal(await limitedReview.isDisabled(), true);
+  await limitedAck.check();
+  await limitedReview.click();
+  assert.equal(last?.limitedCoverageAccepted, true);
+  await check()
+    .getByText('Check incomplete or inconclusive', { exact: true })
+    .waitFor();
+  await page
+    .getByText('Limited search coverage', { exact: false })
+    .first()
+    .waitFor();
+  await page
+    .getByRole('button', { name: 'Generate hypothesis', exact: true })
+    .click();
+  assert.equal(
+    calls.analysis,
+    2,
+    'Accepted limited positive evidence permits explicit generation',
+  );
+  assert.equal(analyzed.checkId, last?.checkId);
+  assert.equal(
+    last?.status,
+    'Check incomplete or inconclusive',
+    'Approval must not rewrite coverage into a complete status',
+  );
+  await page.screenshot({
+    path: `${output}/recovery-desktop.png`,
+    fullPage: true,
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: `${output}/research-check-mobile.png`,

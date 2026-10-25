@@ -6,7 +6,7 @@ vi.mock('openai', () => ({
     responses = { parse: sdk.parse };
   },
 }));
-import { assessGapResearch } from './gap-check';
+import { assessGapResearch, reassessGapCheck } from './gap-check';
 import { syntheticAssessor } from './gap-check-test-fixtures';
 import {
   examplePapers,
@@ -57,7 +57,7 @@ it('uses the configured official SDK, reports usage and separates untrusted stri
   expect(JSON.parse(payload.input).chosenGap).toEqual(gap);
   expect(result.cost?.inputTokens).toBe(1000);
 });
-it('rejects SDK output with invalid citations while preserving incurred usage', async () => {
+it('rejects individual SDK claims with invalid citations while preserving incurred usage', async () => {
   vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'true');
   vi.stubEnv('PAPERBRIDGE_MODEL_KEY', 'synthetic-key');
   sdk.parse.mockResolvedValue({
@@ -77,10 +77,15 @@ it('rejects SDK output with invalid citations while preserving incurred usage', 
     model: 'gpt-4.1-mini',
     usage: { input_tokens: 1000, output_tokens: 100 },
   });
-  await expect(assessGapResearch(gap, examplePapers)).rejects.toMatchObject({
-    status: 502,
-    cost: { inputTokens: 1000 },
-  });
+  const result = await assessGapResearch(gap, examplePapers);
+  expect(result.cost?.inputTokens).toBe(1000);
+  expect(result.matches).toHaveLength(examplePapers.length);
+  expect(
+    result.matches.every(
+      (m) => m.addresses === 'unclear' && m.evidence.length === 0,
+    ),
+  ).toBe(true);
+  expect(result.assessmentWarnings?.length).toBeGreaterThan(0);
 });
 it('passes the authoritative reviewed research assessment into hypothesis generation', async () => {
   vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'true');
@@ -103,4 +108,29 @@ it('passes the authoritative reviewed research assessment into hypothesis genera
     'replication',
   );
   expect(payload.instructions).toContain('never claim an untouched novel gap');
+});
+
+it('does not issue a reassessment request when spending is disabled', async () => {
+  vi.stubEnv('ENABLE_LIVE_ANALYSIS', 'false');
+  vi.stubEnv('PAPERBRIDGE_MODEL_KEY', 'synthetic-key');
+  const result = await reassessGapCheck({
+    checkId: 'synthetic',
+    gap,
+    scopeKey: 'synthetic',
+    status: 'Related work addresses part of this gap',
+    summary: 'Synthetic',
+    candidates: examplePapers,
+    matches: [],
+    searches: [{ query: 'synthetic', error: null }],
+    sourceStatuses: [],
+    checkedAt: 'synthetic',
+    aiCompleted: true,
+    reviewed: true,
+    decision: 'continue',
+  });
+  expect(sdk.parse).not.toHaveBeenCalled();
+  expect(result.aiCompleted).toBe(false);
+  expect(result.reviewed).toBe(false);
+  expect(result.status).toBe('Check incomplete or inconclusive');
+  expect(result.cost?.estimatedUsd).toBe(0);
 });

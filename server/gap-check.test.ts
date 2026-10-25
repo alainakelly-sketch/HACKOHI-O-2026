@@ -407,3 +407,248 @@ describe('focused gap-check query cleanup', () => {
     expect(queries.join(' ')).toContain('musical');
   });
 });
+
+describe('assessment recovery and explicit limited coverage', () => {
+  const partialSearch = async (q: string) => ({
+    ...(await search(q)),
+    sourceStatuses: [
+      {
+        source: 'OpenAlex' as const,
+        status: 'ok' as const,
+        count: 4,
+        message: null,
+      },
+      {
+        source: 'arXiv' as const,
+        status: 'error' as const,
+        count: 0,
+        message: 'Synthetic failure',
+      },
+    ],
+  });
+  const positiveWithInvalid = async () => {
+    const out = await syntheticAssessor(gap, papers);
+    return {
+      ...out,
+      matches: out.matches.map((m, i) =>
+        i === 0
+          ? { ...m, addresses: 'part' as const }
+          : i === 1
+            ? {
+                ...m,
+                addresses: 'all' as const,
+                evidence: [{ paperId: m.paperId, passageId: 'INVENTED' }],
+              }
+            : m,
+      ),
+    };
+  };
+  it('retains a valid positive match but rejects an invalid neighboring claim and citations', async () => {
+    const result = await performGapCheck(
+      brief,
+      input.paperIds,
+      gap,
+      search,
+      positiveWithInvalid,
+    );
+    expect(result.status).toBe('Related work addresses part of this gap');
+    expect(result.matches[0].addresses).toBe('part');
+    expect(result.matches[1].addresses).toBe('unclear');
+    expect(result.matches[1].evidence).toEqual([]);
+    expect(result.assessmentWarnings?.join(' ')).toContain('rejected');
+  });
+  it('never accepts duplicate known-paper judgments as an answer', async () => {
+    const out = await syntheticAssessor(gap, papers);
+    const result = await performGapCheck(
+      brief,
+      input.paperIds,
+      gap,
+      search,
+      async () => ({
+        ...out,
+        matches: [...out.matches, { ...out.matches[0], addresses: 'all' }],
+      }),
+    );
+    expect(result.matches[0].addresses).toBe('unclear');
+    expect(result.matches[0].evidence).toEqual([]);
+    expect(result.status).toBe('Check incomplete or inconclusive');
+  });
+  it('requires explicit limited-coverage review and carries authoritative warning into generation', async () => {
+    const analyze = vi.fn().mockResolvedValue({
+      origin: 'live',
+      status: 'insufficient',
+      summary: 'Synthetic',
+      hypotheses: [],
+    });
+    const app = createApp({
+      search: partialSearch,
+      assessGap: positiveWithInvalid,
+      analyze,
+    });
+    await request(app).get('/api/search?q=test');
+    const result = (await request(app).post('/api/gap-check').send(input)).body;
+    expect(result.status).toBe('Check incomplete or inconclusive');
+    expect(result.limitedCoverageEligible).toBe(true);
+    expect(result.limitedCoverageAccepted).not.toBe(true);
+    expect(
+      (
+        await request(app)
+          .post(`/api/gap-check/${result.checkId}/review`)
+          .send({ ...input, decision: 'continue' })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await request(app)
+          .post('/api/analyze')
+          .send({
+            ...input,
+            checkId: result.checkId,
+            limitedCoverageAccepted: true,
+          })
+      ).status,
+    ).toBe(409);
+    const review = await request(app)
+      .post(`/api/gap-check/${result.checkId}/review`)
+      .send({ ...input, decision: 'continue', acceptLimitedCoverage: true });
+    expect(review.status).toBe(200);
+    expect(review.body.status).toBe('Check incomplete or inconclusive');
+    expect(
+      (
+        await request(app)
+          .post('/api/analyze')
+          .send({ ...input, checkId: result.checkId })
+      ).status,
+    ).toBe(200);
+    expect(analyze.mock.calls[0][3]).toMatchObject({
+      limitedCoverageAccepted: true,
+      limitedCoverageEligible: true,
+    });
+    expect(analyze.mock.calls[0][3].assessmentWarnings.join(' ')).toContain(
+      'Some collections failed',
+    );
+  });
+  it.each(['different', 'invalid', 'no-ai', 'all-failed'] as const)(
+    'cannot approve limited coverage with %s evidence',
+    async (kind) => {
+      const assessor = async () => {
+        if (kind === 'no-ai') throw new Error('Synthetic SDK failure');
+        const out = await syntheticAssessor(gap, papers);
+        return {
+          ...out,
+          matches: out.matches.map((m) => ({
+            ...m,
+            addresses:
+              kind === 'invalid' || kind === 'all-failed'
+                ? ('part' as const)
+                : ('different' as const),
+            ...(kind === 'invalid'
+              ? { evidence: [{ paperId: m.paperId, passageId: 'UNKNOWN' }] }
+              : {}),
+          })),
+        };
+      };
+      const lookup =
+        kind === 'all-failed'
+          ? async (q: string) => ({
+              ...(await partialSearch(q)),
+              sourceStatuses: [
+                {
+                  source: 'arXiv' as const,
+                  status: 'error' as const,
+                  count: 4,
+                  message: 'Synthetic failure',
+                },
+              ],
+            })
+          : partialSearch;
+      const app = createApp({ search: lookup, assessGap: assessor });
+      await request(app).get('/api/search?q=test');
+      const result = (await request(app).post('/api/gap-check').send(input))
+        .body;
+      expect(result.limitedCoverageEligible).not.toBe(true);
+      expect(
+        (
+          await request(app)
+            .post(`/api/gap-check/${result.checkId}/review`)
+            .send({
+              ...input,
+              decision: 'continue',
+              acceptLimitedCoverage: true,
+            })
+        ).status,
+      ).toBe(409);
+    },
+  );
+  it('reassesses cached candidates without another literature search and resets accepted review', async () => {
+    const lookup = vi.fn(partialSearch);
+    const assessor = vi.fn(positiveWithInvalid);
+    const app = createApp({ search: lookup, assessGap: assessor });
+    await request(app).get('/api/search?q=test');
+    const result = (await request(app).post('/api/gap-check').send(input)).body;
+    await request(app)
+      .post(`/api/gap-check/${result.checkId}/review`)
+      .send({ ...input, decision: 'continue', acceptLimitedCoverage: true });
+    const calls = lookup.mock.calls.length;
+    const retried = await request(app)
+      .post(`/api/gap-check/${result.checkId}/reassess`)
+      .send(input);
+    expect(retried.status).toBe(200);
+    expect(retried.body.checkId).toBe(result.checkId);
+    expect(retried.body.reviewed).toBe(false);
+    expect(retried.body.limitedCoverageAccepted).toBe(false);
+    expect(retried.body.decision).toBe(null);
+    expect(lookup.mock.calls.length).toBe(calls);
+    expect(assessor.mock.calls.length).toBe(2);
+    expect(
+      (
+        await request(app)
+          .post(`/api/gap-check/${result.checkId}/reassess`)
+          .send({ ...input, gap: { ...gap, question: 'Different question' } })
+      ).status,
+    ).toBe(409);
+    expect(assessor.mock.calls.length).toBe(2);
+  });
+});
+
+it('revokes prior review immediately and rejects overlapping review, generation and reassess requests', async () => {
+  let release: () => void = () => {};
+  let started: () => void = () => {};
+  const pending = new Promise<void>((resolve) => (release = resolve));
+  const began = new Promise<void>((resolve) => (started = resolve));
+  let count = 0;
+  const assessor = async () => {
+    count++;
+    if (count === 2) {
+      started();
+      await pending;
+    }
+    return syntheticAssessor(gap, papers);
+  };
+  const app = createApp({ search, assessGap: assessor });
+  await request(app).get('/api/search?q=test');
+  const checked = await reviewedCheck(app, brief, papers, gap);
+  const retry = request(app)
+    .post(`/api/gap-check/${checked.checkId}/reassess`)
+    .send(input)
+    .then((response) => response);
+  await began;
+  for (const path of [
+    `/api/gap-check/${checked.checkId}/review`,
+    `/api/gap-check/${checked.checkId}/reassess`,
+    '/api/analyze',
+  ])
+    expect(
+      (
+        await request(app)
+          .post(path)
+          .send({ ...checked, decision: 'continue' })
+      ).status,
+    ).toBe(409);
+  expect(count).toBe(2);
+  release();
+  expect((await retry).body.reviewed).toBe(false);
+  expect((await request(app).post('/api/analyze').send(checked)).status).toBe(
+    409,
+  );
+});

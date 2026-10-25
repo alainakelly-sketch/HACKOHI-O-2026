@@ -310,7 +310,10 @@ export default function App() {
       checkIsCurrent(finding, entry) &&
       entry.result.reviewed &&
       (entry.result.aiCompleted || entry.result.assessmentNotNeeded === true) &&
-      entry.result.status !== 'Check incomplete or inconclusive'
+      (entry.result.status !== 'Check incomplete or inconclusive' ||
+        (entry.result.aiCompleted &&
+          entry.result.limitedCoverageEligible === true &&
+          entry.result.limitedCoverageAccepted === true))
     );
   }
   function editGapQuestion(finding: GapFinding, question: string) {
@@ -353,7 +356,13 @@ export default function App() {
       }
     }
   }
-  async function checkGap(finding: GapFinding) {
+  async function checkGap(finding: GapFinding, reassess = false) {
+    const stored = gapChecks[finding.id];
+    if (
+      reassess &&
+      (!checkIsCurrent(finding, stored) || !stored.result.candidates.length)
+    )
+      return;
     invalidateGapDrafts(finding);
     const gap = gapFor(finding);
     const body = { brief, paperIds: selected.map((p) => p.id), gap };
@@ -365,7 +374,27 @@ export default function App() {
     setGapCheckErrors((items) => ({ ...items, [finding.id]: '' }));
     setGapChecks((items) => {
       const next = { ...items };
-      delete next[finding.id];
+      if (reassess && stored) {
+        for (const [id, entry] of Object.entries(next)) {
+          if (entry.result.checkId !== stored.result.checkId) continue;
+          next[id] = {
+            ...entry,
+            result: {
+              ...entry.result,
+              reviewed: false,
+              decision: null,
+              limitedCoverageAccepted: false,
+              limitedCoverageEligible: false,
+              aiCompleted: false,
+              assessmentNotNeeded: false,
+              matches: [],
+              status: 'Check incomplete or inconclusive',
+              summary:
+                'Reassessment is pending. Previous approval is no longer current.',
+            },
+          };
+        }
+      } else delete next[finding.id];
       return next;
     });
     const runId = crypto.randomUUID();
@@ -379,7 +408,12 @@ export default function App() {
       },
     ]);
     try {
-      const result = await api<GapCheckResult>('/api/gap-check', body);
+      const result = await api<GapCheckResult>(
+        reassess
+          ? `/api/gap-check/${stored.result.checkId}/reassess`
+          : '/api/gap-check',
+        body,
+      );
       setUsageEntries((items) =>
         items.map((entry) =>
           entry.id === runId
@@ -440,7 +474,11 @@ export default function App() {
         setGapCheckBusy((items) => ({ ...items, [finding.id]: false }));
     }
   }
-  async function reviewGap(finding: GapFinding, decision: GapCheckDecision) {
+  async function reviewGap(
+    finding: GapFinding,
+    decision: GapCheckDecision,
+    acceptLimitedCoverage = false,
+  ) {
     const entry = gapChecks[finding.id];
     if (!checkIsCurrent(finding, entry)) return;
     const run = gapCheckRuns.current.get(finding.id) ?? 0;
@@ -454,6 +492,7 @@ export default function App() {
           paperIds: selected.map((p) => p.id),
           gap: gapFor(finding),
           decision,
+          acceptLimitedCoverage,
         },
       );
       const latest = latestCheckContext.current;
@@ -508,7 +547,9 @@ export default function App() {
     !!chosenCheck &&
     (chosenCheck.result.aiCompleted ||
       chosenCheck.result.assessmentNotNeeded === true) &&
-    chosenCheck.result.status !== 'Check incomplete or inconclusive';
+    (chosenCheck.result.status !== 'Check incomplete or inconclusive' ||
+      (chosenCheck.result.aiCompleted &&
+        chosenCheck.result.limitedCoverageEligible === true));
   const researchCheckMessage = !selectedFinding
     ? 'Choose a gap before generating a hypothesis.'
     : gapCheckBusy[selectedFinding.id]
@@ -1083,6 +1124,15 @@ export default function App() {
     if (!h || !analysis) return;
     choose(id, false);
     const draft = createHypothesisPlan(h, brief, selected, analysis.origin);
+    const finding = findings.find((item) => item.hypothesisId === id);
+    const checked = finding ? gapChecks[finding.id]?.result : null;
+    if (checked?.limitedCoverageAccepted)
+      draft.fields.constraints = [
+        `Limited research-check coverage: searches were incomplete for ${[...new Set(checked.sourceStatuses.filter((source) => source.status !== 'ok').map((source) => source.source))].join(', ')}. This proposal uses only available collections; novelty is not established.`,
+        draft.fields.constraints,
+      ]
+        .filter(Boolean)
+        .join('\n\n');
     draft.id = `${analysisId}:${draft.id}`;
     if (analysisResourceRevision !== resourceRevision)
       draft.contextKey = `review:older-analysis-resources:${analysisId}:${analysisResourceRevision}`;
@@ -1379,8 +1429,13 @@ export default function App() {
                     reviewBusy={!!gapReviewBusy[selectedFinding.id]}
                     error={gapCheckErrors[selectedFinding.id]}
                     onCheck={() => void checkGap(selectedFinding)}
-                    onReview={(decision) =>
-                      void reviewGap(selectedFinding, decision)
+                    onReassess={() => void checkGap(selectedFinding, true)}
+                    onReview={(decision, acceptLimitedCoverage) =>
+                      void reviewGap(
+                        selectedFinding,
+                        decision,
+                        acceptLimitedCoverage,
+                      )
                     }
                     onDevelop={() => developFinding(selectedFinding)}
                     onPlan={() => planFinding(selectedFinding)}

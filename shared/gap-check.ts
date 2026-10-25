@@ -32,6 +32,9 @@ export type GapCheckResult = {
   sourceStatuses: SearchSourceStatus[];
   checkedAt: string;
   aiCompleted: boolean;
+  assessmentWarnings?: string[];
+  limitedCoverageEligible?: boolean;
+  limitedCoverageAccepted?: boolean;
   assessmentNotNeeded?: boolean;
   reviewed: boolean;
   decision: GapCheckDecision | null;
@@ -47,6 +50,9 @@ export type GapCheckContext = Pick<
   | 'searches'
   | 'checkedAt'
   | 'decision'
+  | 'assessmentWarnings'
+  | 'limitedCoverageAccepted'
+  | 'limitedCoverageEligible'
 > & { candidates: Paper[] };
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ');
 /** Shared request identity, not an authorization token. The server independently

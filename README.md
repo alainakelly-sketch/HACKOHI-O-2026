@@ -275,3 +275,9 @@ Read the status and closest studies, expand supporting passages, then choose how
 The visible **Develop hypothesis** section includes **Generate hypothesis**. After reviewing the check, click that button to generate directly; no preparatory disclosure is required. The generated hypothesis and **Plan experiment** stay visible in that section. The backend requires the matching reviewed check and includes its assessment in generation. Editing the gap or research scope requires another check; checks also expire and are invalidated by changed source text. Resource notes guide planning without restarting literature discovery. Existing experiment edits remain available, with affected drafts flagged for review.
 
 Research checks are held in server memory and drafts in browser session state. Export your work before refreshing or restarting. No new account, database or billing setup is required.
+
+## Recovering a failed research check
+
+If the papers were retrieved but AI assessment failed, **Reassess these papers** retries only the assessment of those saved candidates. It does not repeat the literature search. This explicit AI retry may incur another API charge; the app never retries automatically.
+
+Invalid candidate claims and citations are discarded individually and labelled inconclusive. They cannot establish an answer. If some collections failed but a valid cited study addresses all or part of the question, an unchecked acknowledgement lets you explicitly continue with available collections. **Confirm review & continue** records that limited scope on the server; the check remains labelled incomplete, and the limitation carries into the hypothesis and plan. This does not establish novelty. Entirely inconclusive evidence, missing/failed AI, expired checks and changed source context cannot use this option. Reassessment revokes earlier approval while running.

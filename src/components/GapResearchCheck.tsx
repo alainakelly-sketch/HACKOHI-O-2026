@@ -28,6 +28,7 @@ export function GapResearchCheck({
   stale = false,
   reviewBusy = false,
   onCheck,
+  onReassess,
   onReview,
   onDevelop,
   aiAvailable,
@@ -42,20 +43,41 @@ export function GapResearchCheck({
   stale?: boolean;
   reviewBusy?: boolean;
   onCheck: () => void;
-  onReview: (decision: ReviewDecision) => void;
+  onReassess: () => void;
+  onReview: (decision: ReviewDecision, acceptLimitedCoverage?: boolean) => void;
   onDevelop: () => void;
   onPlan: () => void;
   aiAvailable: boolean;
   onInspect?: (reference: Citation) => void;
 }) {
   const [decision, setDecision] = useState<ReviewDecision | ''>('');
-  useEffect(() => setDecision(''), [result?.checkId, finding.id, stale]);
+  const [acceptLimitedCoverage, setAcceptLimitedCoverage] = useState(false);
+  useEffect(() => {
+    setDecision('');
+    setAcceptLimitedCoverage(false);
+  }, [result?.checkId, result?.checkedAt, finding.id, stale]);
   const current = !!result && !stale;
+  const limited =
+    current &&
+    result.status === INCOMPLETE &&
+    result.aiCompleted &&
+    result.limitedCoverageEligible === true;
+  const failedCollections = [
+    ...new Set(
+      result?.sourceStatuses
+        .filter((source) => source.status !== 'ok')
+        .map((source) => source.source) ?? [],
+    ),
+  ].join(', ');
   const complete =
     current &&
-    (result.aiCompleted || result.assessmentNotNeeded === true) &&
-    result.status !== INCOMPLETE;
-  const approved = complete && result.reviewed;
+    (((result.aiCompleted || result.assessmentNotNeeded === true) &&
+      result.status !== INCOMPLETE) ||
+      limited);
+  const approved =
+    complete &&
+    result.reviewed &&
+    (!limited || result.limitedCoverageAccepted === true);
   const addressesWhole =
     current && result.matches.some((match) => match.addresses === 'all');
   const candidates = result?.candidates ?? [];
@@ -213,7 +235,11 @@ export function GapResearchCheck({
             }
           >
             {busy ? (
-              <Busy>Checking existing research</Busy>
+              <Busy>
+                {result
+                  ? 'Assessing retrieved papers'
+                  : 'Checking existing research'}
+              </Busy>
             ) : (
               'Check existing research'
             )}
@@ -242,6 +268,47 @@ export function GapResearchCheck({
             {stale ? 'Previous check · needs updating' : result.status}
           </p>
           <p>{result.summary}</p>
+          {result.assessmentWarnings?.length ? (
+            <Notice>
+              <p>Review these assessment and search limitations.</p>
+              <details>
+                <summary>Assessment limitations</summary>
+                <ul>
+                  {result.assessmentWarnings.map((warning, index) => (
+                    <li key={index}>{warning}</li>
+                  ))}
+                </ul>
+              </details>
+            </Notice>
+          ) : null}
+          {limited ? (
+            <Notice>
+              Limited search coverage:{' '}
+              {failedCollections || 'one or more collections'} did not fully
+              respond. Findings apply only to available collections. This check
+              remains incomplete and cannot establish novelty.
+            </Notice>
+          ) : null}
+          {current && !approved && candidates.length > 0 ? (
+            <div className="gap-check-reassessment">
+              <button
+                type="button"
+                className="secondary"
+                onClick={onReassess}
+                disabled={busy || reviewBusy || !aiAvailable}
+              >
+                Reassess these papers
+              </button>
+              <p className="muted">
+                Retries AI assessment using the studies already retrieved; it
+                does not search again. This explicit action may incur another
+                API charge.
+                {!aiAvailable
+                  ? ' Enable AI assessment on the server before retrying.'
+                  : ''}
+              </p>
+            </div>
+          ) : null}
           {result.assessmentNotNeeded ? (
             <p className="muted">Search only · no AI request was made.</p>
           ) : !result.aiCompleted ? (
@@ -377,13 +444,38 @@ export function GapResearchCheck({
                   </option>
                 </select>
               </details>
+              {limited ? (
+                <label className="gap-check-limited-consent">
+                  <input
+                    type="checkbox"
+                    checked={acceptLimitedCoverage}
+                    onChange={(event) =>
+                      setAcceptLimitedCoverage(event.target.checked)
+                    }
+                    disabled={busy || reviewBusy}
+                  />
+                  <span>
+                    I understand searches were incomplete for{' '}
+                    {failedCollections || 'the failed collections'}; continue
+                    with available collections
+                  </span>
+                </label>
+              ) : null}
               <button
                 type="button"
                 className="primary"
                 onClick={() => {
-                  onReview(decision || 'continue');
+                  onReview(
+                    decision || 'continue',
+                    limited && acceptLimitedCoverage,
+                  );
                 }}
-                disabled={(addressesWhole && !decision) || reviewBusy || busy}
+                disabled={
+                  (limited && !acceptLimitedCoverage) ||
+                  (addressesWhole && !decision) ||
+                  reviewBusy ||
+                  busy
+                }
               >
                 {reviewBusy ? (
                   <Busy>Saving review</Busy>

@@ -1,5 +1,10 @@
 import express from 'express';
-import { performGapCheck, sourceDigest, type GapAssessor } from './gap-check';
+import {
+  performGapCheck,
+  reassessGapCheck,
+  sourceDigest,
+  type GapAssessor,
+} from './gap-check';
 import {
   gapCheckScopeKey,
   type GapCheckResult,
@@ -117,7 +122,12 @@ export function createApp(
   >();
   const gapChecks = new Map<
     string,
-    { result: GapCheckResult; digest: string; expires: number }
+    {
+      result: GapCheckResult;
+      digest: string;
+      expires: number;
+      reassessing?: boolean;
+    }
   >();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
@@ -277,6 +287,12 @@ export function createApp(
         'This research check expired or was lost. Check the chosen gap again.',
         noRequestCost(),
       );
+    if (record.reassessing)
+      throw new AppError(
+        409,
+        'An AI reassessment is already in progress. Wait for it to finish, then review the updated check.',
+        noRequestCost(),
+      );
     const papers = paperStore.get(input.paperIds);
     if (
       record.result.scopeKey !==
@@ -309,6 +325,23 @@ export function createApp(
     });
     res.json(result);
   });
+  app.post('/api/gap-check/:id/reassess', async (req, res) => {
+    const input = checkSchema.parse(req.body);
+    const record = checkedRecord(input, z.string().uuid().parse(req.params.id));
+    record.reassessing = true;
+    record.result = {
+      ...record.result,
+      reviewed: false,
+      decision: null,
+      limitedCoverageAccepted: false,
+    };
+    try {
+      record.result = await reassessGapCheck(record.result, deps.assessGap);
+      res.json(record.result);
+    } finally {
+      record.reassessing = false;
+    }
+  });
   app.post('/api/gap-check/:id/review', async (req, res) => {
     const input = checkSchema.parse(req.body);
     const decision = z
@@ -317,7 +350,11 @@ export function createApp(
     const record = checkedRecord(input, z.string().uuid().parse(req.params.id));
     if (
       (!record.result.aiCompleted && !record.result.assessmentNotNeeded) ||
-      record.result.status === 'Check incomplete or inconclusive'
+      (record.result.status === 'Check incomplete or inconclusive' &&
+        !(
+          record.result.limitedCoverageEligible &&
+          req.body.acceptLimitedCoverage === true
+        ))
     )
       throw new AppError(
         409,
@@ -325,7 +362,7 @@ export function createApp(
         noRequestCost(),
       );
     if (
-      record.result.status === 'Existing research may address this gap' &&
+      record.result.matches.some((m) => m.addresses === 'all') &&
       decision === 'continue'
     )
       throw new AppError(
@@ -333,7 +370,14 @@ export function createApp(
         'Existing work may address this question. Choose an explicit replication or extension, or revise the gap and check again.',
         noRequestCost(),
       );
-    record.result = { ...record.result, reviewed: true, decision };
+    record.result = {
+      ...record.result,
+      reviewed: true,
+      decision,
+      limitedCoverageAccepted:
+        record.result.limitedCoverageEligible === true &&
+        req.body.acceptLimitedCoverage === true,
+    };
     res.json(record.result);
   });
   app.post('/api/analyze', async (req, res) => {
@@ -350,7 +394,12 @@ export function createApp(
     if (
       !record.result.reviewed ||
       (!record.result.aiCompleted && !record.result.assessmentNotNeeded) ||
-      record.result.status === 'Check incomplete or inconclusive'
+      (record.result.status === 'Check incomplete or inconclusive' &&
+        !(
+          record.result.limitedCoverageEligible &&
+          record.result.limitedCoverageAccepted &&
+          record.result.aiCompleted
+        ))
     )
       throw new AppError(
         409,
