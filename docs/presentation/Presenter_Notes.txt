@@ -1,0 +1,14 @@
+PaperBridge — One-minute presenter script
+
+Slide 1 · 12 seconds · The opportunity
+Finding research papers is easy compared with understanding how they connect. Researchers and students still need to compare findings, identify unanswered questions, and decide what they could realistically test.
+
+Slide 2 · 15 seconds · The workflow
+PaperBridge connects that workflow. Enter a question and field, discover freely accessible research, and select papers. Comparison tools and a source-grounded mind map help reveal connections and possible gaps. Resource notes guide what comes next.
+
+Slide 3 · 16 seconds · Evidence & action
+AI then proposes a hypothesis and an editable experiment plan. Users can inspect supporting passages and distinguish abstracts from retrieved article text. Citation checks reject unsupported references, while limitations remain visible. These are research proposals, not scientifically verified discoveries.
+
+Slide 4 · 17 seconds · The impact
+Our goal is to make research exploration more approachable, especially for students and small teams. PaperBridge is a prototype that helps turn scattered literature into an evidence-grounded question and a practical first experiment—with the researcher making the final decisions.
+
