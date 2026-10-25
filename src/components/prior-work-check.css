@@ -1,16 +1,20 @@
 .prior-work-check {
   margin-top: 20px;
-  padding: 17px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fafbff;
+  padding: var(--space-6) 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   min-width: 0;
+
+  border-top: 1px solid var(--line);
 }
 .prior-work-check h3 {
-  font-size: 15px;
+  font-size: 22px;
+  font-family: var(--font-editorial);
+  font-weight: 500;
 }
 .prior-work-check p {
-  font-size: 12px;
+  font-size: var(--text-body);
   line-height: 1.75;
   margin: 9px 0;
 }
@@ -24,7 +28,7 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--text-control);
   font-weight: 600;
   flex: 1 1 250px;
   min-width: 0;
@@ -39,45 +43,47 @@
   border-radius: 6px;
 }
 .manual-prior-result {
-  padding-top: 16px;
+  padding-top: var(--space-4);
 }
 .manual-prior-result > strong {
   display: block;
   padding: 10px;
-  background: #f0effc;
+  background: var(--soft);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--text-control);
 }
 .manual-prior-result h4 {
-  margin: 15px 0 8px;
-  font-size: 12px;
+  margin: 15px 0 var(--space-2);
+  font-size: 22px;
 }
 .manual-prior-queries {
   padding-left: 18px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 .manual-prior-queries li {
-  margin: 8px 0;
+  margin: var(--space-2) 0;
   overflow-wrap: anywhere;
 }
 .manual-prior-queries span {
   display: block;
-  color: #8c4a35;
-  margin-top: 4px;
+  color: var(--danger);
+  margin-top: var(--space-1);
 }
 .manual-prior-papers {
   display: grid;
-  gap: 12px;
+  gap: 0;
 }
 .manual-prior-papers article {
-  padding: 13px;
-  border: 1px solid var(--line);
-  background: white;
-  border-radius: 6px;
+  padding: 20px 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
   overflow-wrap: anywhere;
+
+  border-bottom: 1px solid var(--line);
 }
 .manual-prior-papers summary {
-  font-size: 12px;
+  font-size: var(--text-control);
   cursor: pointer;
 }
 @media (max-width: 600px) {
@@ -86,21 +92,25 @@
   }
 }
 .prior-work-check {
-  background: #fff;
-  padding: 24px;
+  background: transparent;
+  padding: var(--space-6) 0;
   margin-top: 20px;
-  border-radius: 10px;
+  border-radius: 0;
+
+  border: 0;
+
+  border-top: 1px solid var(--line);
 }
 .prior-check-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 .prior-check-heading > span {
-  font-size: 11px;
+  font-size: var(--text-control);
   color: var(--muted);
 }
 .prior-work-check > p {
@@ -108,21 +118,43 @@
   margin-bottom: 18px;
 }
 .prior-search-details {
-  margin: 16px 0;
-  font-size: 12px;
+  margin: var(--space-4) 0;
+  font-size: var(--text-control);
 }
 .prior-search-details > summary,
 .prior-paper-details > summary {
   color: var(--muted);
   cursor: pointer;
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 .manual-prior-papers {
-  margin-top: 16px;
+  margin-top: var(--space-4);
+
+  gap: 0;
 }
 .manual-prior-papers article {
-  padding: 16px;
+  padding: 20px 0;
+
+  border: 0;
+
+  border-bottom: 1px solid var(--line);
+
+  border-radius: 0;
+
+  background: transparent;
 }
 .prior-paper-details {
   margin-top: 10px;
+}
+
+.manual-prior-papers article > a {
+  font-family: var(--font-editorial);
+  font-size: var(--text-publication);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.manual-prior-papers article > a strong {
+  font-weight: 500;
 }

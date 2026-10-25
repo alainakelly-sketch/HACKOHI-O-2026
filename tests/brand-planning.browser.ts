@@ -173,15 +173,14 @@ async function generate(name: string) {
 try {
   await page.goto(process.env.PAPERBRIDGE_TEST_URL || 'http://localhost:5173');
   await page
-    .getByRole('img', { name: 'PaperBridge logo', exact: true })
+    .getByRole('link', { name: 'PaperBridge research workspace', exact: true })
     .waitFor();
-  assert.ok(
-    await page
-      .getByRole('img', { name: 'PaperBridge logo', exact: true })
-      .evaluate(
-        (img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
-      ),
+  await page.evaluate(() => document.fonts.ready);
+  const favicon = await page.request.get(
+    new URL('/paperbridge-icon.png', page.url()).toString(),
   );
+  assert.equal(favicon.status(), 200);
+  assert.match(favicon.headers()['content-type'], /image\/png/);
   const fonts = await page.evaluate(() => {
     const brand = getComputedStyle(document.querySelector('.brand-name')!);
     const title = getComputedStyle(document.querySelector('h1')!);
@@ -196,7 +195,8 @@ try {
     };
   });
   assert.equal(fonts.brandFamily, fonts.titleFamily);
-  assert.equal(fonts.brandWeight, fonts.titleWeight);
+  assert.equal(fonts.brandWeight, '500');
+  assert.equal(fonts.titleWeight, '400');
   assert.ok(fonts.left < 40 && fonts.top < 40);
   assert.equal(
     await page.locator('link[rel=icon]').getAttribute('href'),
@@ -394,7 +394,7 @@ try {
   assert.deepEqual(errors, []);
   assert.equal(searches, 1);
   console.log(
-    'PASS: logo/favicon load, resource notes preserve source list, model request receives constraints, current/old plan resources differentiated, stale warning, free explicit notes append preserves edits/export, desktop/mobile. Synthetic mocks only.',
+    'PASS: typographic wordmark/favicon load, resource notes preserve source list, model request receives constraints, current/old plan resources differentiated, stale warning, free explicit notes append preserves edits/export, desktop/mobile. Synthetic mocks only.',
   );
 } finally {
   await browser.close();

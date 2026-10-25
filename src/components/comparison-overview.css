@@ -4,21 +4,21 @@
   margin: 20px 0;
 }
 .comparison-overview > h3 {
-  font-size: 17px;
+  font-size: 22px;
   color: var(--ink);
 }
 .overview-explanation,
 .overview-caution,
 .overview-unavailable,
 .overview-helper {
-  font-size: 12px;
+  font-size: var(--text-control);
   line-height: 1.8;
   color: var(--muted);
   margin: 9px 0;
 }
 .overview-unavailable {
   padding: 14px;
-  background: #f4f6fb;
+  background: var(--soft);
   border-radius: 8px;
 }
 .overview-pair-picker,
@@ -37,7 +37,7 @@
   gap: 7px;
 }
 .overview-pair-picker label > span {
-  font-size: 12px;
+  font-size: var(--text-control);
   font-weight: 600;
   color: var(--accent);
 }
@@ -47,36 +47,40 @@
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--ink);
 }
 .overview-pair-picker small {
-  font-size: 11px;
+  font-size: var(--text-control);
   color: var(--muted);
 }
 .overview-common,
 .overview-differences {
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 17px;
-  margin: 16px 0;
+  border: 0;
+  border-radius: 0;
+  padding: 20px 0;
+  margin: var(--space-4) 0;
+
+  border-top: 1px solid var(--line);
+
+  background: transparent;
 }
 .overview-common {
-  background: #fafaff;
+  background: transparent;
 }
 .overview-common h4,
 .overview-differences h4 {
-  font-size: 15px;
+  font-size: 22px;
   color: var(--ink);
 }
 .overview-shared-list {
   list-style: none;
-  margin: 12px 0 0;
+  margin: var(--space-3) 0 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .overview-shared-list li {
   display: flex;
@@ -84,9 +88,9 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  border-top: 1px solid #e9e9f4;
+  border-top: 1px solid var(--line);
   padding-top: 9px;
-  font-size: 13px;
+  font-size: var(--text-control);
 }
 .overview-shared-list li > span {
   display: flex;
@@ -94,7 +98,7 @@
   flex-wrap: wrap;
 }
 .comparison-overview .text-button {
-  font-size: 11px;
+  font-size: var(--text-control);
   white-space: normal;
   text-align: left;
 }
@@ -102,27 +106,27 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin: 16px 0;
+  margin: var(--space-4) 0;
   padding: 5px;
-  background: #f3f5fa;
+  background: var(--soft);
   border-radius: 8px;
 }
 .overview-aspect-picker button {
   border: 1px solid transparent;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 .overview-aspect-picker button[aria-pressed='true'] {
   color: var(--accent);
-  background: #fff;
-  border-color: #dedbf8;
-  box-shadow: 0 1px 2px #2735640a;
+  background: var(--accent-surface);
+  border-color: var(--accent);
+  box-shadow: none;
 }
 .overview-aspect-prompt {
-  font-size: 13px;
+  font-size: var(--text-control);
   margin: 14px 0;
   font-weight: 600;
 }
@@ -134,30 +138,34 @@
 }
 .overview-paper-badge {
   display: inline-block;
-  font-size: 10px;
+  font-size: var(--text-control);
   font-weight: 600;
-  padding: 4px 8px;
-  background: #eeebfc;
+  padding: var(--space-1) var(--space-2);
+  background: var(--soft);
   color: var(--accent);
   border-radius: 4px;
 }
 .overview-evidence-pair h5 {
-  font-size: 12px;
-  line-height: 1.7;
+  font-size: var(--text-publication);
+  line-height: 1.4;
   margin: 9px 0;
   overflow-wrap: anywhere;
+
+  font-family: var(--font-editorial);
+
+  font-weight: 500;
 }
 .overview-evidence-pair blockquote {
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.9;
-  color: #475370;
-  border-left: 2px solid #d9d5f7;
+  color: var(--ink);
+  border-left: 2px solid var(--line);
   padding-left: 11px;
-  margin: 12px 0;
+  margin: var(--space-3) 0;
   overflow-wrap: anywhere;
 }
 .overview-missing {
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--muted);
   line-height: 1.8;
   padding: 10px 0;
@@ -165,7 +173,7 @@
 .overview-distinct-details,
 .overview-how {
   margin-top: 18px;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--muted);
   line-height: 1.8;
 }
@@ -175,13 +183,13 @@
   color: var(--accent);
 }
 .overview-distinct-details .overview-evidence-pair {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 .overview-distinct-details ul {
   padding-left: 17px;
 }
 .overview-caution {
-  border-left: 2px solid #cac7e9;
+  border-left: 2px solid var(--line);
   padding-left: 11px;
 }
 @media (max-width: 760px) {
@@ -200,14 +208,14 @@
 .overview-source-excerpt > summary {
   cursor: pointer;
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 .overview-source-excerpt > small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-control);
 }
 .overview-term-sources {
-  font-size: 11px;
+  font-size: var(--text-control);
 }
 .overview-term-sources > summary {
   cursor: pointer;
@@ -215,11 +223,11 @@
 }
 .overview-term-sources > span {
   display: flex;
-  gap: 12px;
-  margin-top: 8px;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
 }
 .overview-essential-caveat {
-  font-size: 11px;
+  font-size: var(--text-control);
   color: var(--muted);
   line-height: 1.7;
   margin-top: 18px;

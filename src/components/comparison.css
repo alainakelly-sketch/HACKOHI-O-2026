@@ -2,48 +2,48 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 12px 13px;
-  margin: 12px 0;
-  border: 1px solid #d7e2ed;
+  padding: var(--space-3) 13px;
+  margin: var(--space-3) 0;
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: #f6f9fc;
-  font-size: 11px;
+  background: var(--soft);
+  font-size: var(--text-control);
   line-height: 1.7;
-  color: #63718c;
+  color: var(--muted);
 }
 .reading-status strong {
-  font-size: 12px;
-  color: #344762;
+  font-size: var(--text-control);
+  color: var(--muted);
 }
 .retrieve-selected {
-  margin: 0 12px 13px 0;
+  margin: 0 var(--space-3) 13px 0;
   max-width: 100%;
   white-space: normal;
 }
 .paper-reading-state {
   padding: 9px 10px;
   border-radius: 5px;
-  background: #f3f5fa;
-  color: #6b7590;
-  font-size: 11px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: var(--text-control);
   line-height: 1.7;
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 .paper-reading-state.ready {
-  background: #edf7f1;
-  color: #3d7057;
+  background: var(--success-surface);
+  color: var(--success);
 }
 .paper-reading-state.failed {
-  background: #fff3ed;
-  color: #965b39;
+  background: var(--danger-surface);
+  color: var(--danger);
 }
 .paper-reading-state.loading {
-  background: #f0f1ff;
-  color: #6258aa;
+  background: var(--soft);
+  color: var(--muted);
 }
 .paper-reading-state p {
   margin: 5px 0 0;
-  font-size: 10px;
+  font-size: var(--text-body);
 }
 .comparison-panel .comparison-controls select {
   min-width: 0;
@@ -54,14 +54,14 @@
   min-height: 240px;
 }
 .comparison-panel .text-scope {
-  font-size: 11px;
+  font-size: var(--text-control);
   line-height: 1.75;
 }
 .comparison-panel .text-scope details {
   margin-top: 7px;
 }
 .comparison-panel .text-scope summary {
-  color: #625b91;
+  color: var(--accent);
 }
 
 .comparison-columns.single-reader {
@@ -69,12 +69,12 @@
 }
 .full-source-reader .text-scope > summary,
 .passage-identifier > summary {
-  font-size: 11px;
+  font-size: var(--text-control);
   cursor: pointer;
   color: var(--muted);
 }
 .full-source-reader .text-scope {
-  font-size: 11px;
+  font-size: var(--text-control);
 }
 .passage-identifier {
   margin-top: 10px;

@@ -97,6 +97,7 @@ function QueryInterpretation({
 }
 export function PaperRow({
   paper,
+  number,
   selected,
   disabled,
   onToggle,
@@ -106,6 +107,7 @@ export function PaperRow({
   textError,
 }: {
   paper: Paper;
+  number?: number;
   selected?: boolean;
   disabled?: boolean;
   onToggle?: () => void;
@@ -129,6 +131,11 @@ export function PaperRow({
       className={`paper-row compact-paper ${selected ? 'selected' : ''}`}
     >
       <div className="paper-top">
+        {number !== undefined ? (
+          <span className="paper-entry-number" aria-hidden="true">
+            {String(number).padStart(2, '0')}
+          </span>
+        ) : null}
         {onToggle ? (
           <input
             aria-label={`Select ${paper.title}`}
@@ -140,6 +147,12 @@ export function PaperRow({
         ) : null}
         <div className="paper-heading-copy">
           <h3>{paper.title}</h3>
+          <p className="paper-authors">
+            {paper.authors.length
+              ? paper.authors.slice(0, 3).join(', ') +
+                (paper.authors.length > 3 ? ' et al.' : '')
+              : 'Authors unavailable'}
+          </p>
           <div className="paper-meta">
             <span>{paper.year ?? 'Year unavailable'}</span>
             <span className="coverage">
@@ -379,6 +392,7 @@ export function PaperPanel({
       <PaperRow
         key={p.id}
         paper={p}
+        number={visible.findIndex((item) => item.id === p.id) + 1}
         selected={selected.some((s) => s.id === p.id)}
         disabled={selected.length >= 6 && !selected.some((s) => s.id === p.id)}
         onToggle={() => onToggle(p)}

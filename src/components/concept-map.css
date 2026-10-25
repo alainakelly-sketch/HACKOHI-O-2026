@@ -1,26 +1,28 @@
 .concept-panel {
-  --concept-violet: #6259c8;
+  --concept-violet: var(--accent);
   padding: 0;
   overflow-anchor: none;
+
+  font-family: var(--font-ui);
 }
 .explore-connections-title {
-  padding: 20px 24px;
+  padding: 20px var(--space-6);
   cursor: pointer;
   color: var(--ink);
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .explore-connections-title > span {
-  margin-left: 12px;
-  font-size: 11px;
+  margin-left: var(--space-3);
+  font-size: var(--text-control);
   color: var(--muted);
   font-weight: 400;
 }
 .concept-map-content {
-  padding: 0 24px 24px;
+  padding: 0 var(--space-6) var(--space-6);
 }
 .concept-panel .panel-heading p {
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .concept-panel p {
   line-height: 1.65;
@@ -33,7 +35,7 @@
   margin: 18px 0;
 }
 .concept-map-controls > span {
-  font-size: 11px;
+  font-size: var(--text-control);
   color: var(--muted);
   margin-left: auto;
 }
@@ -42,23 +44,21 @@
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  border: 1px solid #e6e5ee;
-  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   overflow-anchor: none;
 }
 .concept-board {
-  padding: 24px;
-  background-color: #fcfcff;
-  background-image: radial-gradient(#e1e0ee 0.7px, transparent 0.7px);
-  background-size: 16px 16px;
+  padding: var(--space-6);
+  background-color: var(--surface);
 }
 .concept-focus {
   position: relative;
   max-width: 580px;
   margin: 0 auto 36px;
-  background: #f1efff;
-  border: 1px solid #b9b3ed;
-  border-radius: 14px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
   padding: 20px;
   text-align: center;
 }
@@ -68,18 +68,22 @@
   bottom: -36px;
   left: 50%;
   height: 36px;
-  border-left: 1px solid #c9c2df;
+  border-left: 1px solid var(--line);
 }
 .concept-focus h3 {
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.5;
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   overflow-wrap: anywhere;
+
+  font-family: var(--font-ui);
+
+  font-weight: 500;
 }
 .concept-eyebrow {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-control);
   letter-spacing: 0.025em;
   line-height: 1.5;
 }
@@ -89,7 +93,7 @@
   align-items: start;
   gap: 20px;
   position: relative;
-  border-top: 1px solid #c9c2df;
+  border-top: 1px solid var(--line);
   padding-top: 20px;
 }
 .concept-branch {
@@ -102,7 +106,7 @@
   left: 50%;
   top: -21px;
   height: 21px;
-  border-left: 1px solid #c9c2df;
+  border-left: 1px solid var(--line);
 }
 .concept-node {
   display: flex;
@@ -110,56 +114,58 @@
   align-items: flex-start;
   gap: 7px;
   padding: 15px;
-  border: 1px solid #d8d5e9;
-  border-radius: 10px;
-  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
   color: var(--ink);
   text-align: left;
   width: 100%;
   min-width: 0;
-  box-shadow: 0 3px 8px #34305905;
+  box-shadow: none;
   cursor: pointer;
 }
 .concept-node strong {
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--text-control);
+  font-weight: 500;
   line-height: 1.5;
   overflow-wrap: anywhere;
+
+  font-family: var(--font-ui);
 }
 .concept-node > span:last-child {
   width: 100%;
-  font-size: 11px;
+  font-size: var(--text-control);
   color: var(--muted);
   line-height: 1.5;
 }
 .concept-node:hover {
-  border-color: #8e83ce;
-  background: #faf9ff;
+  border-color: var(--line);
+  background: var(--soft);
 }
 .concept-node[aria-expanded='true'] {
-  border-color: #6259c8;
-  box-shadow: 0 0 0 2px #6259c825;
-  background: #f4f1ff;
+  border-color: var(--accent);
+  box-shadow: none;
+  background: var(--accent-surface);
 }
 .concept-toggle {
   display: inline-block;
   float: right;
   font-size: 20px;
   line-height: 14px;
-  color: #6259c8;
+  color: var(--accent);
   font-weight: 400;
 }
 .concept-children {
   margin: 0 0 0 10px;
   padding: 18px 0 0 14px;
-  border-left: 1px solid #cfc9e1;
+  border-left: 1px solid var(--line);
 }
 .concept-children[hidden] {
   display: none;
 }
 .concept-children > .concept-node,
 .concept-children > div {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   position: relative;
 }
 .concept-children > .concept-node::before,
@@ -169,32 +175,32 @@
   width: 14px;
   left: -15px;
   top: 23px;
-  border-top: 1px solid #cfc9e1;
+  border-top: 1px solid var(--line);
 }
 .concept-leaf {
-  padding: 12px;
+  padding: var(--space-3);
   box-shadow: none;
 }
 .overlap-node {
-  background: #f2f9fa;
-  border-color: #c3dfe0;
+  background: var(--soft);
+  border-color: var(--line);
 }
 .gap-node {
-  background: #fffbf4;
-  border-color: #e1d2b7;
+  background: var(--warning-surface);
+  border-color: var(--line);
 }
 .concept-scope,
 .concept-branch-empty {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-control);
   margin: 14px 0;
 }
 .concept-details {
-  margin: 12px 0;
-  border: 1px solid #cfc9ed;
-  border-radius: 10px;
+  margin: var(--space-3) 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   padding: 14px;
-  background: #fff;
+  background: var(--surface);
 }
 .concept-detail-heading {
   display: flex;
@@ -204,18 +210,18 @@
   flex-wrap: wrap;
 }
 .concept-detail-heading h3 {
-  font-size: 16px;
-  margin: 8px 0 14px;
+  font-size: var(--text-body);
+  margin: var(--space-2) 0 14px;
   overflow-wrap: anywhere;
 }
 .concept-findings h4,
 .concept-contexts h4 {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 .concept-findings p,
 .concept-why p {
-  font-size: 12px;
+  font-size: var(--text-body);
   margin: 0 0 14px;
 }
 .concept-why,
@@ -223,14 +229,14 @@
 .concept-paper-fits,
 .concept-method,
 .concept-conflicts {
-  margin-top: 16px;
+  margin-top: var(--space-4);
   border-top: 1px solid var(--line);
   padding-top: 14px;
 }
 .concept-panel summary {
   cursor: pointer;
-  color: #55499a;
-  font-size: 12px;
+  color: var(--accent);
+  font-size: var(--text-control);
   font-weight: 600;
 }
 .concept-panel > .explore-connections-title {
@@ -238,17 +244,17 @@
   color: var(--ink);
 }
 .concept-why[open] summary {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .concept-question {
   margin: 14px 0;
-  padding: 12px;
-  background: #f7f6fc;
+  padding: var(--space-3);
+  background: var(--soft);
   border-radius: 8px;
 }
 .concept-question p {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .concept-actions {
   display: flex;
@@ -261,39 +267,45 @@
   white-space: normal;
 }
 .concept-source {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid #e5e6ee;
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 .concept-source > a {
   display: block;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 500;
+  font-size: 20px;
   line-height: 1.5;
   margin-bottom: 6px;
   overflow-wrap: anywhere;
+
+  font-family: var(--font-editorial);
+
+  color: var(--ink);
 }
 .concept-source blockquote {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--text-body);
   line-height: 1.75;
   margin: 10px 0;
   padding-left: 10px;
-  border-left: 2px solid #cbc4e8;
+  border-left: 2px solid var(--line);
+
+  color: var(--ink);
 }
 .concept-source .text-button {
   white-space: normal;
   text-align: left;
 }
 .concept-fit-warning {
-  padding: 14px 16px;
-  background: #fff8ed;
-  border: 1px solid #e8d5b8;
-  border-radius: 9px;
-  margin: 16px 0;
-  font-size: 12px;
+  padding: 14px var(--space-4);
+  background: var(--warning-surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: var(--space-4) 0;
+  font-size: var(--text-control);
 }
 .concept-fit-warning p {
   margin: 6px 0 0;
@@ -304,25 +316,29 @@
   align-items: start;
   gap: 20px;
   padding: 14px 0;
-  border-bottom: 1px solid #ededf3;
+  border-bottom: 1px solid var(--line);
 }
 .concept-paper-fit > div {
   min-width: 0;
 }
 .concept-paper-fit a {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 500;
   line-height: 1.6;
   overflow-wrap: anywhere;
+
+  font-family: var(--font-editorial);
+
+  color: var(--ink);
 }
 .concept-paper-fit .muted {
   display: block;
-  font-size: 11px;
-  margin-top: 4px;
+  font-size: var(--text-control);
+  margin-top: var(--space-1);
 }
 .concept-paper-fit > details {
   max-width: 230px;
-  font-size: 11px;
+  font-size: var(--text-control);
 }
 .concept-paper-fit summary {
   text-align: right;
@@ -330,47 +346,53 @@
 }
 .fit-badge {
   display: inline-block;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-size: 10px;
+  padding: 3px var(--space-2);
+  border-radius: 4px;
+  font-size: var(--text-control);
   font-weight: 600;
-  background: #f0f2f7;
-  color: #566178;
+  background: var(--soft);
+  color: var(--muted);
 }
 .fit-strong {
-  background: #ecf5f1;
-  color: #2a6656;
+  background: var(--success-surface);
+  color: var(--success);
 }
 .fit-moderate {
-  background: #f0effb;
-  color: #61558b;
+  background: var(--soft);
+  color: var(--muted);
 }
 .fit-weak {
-  background: #fcf1e6;
-  color: #875a2d;
+  background: var(--warning-surface);
+  color: var(--warning);
 }
 .concept-conflict-node {
-  margin: 12px 0;
-  background: #fff8f5;
-  border-color: #ead4c8;
+  margin: var(--space-3) 0;
+  background: var(--soft);
+  border-color: var(--line);
 }
 .concept-method li {
-  font-size: 12px;
+  font-size: var(--text-control);
   line-height: 1.8;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 .compact-map .concept-board {
-  padding: 16px;
+  padding: var(--space-4);
+
+  background-color: var(--surface);
 }
 .compact-map .concept-branches {
-  gap: 12px;
+  gap: var(--space-3);
 }
 .compact-map .concept-node {
   padding: 10px;
   gap: 5px;
 }
 .compact-map .concept-node strong {
-  font-size: 12px;
+  font-size: var(--text-control);
+
+  font-family: var(--font-ui);
+
+  font-weight: 500;
 }
 @media (max-width: 1000px) {
   .concept-branches {
@@ -379,28 +401,32 @@
 }
 @media (max-width: 620px) {
   .concept-map-content {
-    padding: 0 14px 16px;
+    padding: 0 14px var(--space-4);
   }
   .explore-connections-title {
-    padding: 16px 14px;
+    padding: var(--space-4) 14px;
   }
   .explore-connections-title > span {
     display: block;
-    margin: 6px 0 0 16px;
+    margin: 6px 0 0 var(--space-4);
   }
   .concept-map-controls > span {
     width: 100%;
     margin: 0;
   }
   .concept-board {
-    padding: 16px;
+    padding: var(--space-4);
+
+    background-color: var(--surface);
   }
   .concept-branches {
     grid-template-columns: 1fr;
     gap: 18px;
   }
   .concept-focus {
-    padding: 16px;
+    padding: var(--space-4);
+
+    background: var(--soft);
   }
   .concept-paper-fit {
     grid-template-columns: 1fr;
@@ -419,6 +445,10 @@
     padding: 14px;
   }
   .concept-node strong {
-    font-size: 14px;
+    font-size: var(--text-control);
+
+    font-family: var(--font-ui);
+
+    font-weight: 500;
   }
 }

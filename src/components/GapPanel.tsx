@@ -118,15 +118,6 @@ export function GapPanel({
           id="gap-evidence-scope"
           value={scope}
           onChange={(e) => setScope(e.target.value as GapEvidenceScope)}
-          style={{
-            maxWidth: '100%',
-            width: '100%',
-            padding: '9px',
-            border: '1px solid #dfe5ef',
-            borderRadius: '6px',
-            background: '#fff',
-            color: '#17213c',
-          }}
         >
           <option value="body">Retrieved article body only</option>
           <option value="include-abstracts">
