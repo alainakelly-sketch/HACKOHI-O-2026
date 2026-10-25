@@ -2505,22 +2505,6 @@ body {
   border-inline-start: 3px solid var(--accent);
 }
 
-.paper-entry-number {
-  font-family: var(--font-ui);
-  font-size: var(--text-control);
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-  padding-top: 5px;
-  min-width: 26px;
-}
-
-.paper-authors {
-  font-size: var(--text-control);
-  color: var(--muted);
-  margin-top: var(--space-2);
-  line-height: 1.5;
-}
-
 .brand-icon-frame {
   display: grid;
   place-items: center;
@@ -2543,4 +2527,102 @@ body {
   height: 70px;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+/* Restore pre-editorial d17f704 surfaces without changing the current workflow. */
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-ui);
+  font-weight: 400;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-ui);
+  font-weight: 700 !important;
+}
+code,
+pre,
+kbd,
+samp {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.panel {
+  border: 1px solid #e2e7ef;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: none;
+}
+.workflow-panel > .panel {
+  padding: 24px;
+  border-radius: 10px;
+}
+button.primary {
+  background: #5558ef;
+  box-shadow: none;
+}
+button.primary:hover:not(:disabled) {
+  background: #4649d8;
+}
+.pipeline-nav {
+  gap: 8px;
+  padding: 5px;
+  background: #f4f5f9;
+  border-radius: 10px;
+  height: auto;
+}
+.pipeline-step {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 9px 16px;
+  gap: 9px;
+  height: auto;
+  color: #68748d;
+}
+.pipeline-step.current {
+  background: #fff;
+  color: #393a98;
+  border-color: #e0e1f1;
+  box-shadow: 0 1px 3px #13234808;
+}
+.pipeline-number {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e9ecf4;
+  flex-shrink: 0;
+}
+.pipeline-step.current .pipeline-number {
+  background: #eeebfc;
+  color: #5558ef;
+}
+.paper-row.selected {
+  background: #f4f1ff;
+  border: 1px solid #ded9f4;
+  border-inline-start: 3px solid #5558ef;
+  border-radius: 8px;
+  padding: 20px 14px;
+}
+.paper-row.selected h3 {
+  color: #4540af;
+}
+@media (max-width: 650px) {
+  .workflow-panel > .panel {
+    padding: 18px;
+  }
+  .pipeline-nav {
+    gap: 2px;
+  }
+  .pipeline-step {
+    padding: 8px 6px;
+    gap: 4px;
+  }
 }

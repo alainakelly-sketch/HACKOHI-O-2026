@@ -184,6 +184,7 @@ export default function App() {
     field: '',
     resources: { ...emptyResources },
   });
+  const [readingPaper, setReadingPaper] = useState<Paper | null>(null);
   const [papers, setPapers] = useState<Paper[]>([]),
     [selected, setSelected] = useState<Paper[]>([]);
   const [gapScope, setGapScope] = useState<GapEvidenceScope>('body');
@@ -502,6 +503,7 @@ export default function App() {
           ? items.map((p) => (p.id === updated.id ? updated : p))
           : items,
       );
+      setReadingPaper((paper) => (paper?.id === updated.id ? updated : paper));
       setPapers((items) =>
         items.some((p) => p.id === updated.id)
           ? items.map((p) => (p.id === updated.id ? updated : p))
@@ -965,7 +967,10 @@ export default function App() {
               verification={verification}
               resources={brief.resources}
               onCheckText={() => void verifyPapers(papers)}
-              onRead={() => setActiveNav('comparison')}
+              onRead={(paper) => {
+                setReadingPaper(paper);
+                setActiveNav('comparison');
+              }}
             />
           </div>
           <div
@@ -976,8 +981,19 @@ export default function App() {
             hidden={activeNav !== 'comparison'}
             tabIndex={0}
           >
+            {readingPaper ? (
+              <div className="reader-context">
+                <p>Reading: {readingPaper.title}</p>
+                <button
+                  className="text-button"
+                  onClick={() => setReadingPaper(null)}
+                >
+                  Compare selected papers
+                </button>
+              </div>
+            ) : null}
             <ComparisonPanel
-              papers={selected}
+              papers={readingPaper ? [readingPaper] : selected}
               onLoad={loadFullText}
               busy={textBusy}
               errors={textErrors}
@@ -1145,8 +1161,14 @@ export default function App() {
               }
               papers={[
                 ...planSources.filter(
-                  (p) => !selected.some((s) => s.id === p.id),
+                  (p) =>
+                    !selected.some((s) => s.id === p.id) &&
+                    p.id !== readingPaper?.id,
                 ),
+                ...(readingPaper &&
+                !selected.some((paper) => paper.id === readingPaper.id)
+                  ? [readingPaper]
+                  : []),
                 ...selected,
               ]}
               brief={brief}

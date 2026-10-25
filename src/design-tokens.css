@@ -1,8 +1,7 @@
 /* Original brand colors recovered from acba703; page from pre-editorial d17f704. */
 :root {
   --font-editorial: var(--font-ui);
-  --font-ui:
-    'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-ui: 'Playfair Display', Georgia, serif;
   --page: #f8fafc;
   --surface: #fff;
   --ink: #0b1c3d;
@@ -22,7 +21,7 @@
   --warning-surface: #fbf3e5;
   --danger: #9d322d;
   --danger-surface: #fbefec;
-  --radius: 6px;
+  --radius: 10px;
   --radius-sm: 4px;
   --space-1: 4px;
   --space-2: 8px;
@@ -35,7 +34,7 @@
   --text-control: 14px;
   --text-title: clamp(28px, 3vw, 34px);
   --text-section: 22px;
-  --text-publication: 20px;
+  --text-publication: 17px;
   --overlay-shadow: 0 16px 56px #0b1c3d26;
   --control-border: #7d899d;
 }

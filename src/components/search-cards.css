@@ -1,6 +1,6 @@
 /* Search is a shortlist; provenance stays one deliberate action away. */
 .compact-paper {
-  padding: 28px 0;
+  padding: 20px 0;
 
   border-radius: 0;
 
@@ -18,8 +18,8 @@
 .compact-paper .paper-heading-copy h3 {
   margin: 0 0 var(--space-2);
   font-size: var(--text-publication);
-  font-weight: 500;
-  line-height: 1.35;
+  font-weight: 700;
+  line-height: 1.55;
 
   font-family: var(--font-editorial);
 
@@ -72,7 +72,7 @@
 }
 .paper-facts dt {
   font-size: var(--text-control);
-  font-weight: 500;
+  font-weight: 700;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -119,9 +119,9 @@
 
     font-family: var(--font-editorial);
 
-    font-weight: 500;
+    font-weight: 700;
 
-    line-height: 1.35;
+    line-height: 1.55;
 
     letter-spacing: 0;
   }
@@ -134,9 +134,9 @@
 .query-interpretation {
   margin: var(--space-4) 0;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 10px;
   padding: 14px var(--space-4);
-  background: var(--surface);
+  background: #fcfbff;
 }
 .query-label {
   display: block;
@@ -152,10 +152,10 @@
 .query-concepts > span {
   font-size: var(--text-control);
   padding: 5px 9px;
-  border: 1px solid var(--line);
-  background: var(--soft);
-  color: var(--muted);
-  border-radius: 4px;
+  border: 1px solid #ded9f4;
+  background: #f4f1ff;
+  color: #544780;
+  border-radius: 7px;
 }
 .query-interpretation details {
   margin-top: 10px;

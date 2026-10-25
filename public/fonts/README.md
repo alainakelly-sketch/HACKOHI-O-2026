@@ -1,6 +1,6 @@
 # PaperBridge self-hosted fonts
 
-The active website font is Manrope. Earlier Newsreader and IBM Plex Sans binaries remain as historical assets; `src/fonts.css` no longer loads them.
+The active website font is Playfair Display (regular 400 and bold 700). Manrope is retained as a historical asset. Earlier Newsreader and IBM Plex Sans binaries remain as historical assets; `src/fonts.css` no longer loads them.
 
 These are unmodified variable TrueType font binaries downloaded from the official Google Fonts repository. Fonts are served locally; browser rendering does not depend on a third-party font CDN. All use the SIL Open Font License 1.1; full copyright and license notices are preserved alongside the binaries.
 
@@ -24,7 +24,7 @@ The Google Fonts CSS endpoint returned403 in this environment. Original reposito
 
 CSS exposes the weights used by the journal restyle: Newsreader400–500 and IBM Plex Sans400–600, normal style, with `font-display: swap`. Newsreader retains its optical-size axis; IBM Plex Sans uses its default normal width. Set `font-optical-sizing: auto` in the design system.
 
-## manrope-variable.ttf — current website font
+## manrope-variable.ttf — historical font
 
 - Source: https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/Manrope%5Bwght%5D.ttf
 - License: [Manrope-OFL.txt](./Manrope-OFL.txt), SIL Open Font License1.1; original copyright notice preserved.
@@ -32,4 +32,12 @@ CSS exposes the weights used by the journal restyle: Newsreader400–500 and IBM
 - Size: 164,700 bytes
 - Binary axis: wght200–800 (default200); the variable font provides the requested regular400 and medium/semibold500–600 instances.
 
-This is the unmodified original Google Fonts repository binary, validated with FontTools. The current branding-restoration update uses Manrope for website text with `font-display: swap`; lettering embedded in the existing logo image is untouched. The earlier font files and licenses above are retained as historical assets, not the current website font.
+This is the unmodified original Google Fonts repository binary, validated with FontTools. This binary was used by an earlier branding update and is retained as a historical asset. It is not loaded by the current font stylesheet.
+
+## playfair-display-variable.ttf — active website font
+
+- Source: https://raw.githubusercontent.com/google/fonts/main/ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf
+- License: [PlayfairDisplay-OFL.txt](./PlayfairDisplay-OFL.txt), SIL Open Font License 1.1; original copyright preserved.
+- SHA-256: `c40f2293766a503bc70cce9e512ef844a4ccb7cbcde792fe2ea31d191917d8d6`
+- Unmodified official variable binary, validated with FontTools: family Playfair Display; weight axis 400–900. CSS exposes 400–700; body uses 400 and headings 700.
+- Served locally with font-display: swap. Logo lettering remains embedded in the original image. Earlier font sections describe historical assets only.

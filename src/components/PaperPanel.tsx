@@ -97,7 +97,6 @@ function QueryInterpretation({
 }
 export function PaperRow({
   paper,
-  number,
   selected,
   disabled,
   onToggle,
@@ -107,7 +106,6 @@ export function PaperRow({
   textError,
 }: {
   paper: Paper;
-  number?: number;
   selected?: boolean;
   disabled?: boolean;
   onToggle?: () => void;
@@ -131,11 +129,6 @@ export function PaperRow({
       className={`paper-row compact-paper ${selected ? 'selected' : ''}`}
     >
       <div className="paper-top">
-        {number !== undefined ? (
-          <span className="paper-entry-number" aria-hidden="true">
-            {String(number).padStart(2, '0')}
-          </span>
-        ) : null}
         {onToggle ? (
           <input
             aria-label={`Select ${paper.title}`}
@@ -147,12 +140,6 @@ export function PaperRow({
         ) : null}
         <div className="paper-heading-copy">
           <h3>{paper.title}</h3>
-          <p className="paper-authors">
-            {paper.authors.length
-              ? paper.authors.slice(0, 3).join(', ') +
-                (paper.authors.length > 3 ? ' et al.' : '')
-              : 'Authors unavailable'}
-          </p>
           <div className="paper-meta">
             <span>{paper.year ?? 'Year unavailable'}</span>
             <span className="coverage">
@@ -208,14 +195,7 @@ export function PaperRow({
       ) : null}
       <div className="paper-quick-actions">
         {body.length ? (
-          <button
-            className="text-button"
-            disabled={disabled}
-            onClick={() => {
-              if (!selected) onToggle?.();
-              onRead?.();
-            }}
-          >
+          <button className="text-button" onClick={onRead}>
             Read article body
           </button>
         ) : onLoad && canLoadFullText(paper) ? (
@@ -350,7 +330,7 @@ export function PaperPanel({
   lastQuery: string;
   onSearch: (query: string, concepts?: Concepts) => void;
   onToggle: (paper: Paper) => void;
-  onRead?: () => void;
+  onRead?: (paper: Paper) => void;
   sourceStatuses?: SearchSourceStatus[];
   onLoad: (paper: Paper) => void;
   textBusy: Set<string>;
@@ -392,11 +372,10 @@ export function PaperPanel({
       <PaperRow
         key={p.id}
         paper={p}
-        number={visible.findIndex((item) => item.id === p.id) + 1}
         selected={selected.some((s) => s.id === p.id)}
         disabled={selected.length >= 6 && !selected.some((s) => s.id === p.id)}
         onToggle={() => onToggle(p)}
-        onRead={onRead}
+        onRead={() => onRead?.(p)}
         onLoad={() => onLoad(p)}
         textBusy={textBusy.has(p.id)}
         textError={textErrors[p.id]}
@@ -417,7 +396,8 @@ export function PaperPanel({
         </span>
       </div>
       <p className="collection-note">
-        Find relevant papers, then choose the sources to explore.
+        Select 4–6 papers for AI analysis. You can read a paper without
+        selecting it.
       </p>
       <form
         className="search-form"
@@ -678,6 +658,8 @@ export function PaperPanel({
             <button
               key={p.id}
               onClick={() => onToggle(p)}
+              type="button"
+              aria-label={`Remove ${p.title}`}
               title={`Remove ${p.title}`}
             >
               <span>{p.title}</span>

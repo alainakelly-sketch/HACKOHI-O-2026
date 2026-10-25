@@ -1,9 +1,8 @@
-/* Unmodified official Google Fonts Manrope binary. Source/checksum and SIL OFL:
- * public/fonts/README.md and public/fonts/Manrope-OFL.txt. */
+/* Original Google Fonts binary; provenance and SIL OFL in public/fonts/README.md. */
 @font-face {
-  font-family: 'Manrope';
-  src: url('/fonts/manrope-variable.ttf') format('truetype');
+  font-family: 'Playfair Display';
+  src: url('/fonts/playfair-display-variable.ttf') format('truetype');
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 400 700;
   font-display: swap;
 }
