@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
-import { FileText, GitBranch, FlaskConical } from 'lucide-react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Citation, Paper } from '../../shared/types';
 import { buildDiscoveryReport } from '../../shared/discovery';
 import type { DiscoveryEvidence } from '../../shared/discovery';
-import { scanGapLeads } from '../../shared/gaps';
+import { buildConceptOverlap } from '../../shared/concept-overlap';
 import { Notice } from './Primitives';
-import './discovery.css';
+import './concept-map.css';
 
 export type DiscoveryLead = {
   id: string;
@@ -15,16 +14,202 @@ export type DiscoveryLead = {
   sources: Citation[];
   searchQuery: string;
 };
-type ChosenNode = { kind: 'paper' | 'tension' | 'gap'; id: string };
-const fieldLabels = {
-  sample: 'Sample size',
-  population: 'Population',
-  dataset: 'Dataset / conditions',
-  method: 'Method',
-  metric: 'Evaluation measure',
-  limitation: 'Author-stated limitation',
-  futureWork: 'Author-recommended future work',
+type ConceptReport = ReturnType<typeof buildConceptOverlap>;
+type Choice = { kind: 'theme' | 'overlap' | 'conflict'; id: string };
+type Edge = {
+  id: string;
+  path: string;
+  active: boolean;
+  contextual: boolean;
+  speculative: boolean;
 };
+
+function ConceptBoard({
+  report,
+  question,
+  chosen,
+  onChoose,
+}: {
+  report: ConceptReport;
+  question: string;
+  chosen: Choice | null;
+  onChoose: (choice: Choice) => void;
+}) {
+  const board = useRef<HTMLDivElement>(null);
+  const [drawing, setDrawing] = useState<{
+    width: number;
+    height: number;
+    edges: Edge[];
+  }>({ width: 1, height: 1, edges: [] });
+  useLayoutEffect(() => {
+    const element = board.current;
+    if (!element) return;
+    let frame = 0;
+    function measure() {
+      if (!element) return;
+      const bounds = element.getBoundingClientRect();
+      const nodes = new Map(
+        Array.from(
+          element.querySelectorAll<HTMLElement>('[data-map-node]'),
+        ).map((node) => [node.dataset.mapNode!, node.getBoundingClientRect()]),
+      );
+      const connections = [
+        ...report.themes.map((theme) => ({
+          from: 'focus',
+          to: theme.id,
+          contextual: true,
+          speculative: false,
+        })),
+        ...report.overlaps.flatMap((overlap) =>
+          [overlap.leftId, overlap.rightId].map((id) => ({
+            from: overlap.id,
+            to: id,
+            contextual: false,
+            speculative: overlap.kind === 'missing-bridge',
+          })),
+        ),
+      ];
+      const selectedOverlap = report.overlaps.find(
+        (item) => chosen?.kind === 'overlap' && item.id === chosen.id,
+      );
+      const edges = connections.flatMap((connection) => {
+        const from = nodes.get(connection.from),
+          to = nodes.get(connection.to);
+        if (!from || !to) return [];
+        const right = to.x > from.x;
+        const x1 = (right ? from.right : from.left) - bounds.left;
+        const x2 = (right ? to.left : to.right) - bounds.left;
+        const y1 = from.top + from.height / 2 - bounds.top;
+        const y2 = to.top + to.height / 2 - bounds.top;
+        const bend = (x2 - x1) / 2;
+        return [
+          {
+            id: `${connection.from}:${connection.to}`,
+            path: `M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`,
+            contextual: connection.contextual,
+            speculative: connection.speculative,
+            active:
+              (!connection.contextual &&
+                (chosen?.id === connection.from ||
+                  chosen?.id === connection.to)) ||
+              (connection.contextual &&
+                (chosen?.id === connection.to ||
+                  selectedOverlap?.leftId === connection.to ||
+                  selectedOverlap?.rightId === connection.to)),
+          },
+        ];
+      });
+      setDrawing({ width: bounds.width, height: bounds.height, edges });
+    }
+    const resize = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    });
+    resize.observe(element);
+    element
+      .querySelectorAll('[data-map-node]')
+      .forEach((node) => resize.observe(node));
+    measure();
+    return () => {
+      cancelAnimationFrame(frame);
+      resize.disconnect();
+    };
+  }, [report, chosen]);
+  const linked = new Set(
+    report.overlaps.find((item) => item.id === chosen?.id)
+      ? [
+          report.overlaps.find((item) => item.id === chosen?.id)!.leftId,
+          report.overlaps.find((item) => item.id === chosen?.id)!.rightId,
+        ]
+      : [],
+  );
+  const themeNode = (theme: ConceptReport['themes'][number], index: number) => (
+    <button
+      type="button"
+      key={theme.id}
+      data-map-node={theme.id}
+      aria-label={`Explore theme: ${theme.label}`}
+      aria-pressed={chosen?.kind === 'theme' && chosen.id === theme.id}
+      className={`concept-node theme-node ${linked.has(theme.id) ? 'connected' : ''}`}
+      onClick={() => onChoose({ kind: 'theme', id: theme.id })}
+    >
+      <span className="concept-eyebrow">Theme {index + 1}</span>
+      <strong>{theme.label}</strong>
+      <span>
+        {theme.paperIds.length}{' '}
+        {theme.paperIds.length === 1 ? 'paper' : 'papers'} · View evidence
+      </span>
+    </button>
+  );
+  return (
+    <div
+      className="concept-board"
+      ref={board}
+      aria-label="Themes and their connections"
+    >
+      <svg
+        className="concept-connectors"
+        viewBox={`0 0 ${drawing.width} ${drawing.height}`}
+        aria-hidden="true"
+      >
+        {drawing.edges.map((edge) => (
+          <path
+            key={edge.id}
+            d={edge.path}
+            className={`${edge.contextual ? 'context-edge' : 'overlap-edge'} ${edge.speculative ? 'speculative-edge' : ''} ${edge.active ? 'selected-edge' : ''}`}
+          />
+        ))}
+      </svg>
+      <div className="theme-stack theme-stack-left">
+        {report.themes
+          .filter((_, i) => i % 2 === 0)
+          .map((theme) => themeNode(theme, report.themes.indexOf(theme)))}
+      </div>
+      <div className="concept-center">
+        <article className="concept-focus" data-map-node="focus">
+          <span className="concept-eyebrow">Your research question</span>
+          <h3>{question || 'Add a research question to assess fit'}</h3>
+        </article>
+        {report.overlaps.length > 0 ? (
+          <div className="overlap-stack">
+            <span className="concept-eyebrow">Between these themes</span>
+            {report.overlaps.map((overlap) => (
+              <button
+                type="button"
+                key={overlap.id}
+                data-map-node={overlap.id}
+                aria-label={`Explore overlap: ${overlap.label}`}
+                aria-pressed={
+                  chosen?.kind === 'overlap' && chosen.id === overlap.id
+                }
+                className={`concept-node overlap-node ${overlap.kind}`}
+                onClick={() => onChoose({ kind: 'overlap', id: overlap.id })}
+              >
+                <span className="concept-eyebrow">
+                  {overlap.kind === 'overlap'
+                    ? 'Co-mentioned in source text'
+                    : 'Bridge to investigate'}
+                </span>
+                <strong>{overlap.label}</strong>
+                <span>
+                  {overlap.kind === 'overlap'
+                    ? 'What connects them?'
+                    : 'No shared sentence identified'}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="theme-stack theme-stack-right">
+        {report.themes
+          .filter((_, i) => i % 2 === 1)
+          .map((theme) => themeNode(theme, report.themes.indexOf(theme)))}
+      </div>
+    </div>
+  );
+}
+
 export function DiscoveryPanel({
   papers,
   focus,
@@ -38,443 +223,349 @@ export function DiscoveryPanel({
   onPlan: (lead: DiscoveryLead) => void;
   onHypothesis: (lead: DiscoveryLead) => void;
 }) {
-  const [chosen, setChosen] = useState<ChosenNode | null>(null);
-  const report = useMemo(() => buildDiscoveryReport(papers), [papers]);
-  const gapSources = useMemo(
-    () =>
-      papers
-        .map((paper) => ({
-          ...paper,
-          passages: paper.passages.filter(
-            (passage) => passage.kind === 'full-text',
-          ),
-        }))
-        .filter((paper) => paper.passages.length),
-    [papers],
+  const [chosen, setChosen] = useState<Choice | null>(null);
+  const details = useRef<HTMLElement>(null);
+  const concepts = useMemo(
+    () => buildConceptOverlap(papers, focus.question, focus.field),
+    [papers, focus.question, focus.field],
   );
-  const scan = useMemo(
-    () => scanGapLeads(gapSources, focus.question, focus.field),
-    [gapSources, focus.question, focus.field],
-  );
-  const gaps = scan.candidates.slice(0, 6);
-  const tension =
-    chosen?.kind === 'tension'
-      ? report.tensions.find((item) => item.id === chosen.id)
+  const discovery = useMemo(() => buildDiscoveryReport(papers), [papers]);
+  const theme =
+    chosen?.kind === 'theme'
+      ? concepts.themes.find((item) => item.id === chosen.id)
       : undefined;
-  const gap =
-    chosen?.kind === 'gap'
-      ? gaps.find((item) => item.id === chosen.id)
+  const overlap =
+    chosen?.kind === 'overlap'
+      ? concepts.overlaps.find((item) => item.id === chosen.id)
       : undefined;
-  const selectedPaper =
-    chosen?.kind === 'paper'
-      ? papers.find((paper) => paper.id === chosen.id)
+  const conflict =
+    chosen?.kind === 'conflict'
+      ? discovery.tensions.find((item) => item.id === chosen.id)
       : undefined;
-  const profile = selectedPaper
-    ? report.profiles.find((item) => item.paperId === selectedPaper.id)
-    : undefined;
-  const lead: DiscoveryLead | null = tension
-    ? {
-        id: tension.id,
-        title: tension.label,
-        question: `What could explain the different reported findings about ${tension.topic}?`,
-        reason: tension.followUp,
-        sources: tension.claims.map((claim) => claim.reference),
-        searchQuery: tension.searchQuery,
-      }
-    : gap
+  const evidence =
+    theme?.evidence ?? overlap?.evidence ?? conflict?.claims ?? [];
+  const title = theme?.label ?? overlap?.label ?? conflict?.label ?? '';
+  const paperIds = new Set(evidence.map((item) => item.reference.paperId));
+  const known =
+    overlap?.known ??
+    (theme
+      ? `This theme occurs in ${theme.paperIds.length} selected ${theme.paperIds.length === 1 ? 'paper' : 'papers'}. The passages below show what those sources state; a shared term alone does not establish agreement.`
+      : 'The scan paired differently worded reported findings about the same measure. Their study contexts may differ.');
+  const missing =
+    theme?.missing ??
+    overlap?.missing ??
+    'Whether population, data or method differences explain these findings remains to be checked.';
+  const rationale =
+    overlap?.rationale ??
+    (theme
+      ? 'Use the grouped source statements to choose a question worth checking. Mentioning a theme does not establish an unanswered research question.'
+      : (conflict?.followUp ?? ''));
+  const question =
+    theme?.question ??
+    overlap?.question ??
+    (conflict
+      ? `What could explain the different reported findings about ${conflict.topic}?`
+      : '');
+  const lead: DiscoveryLead | null =
+    title && evidence.length
       ? {
-          id: gap.id,
-          title: gap.label,
-          question: `What small study could investigate this author-stated issue: ${gap.signalText}`,
-          reason: gap.followUp,
-          sources: [{ paperId: gap.paperId, passageId: gap.passageId }],
-          searchQuery: gap.searchQuery,
+          id: `concept:${chosen?.id}`,
+          title,
+          question,
+          reason: `${rationale}\n${missing}`,
+          sources: Array.from(
+            new Map(
+              evidence.map((item) => [
+                `${item.reference.paperId}:${item.reference.passageId}`,
+                item.reference,
+              ]),
+            ).values(),
+          ),
+          searchQuery: title,
         }
       : null;
-  const linked = new Set(
-    lead?.sources.map((citation) => citation.paperId) ?? [],
-  );
-  const title = (id: string) =>
-    papers.find((paper) => paper.id === id)?.title ?? id;
-  const bodyCount = papers.filter((paper) =>
-    paper.passages.some(
-      (passage) => passage.kind === 'full-text' && passage.text.trim(),
-    ),
-  ).length;
-  function quote(
-    evidence: DiscoveryEvidence,
-    label = 'Discovery supporting passage',
-  ) {
+  function choose(choice: Choice) {
+    setChosen(choice);
+    // Keep keyboard focus on the selected node; move only the viewport.
+    requestAnimationFrame(() =>
+      details.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }),
+    );
+  }
+  function renderEvidence(item: DiscoveryEvidence) {
+    const paper = papers.find((source) => source.id === item.reference.paperId);
     return (
-      <div className="discovery-quote">
-        <span className="source-label">
-          SOURCE STATES ·{' '}
-          {evidence.kind === 'full-text' ? 'ARTICLE BODY' : 'ABSTRACT ONLY'} ·{' '}
-          {evidence.section}
+      <article
+        className="concept-source"
+        key={`${item.reference.paperId}:${item.reference.passageId}:${item.quote}`}
+      >
+        <a href={paper?.url} target="_blank" rel="noreferrer">
+          {paper?.title ?? 'Source unavailable'}
+        </a>
+        <span className="concept-eyebrow">
+          {item.kind === 'full-text' ? 'Article-body passage' : 'Abstract only'}{' '}
+          · {item.section}
         </span>
-        <blockquote>{evidence.quote}</blockquote>
+        <blockquote>{item.quote}</blockquote>
         <button
+          type="button"
           className="text-button"
-          onClick={() => onInspect(evidence.reference, label)}
+          onClick={() => onInspect(item.reference, title)}
         >
           Inspect complete source passage
         </button>
-      </div>
+      </article>
     );
   }
-  function choose(node: ChosenNode, scroll = true) {
-    setChosen(node);
-    if (scroll)
-      requestAnimationFrame(() =>
-        document
-          .querySelector('.discovery-panel .discovery-selection')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-      );
-  }
-  const clip = (text: string, limit = 160) =>
-    text.length > limit ? `${text.slice(0, limit)}…` : text;
   return (
-    <section
-      className="panel discovery-panel"
-      aria-labelledby="discovery-title"
-    >
+    <section className="panel concept-panel" aria-labelledby="discovery-title">
       <div className="panel-heading">
         <div>
-          <h2 id="discovery-title">Evidence mind map</h2>
+          <h2 id="discovery-title">Theme overlap map</h2>
           <p className="muted">
-            Explore first. Choose one direction to develop.
+            Follow a theme to its sources. Explore an overlap before proposing a
+            gap.
           </p>
         </div>
-        <GitBranch size={20} aria-hidden="true" />
-      </div>
-      <div
-        className="discovery-summary"
-        aria-label="Current selected-source coverage"
-      >
-        <span>{papers.length} selected papers</span>
-        <span>{bodyCount} with article-body text</span>
-        <span>{report.tensions.length + gaps.length} candidate leads</span>
       </div>
       {!papers.length ? (
-        <Notice>Select papers first to explore their evidence.</Notice>
+        <Notice>Select papers in Search to build your map.</Notice>
       ) : (
         <>
-          <p className="discovery-scope">
-            Selected sources only · leads require review, not confirmed gaps or
-            contradictions.
-          </p>
-          <section
-            className="discovery-map-disclosure"
-            aria-label="Evidence mind map"
-          >
-            <h3>Research focus</h3>
-            <p className="mind-map-focus">
-              {focus.question || focus.field || 'Your selected evidence'}
-            </p>
-            <p className="muted">
-              Papers → source-supported leads → a question to test. Select a
-              node to see its evidence.
-            </p>
-            <svg
-              className="mind-map-branches"
-              viewBox="0 0 900 50"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M450 0 V20 M150 50 V20 H750 V50 M450 20 V50"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              />
-            </svg>
-            <div className="discovery-map">
-              <div className="discovery-map-lane">
-                <h4>
-                  <FileText size={15} />
-                  Selected sources
-                </h4>
-                {papers.map((paper, index) => (
-                  <button
-                    key={paper.id}
-                    className={`discovery-node paper ${selectedPaper?.id === paper.id ? 'active' : ''} ${linked.has(paper.id) ? 'linked' : ''}`}
-                    aria-pressed={selectedPaper?.id === paper.id}
-                    onClick={() => choose({ kind: 'paper', id: paper.id })}
-                  >
-                    <small>
-                      Paper {index + 1} · {paper.year ?? 'Year unavailable'}
-                    </small>
-                    <strong>{paper.title}</strong>
-                    <span>
-                      {paper.coverage}
-                      {linked.has(paper.id) ? ' · supports selected lead' : ''}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="discovery-map-lane">
-                <h4>Possible finding tensions</h4>
-                {report.tensions.map((item) => (
-                  <button
-                    key={item.id}
-                    className={`discovery-node tension ${tension?.id === item.id ? 'active' : ''}`}
-                    onClick={() => choose({ kind: 'tension', id: item.id })}
-                  >
-                    <strong>{item.label}</strong>
-                    <span>{item.topic}</span>
-                  </button>
-                ))}
-                {!report.tensions.length ? (
-                  <p className="muted">None paired by this scan.</p>
-                ) : null}
-              </div>
-              <div className="discovery-map-lane">
-                <h4>Author-stated gap leads</h4>
-                {gaps.map((item) => (
-                  <button
-                    key={item.id}
-                    className={`discovery-node gap ${gap?.id === item.id ? 'active' : ''}`}
-                    onClick={() => choose({ kind: 'gap', id: item.id })}
-                  >
-                    <small>{item.label}</small>
-                    <strong>{clip(item.signalText)}</strong>
-                    <span>{title(item.paperId)}</span>
-                  </button>
-                ))}
-                {!gaps.length ? (
-                  <p className="muted">
-                    None identified in imported body text.
-                  </p>
-                ) : null}
-              </div>
+          {concepts.weakWarning ? (
+            <div className="concept-fit-warning" role="status">
+              <strong>
+                These papers may not strongly match your question.
+              </strong>
+              <p>
+                Several papers have few matching question terms. Review their
+                fit below or return to Search before developing a hypothesis.
+              </p>
             </div>
-            <details className="discovery-context-map">
-              <summary>Reported methods and datasets</summary>
-              <div className="discovery-claim-pair">
-                {(['method', 'dataset'] as const).map((field) => (
-                  <section key={field}>
-                    <h4>{fieldLabels[field]}</h4>
-                    {report.profiles
-                      .filter((p) => p.fields[field])
-                      .map((item) => {
-                        const evidence = item.fields[field]!;
-                        return (
-                          <button
-                            className="discovery-node context"
-                            key={`${item.paperId}:${field}`}
-                            onClick={() => {
-                              choose(
-                                { kind: 'paper', id: item.paperId },
-                                false,
-                              );
-                              onInspect(
-                                evidence.reference,
-                                `Reported ${field}`,
-                              );
-                            }}
-                          >
-                            <small>{title(item.paperId)}</small>
-                            <strong>{clip(evidence.quote)}</strong>
-                          </button>
-                        );
-                      })}
-                  </section>
-                ))}
-              </div>
-            </details>
-          </section>
+          ) : null}
+          <div className="concept-legend">
+            <span>
+              <i className="legend-theme" />
+              Theme from source text
+            </span>
+            <span>
+              <i className="legend-overlap" />
+              Co-mentioned themes
+            </span>
+            <span>
+              <i className="legend-bridge" />
+              Connection to investigate
+            </span>
+          </div>
+          {concepts.themes.length ? (
+            <ConceptBoard
+              report={concepts}
+              question={focus.question || focus.field}
+              chosen={chosen}
+              onChoose={choose}
+            />
+          ) : (
+            <div className="concept-empty-map">
+              <article className="concept-focus">
+                <span className="concept-eyebrow">Your research question</span>
+                <h3>
+                  {focus.question ||
+                    focus.field ||
+                    'Add a research question to assess fit'}
+                </h3>
+              </article>
+              <Notice>
+                No reliable shared themes were identified in the screened text.
+                Review paper fit below or select more closely related sources
+                with abstracts or article text.
+              </Notice>
+            </div>
+          )}
+          <p className="concept-scope">
+            Text-based map of selected passages, not a scientific relationship
+            graph. A missing bridge is not proof of a research gap.
+          </p>
           {lead ? (
             <section
-              className="discovery-selection"
-              aria-label="Selected research lead"
+              className="concept-details"
+              aria-label="Concept details"
+              ref={details}
             >
-              <span className="source-label">
-                {tension
-                  ? 'PAPERBRIDGE CANDIDATE · NOT A CONFIRMED CONTRADICTION'
-                  : 'AUTHOR-STATED ISSUE · NOT A CONFIRMED FIELD-WIDE GAP'}
-              </span>
-              <h3>Question to investigate</h3>
-              <p className="discovery-question">{lead.question}</p>
-              <div className="discovery-actions">
-                <button className="primary" onClick={() => onPlan(lead)}>
-                  <FlaskConical size={15} />
-                  Draft an experiment · free
-                </button>
+              <div className="concept-detail-heading">
+                <div>
+                  <span className="concept-eyebrow">
+                    {theme
+                      ? 'Theme'
+                      : overlap?.kind === 'missing-bridge'
+                        ? 'Possible missing bridge'
+                        : conflict
+                          ? 'Possible conflict · requires context review'
+                          : 'Theme overlap'}
+                  </span>
+                  <h3>{title}</h3>
+                </div>
                 <button
-                  className="secondary"
-                  onClick={() => onHypothesis(lead)}
+                  type="button"
+                  className="text-button"
+                  onClick={() => setChosen(null)}
                 >
-                  Develop this hypothesis
+                  Close details
                 </button>
               </div>
-              <p className="panel-footnote">
-                Drafting and opening the AI step are free. Only explicit AI
-                generation can incur a charge.
-              </p>
-              <details>
-                <summary>
-                  Supporting evidence · {lead.sources.length} source{' '}
-                  {lead.sources.length === 1 ? 'passage' : 'passages'}
-                </summary>
-                {tension ? (
-                  <>
-                    <div className="discovery-claim-pair">
-                      {tension.claims.map((claim, index) => (
-                        <article
-                          key={`${claim.reference.paperId}:${claim.reference.passageId}`}
-                        >
-                          <h4>Finding {index + 1}</h4>
-                          <p>{title(claim.reference.paperId)}</p>
-                          {quote(claim, 'Possible finding tension')}
-                        </article>
-                      ))}
-                    </div>
-                    <details>
-                      <summary>
-                        Could population, dataset, or method differences explain
-                        this?
-                      </summary>
-                      {tension.context.map((context) => (
-                        <div key={context.field} className="discovery-context">
-                          <h4>{fieldLabels[context.field]}</h4>
-                          <div className="discovery-claim-pair">
-                            {[context.left, context.right].map(
-                              (evidence, index) => (
-                                <div key={index}>
-                                  <strong>Finding {index + 1} source</strong>
-                                  {evidence ? (
-                                    quote(evidence)
-                                  ) : (
-                                    <p className="muted">
-                                      Context unknown from retrieved text.
-                                    </p>
-                                  )}
-                                </div>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </details>
-                  </>
-                ) : gap ? (
-                  <>
-                    <h4>{title(gap.paperId)}</h4>
-                    <div className="discovery-quote">
-                      <span className="source-label">
-                        SOURCE STATES · ARTICLE BODY · {gap.section}
-                      </span>
-                      <blockquote>{gap.signalText}</blockquote>
-                      <button
-                        className="text-button"
-                        onClick={() => onInspect(lead.sources[0], gap.label)}
-                      >
-                        Inspect complete source passage
-                      </button>
-                    </div>
-                  </>
-                ) : null}
-              </details>
-              <details>
-                <summary>Why this is a lead</summary>
-                <p>{lead.reason}</p>
-                <p className="muted">
-                  The question is a planning prompt. Check related work and
-                  feasibility before treating it as open.
+              <div className="concept-findings">
+                <div>
+                  <h4>What is known</h4>
+                  <p>{known}</p>
+                </div>
+                <div>
+                  <h4>What is missing</h4>
+                  <p>{missing}</p>
+                </div>
+              </div>
+              <details className="concept-why">
+                <summary>Why investigate this</summary>
+                <p>{rationale}</p>
+                <p>
+                  Check related prior work before calling this a gap; these
+                  selected excerpts cannot establish novelty.
                 </p>
               </details>
-            </section>
-          ) : null}
-          {selectedPaper && profile ? (
-            <section
-              className="discovery-selection"
-              aria-label="Selected paper details"
-            >
-              <h3>{selectedPaper.title}</h3>
-              <p className="muted">
-                {selectedPaper.year ?? 'Year unavailable'} ·{' '}
-                {selectedPaper.coverage} ·{' '}
-                <a href={selectedPaper.url} target="_blank" rel="noreferrer">
-                  Original source
-                </a>
-              </p>
-              <div className="discovery-profile">
-                {Object.entries(fieldLabels).map(([field, label]) => {
-                  const evidence =
-                    profile.fields[field as keyof typeof fieldLabels];
-                  return (
-                    <details key={field}>
-                      <summary>
-                        {label}{' '}
-                        <span className="muted">
-                          ·{' '}
-                          {evidence
-                            ? 'Source statement available'
-                            : 'Not identified'}
-                        </span>
-                      </summary>
-                      {evidence ? (
-                        quote(evidence, label)
-                      ) : (
-                        <p className="muted">
-                          Not identified in retrieved text; check the original
-                          paper.
-                        </p>
-                      )}
-                    </details>
-                  );
-                })}
+              <div className="concept-question">
+                <span className="concept-eyebrow">
+                  Question to develop · untested
+                </span>
+                <p>{question}</p>
               </div>
+              <div className="concept-actions">
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => onHypothesis(lead)}
+                >
+                  Develop into a hypothesis
+                </button>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => onPlan(lead)}
+                >
+                  Draft a test without AI
+                </button>
+              </div>
+              <p className="concept-scope">
+                Opening the hypothesis step is free. AI generation requires a
+                separate click.
+              </p>
+              <details className="concept-evidence" key={lead.id}>
+                <summary>
+                  Supporting papers & passages · {paperIds.size}{' '}
+                  {paperIds.size === 1 ? 'paper' : 'papers'}
+                </summary>
+                {evidence.map(renderEvidence)}
+              </details>
             </section>
+          ) : concepts.themes.length ? (
+            <p className="concept-selection-hint">
+              Select a theme or overlap to see what supports it and what remains
+              unknown.
+            </p>
           ) : null}
-          <details className="discovery-patterns">
-            <summary>Reporting patterns & missing details</summary>
-            <p className="muted">
-              Reporting coverage in these passages is not field-wide evidence of
-              what has never been tested.
-            </p>
-            {report.patterns.length ? (
-              report.patterns.map((pattern) => (
-                <details key={pattern.id}>
-                  <summary>{pattern.label}</summary>
-                  {pattern.evidence.map((evidence) => (
-                    <div
-                      key={`${evidence.reference.paperId}:${evidence.reference.passageId}`}
-                    >
-                      <strong>{title(evidence.reference.paperId)}</strong>
-                      {quote(evidence)}
-                    </div>
-                  ))}
-                  {pattern.unknownPaperIds.length ? (
-                    <p className="muted">
-                      Not identified for:{' '}
-                      {pattern.unknownPaperIds.map(title).join('; ')}.
-                    </p>
-                  ) : null}
-                  <p className="muted">{pattern.caution}</p>
-                </details>
-              ))
-            ) : (
-              <p className="muted">No reporting pattern established.</p>
-            )}
-          </details>
-          <details className="discovery-coverage">
-            <summary>Scan scope & limitations</summary>
-            <p>{report.caution}</p>
-            <ul>
-              {papers.map((paper) => (
-                <li key={paper.id}>
-                  <strong>{paper.title}</strong> · {paper.coverage}.{' '}
-                  {paper.fullText?.note ??
-                    'Full article-body coverage is not established.'}
-                </li>
+          {discovery.tensions.length > 0 ? (
+            <details className="concept-conflicts">
+              <summary>
+                Conflicts to review · {discovery.tensions.length}
+              </summary>
+              <p className="muted">
+                Possible differences in reported findings, not confirmed
+                contradictions.
+              </p>
+              {discovery.tensions.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="concept-conflict-node"
+                  onClick={() => choose({ kind: 'conflict', id: item.id })}
+                >
+                  {item.label}
+                </button>
               ))}
-            </ul>
-            <p className="muted">
-              Extracted text can omit figures, tables and supplements. Original
-              links and passage IDs remain available through evidence
-              inspection.
+            </details>
+          ) : null}
+          <details className="concept-paper-fits" open>
+            <summary>Selected papers & question fit · {papers.length}</summary>
+            <p className="concept-scope">
+              Fit estimates question-word coverage in titles and retrieved
+              passages. They do not assess study quality, semantic relevance or
+              feasibility.
             </p>
+            {papers.map((paper) => {
+              const fit = concepts.fits.find(
+                (item) => item.paperId === paper.id,
+              );
+              return (
+                <article className="concept-paper-fit" key={paper.id}>
+                  <div>
+                    <a href={paper.url} target="_blank" rel="noreferrer">
+                      {paper.title}
+                    </a>
+                    <span className="muted">
+                      {paper.year ?? 'Year unavailable'} · {paper.coverage}
+                    </span>
+                  </div>
+                  <details>
+                    <summary>
+                      <span
+                        className={`fit-badge fit-${fit?.label.split(' ')[0].toLowerCase()}`}
+                      >
+                        {fit?.label ?? 'Weak fit'}
+                      </span>
+                      <span className="sr-only">
+                        {' '}
+                        — explain fit for {paper.title}
+                      </span>
+                    </summary>
+                    <p>{fit?.reason}</p>
+                    {fit?.matchedTerms.length ? (
+                      <p>Matched: {fit.matchedTerms.join(', ')}</p>
+                    ) : null}
+                    {fit?.missingTerms.length ? (
+                      <p>Not matched: {fit.missingTerms.join(', ')}</p>
+                    ) : null}
+                  </details>
+                </article>
+              );
+            })}
+          </details>
+          <details className="concept-method">
+            <summary>How to read this map</summary>
+            <ul>
+              <li>
+                Themes are recurring words or phrases extracted locally from
+                retrieved text. Fewer than three may appear when evidence is
+                sparse.
+              </li>
+              <li>
+                Solid connectors link a theme pair to sentences that mention
+                both. Co-mention does not prove a causal relationship or
+                agreement.
+              </li>
+              <li>
+                Dashed bridge cards mark pairs without an identified shared
+                sentence. Cross-sentence relationships, the full papers or wider
+                literature may connect them.
+              </li>
+              <li>
+                Screening uses up to 30,000 characters per paper, the first 150
+                eligible passages and the first 80 sentences per passage.
+                Article-body text is preferred over abstracts. Dotted
+                question-to-theme connectors organize the map; they do not
+                certify relevance.
+              </li>
+              <li>
+                Related limitation statements are grouped under themes.
+                Abstracts stay labeled; figures, tables and supplements may be
+                missing.
+              </li>
+            </ul>
           </details>
         </>
       )}

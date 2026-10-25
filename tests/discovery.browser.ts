@@ -140,9 +140,11 @@ const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 const stageFor = (name: string) =>
   ['Focus', 'Papers', 'Compare'].includes(name)
     ? 'Search'
-    : name === 'Experiment'
-      ? 'Experiment'
-      : 'Hypothesis';
+    : name === 'Mind map'
+      ? 'Mind map'
+      : name === 'Experiment'
+        ? 'Experiment'
+        : 'Hypothesis';
 async function closeEvidence() {
   const close = page.getByRole('button', {
     name: 'Close evidence',
@@ -229,38 +231,32 @@ try {
     await page
       .getByLabel(`Select SYNTHETIC DISCOVERY PAPER ${i}`, { exact: true })
       .check();
-  await open('Gap leads');
+  await open('Mind map');
   await page
-    .getByRole('heading', { name: 'Follow the evidence', exact: true })
+    .getByRole('heading', { name: 'Theme overlap map', exact: true })
     .waitFor();
-  const discovery = page.locator('.discovery-panel');
+  const discovery = page.locator('.concept-panel');
+  await expand(/^Conflicts to review/);
   await discovery
     .getByRole('button', {
       name: /Possible disagreement to review: diagnostic accuracy/,
     })
     .click();
-  await page
-    .getByText('PAPERBRIDGE CANDIDATE · NOT A CONFIRMED CONTRADICTION', {
-      exact: true,
-    })
+  await discovery
+    .getByText('Possible conflict · requires context review', { exact: true })
     .waitFor();
-  await expand(/^Supporting evidence/);
+  await discovery
+    .getByRole('heading', { name: 'What is known', exact: true })
+    .waitFor();
+  await discovery
+    .getByRole('heading', { name: 'What is missing', exact: true })
+    .waitFor();
+  await expand(/^Supporting papers & passages/);
   for (let i = 0; i < 2; i++)
     await discovery
       .getByText(papers[i].passages[0].text, { exact: true })
       .first()
       .waitFor();
-  await page
-    .getByText(
-      'Could population, dataset, or method differences explain this?',
-      { exact: true },
-    )
-    .click();
-  await discovery
-    .locator('.discovery-context')
-    .getByText(papers[0].passages[1].text.split('. ')[0] + '.', { exact: true })
-    .first()
-    .waitFor();
   await discovery
     .getByRole('button', {
       name: 'Inspect complete source passage',
@@ -276,7 +272,7 @@ try {
   assert.equal(priorCalls, 0);
   assert.equal(modelCalls, 0);
   await discovery
-    .getByRole('button', { name: 'Draft an experiment · free', exact: true })
+    .getByRole('button', { name: 'Draft a test without AI', exact: true })
     .click();
   assert.equal(await tab('Experiment').getAttribute('aria-selected'), 'true');
   await page
@@ -338,10 +334,10 @@ try {
   await planPrior
     .getByText('Related prior work found.', { exact: true })
     .waitFor();
-  await open('Gap leads');
+  await open('Mind map');
   await discovery
     .getByRole('button', {
-      name: 'Use this question in AI hypotheses',
+      name: 'Develop into a hypothesis',
       exact: true,
     })
     .click();
@@ -365,17 +361,18 @@ try {
       .inputValue(),
     'Study population group',
   );
-  await open('Gap leads');
+  await open('Mind map');
+  await expand(/^Conflicts to review/);
   await discovery
     .getByRole('button', {
       name: /Possible disagreement to review: diagnostic accuracy/,
     })
     .click();
   await mkdir('/tmp/paperbridge-discovery', { recursive: true });
-  await page.locator('.discovery-panel').scrollIntoViewIfNeeded();
+  await page.locator('.concept-panel').scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/tmp/paperbridge-discovery/desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('.discovery-panel').scrollIntoViewIfNeeded();
+  await page.locator('.concept-panel').scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/tmp/paperbridge-discovery/mobile.png' });
   assert.equal(
     await page.evaluate(
@@ -387,7 +384,7 @@ try {
   assert.equal(searches, 1);
   assert.equal(await page.locator('vite-error-overlay').count(), 0);
   console.log(
-    'PASS: guided focus, selected-source map/tension/context/evidence, free draft+variables/export, three prior outcomes, selected-lead AI handoff only on explicit generation, retained plan, mobile. SYNTHETIC mocks; no paid calls.',
+    'PASS: guided focus, theme-map conflict details and exact evidence, free draft+variables/export, three prior outcomes, selected-lead AI handoff only on explicit generation, retained plan, mobile. SYNTHETIC mocks; no paid calls.',
   );
 } finally {
   await browser.close();

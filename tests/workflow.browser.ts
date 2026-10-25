@@ -143,9 +143,11 @@ const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 const stageFor = (name: string) =>
   ['Focus', 'Papers', 'Compare'].includes(name)
     ? 'Search'
-    : name === 'Experiment'
-      ? 'Experiment'
-      : 'Hypothesis';
+    : name === 'Mind map'
+      ? 'Mind map'
+      : name === 'Experiment'
+        ? 'Experiment'
+        : 'Hypothesis';
 async function closeEvidence() {
   const close = page.getByRole('button', {
     name: 'Close evidence',
@@ -196,7 +198,7 @@ try {
       .getByRole('navigation', { name: 'Research pipeline' })
       .getByRole('button')
       .count(),
-    3,
+    4,
   );
   assert.ok((await page.getByRole('tab').count()) <= 3);
   assert.equal(await page.locator('.sidebar').count(), 0);
@@ -214,7 +216,7 @@ try {
   for (const name of [
     'Papers',
     'Compare',
-    'Gap leads',
+    'Mind map',
     'Resources',
     'AI hypotheses',
     'Experiment',
@@ -358,8 +360,8 @@ try {
     await page.getByLabel('Proposed method', { exact: true }).inputValue(),
     'Synthetic method',
   );
-  await open('Gap leads');
-  await expand('Scan author-stated limitations and future work');
+  await open('Mind map');
+  await expand('Advanced: scan settings and abstract-only leads');
   await page
     .getByRole('button', { name: 'Find gap leads', exact: true })
     .click();

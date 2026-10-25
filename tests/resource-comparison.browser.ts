@@ -84,9 +84,11 @@ const tab = (name: string) => page.getByRole('tab', { name, exact: true });
 const stageFor = (name: string) =>
   ['Focus', 'Papers', 'Compare'].includes(name)
     ? 'Search'
-    : name === 'Experiment'
-      ? 'Experiment'
-      : 'Hypothesis';
+    : name === 'Mind map'
+      ? 'Mind map'
+      : name === 'Experiment'
+        ? 'Experiment'
+        : 'Hypothesis';
 async function closeEvidence() {
   const close = page.getByRole('button', {
     name: 'Close evidence',
